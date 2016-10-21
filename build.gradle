@@ -1,0 +1,111 @@
+// https://docs.gradle.org/current/userguide/
+// https://docs.gradle.org/current/userguide/tutorial_using_tasks.html
+// https://docs.gradle.org/current/userguide/tutorial_java_projects.html
+// https://docs.gradle.org/current/userguide/working_with_files.html
+// http://central.sonatype.org/pages/gradle.html
+
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+// repositories {
+//     jcenter()
+// }
+
+// dependencies {
+//     compile 'org.slf4j:slf4j-api:1.7.12'
+//     testCompile 'junit:junit:4.12'
+// }
+
+group = "com.jianglibo.easyinstaller"
+archivesBaseName = "scriptsnippets"
+version = "0.1.0-SNAPSHOT"
+
+signing { sign configurations.archives }
+
+jar {
+    baseName = 'scriptsnippets'
+    version = '0.1.0-SNAPSHOT'
+}
+
+ext {
+  scriptVersion = '0.1.0'
+}
+
+subprojects {
+  task zipScript(type: Zip) {
+      from 'src'
+      baseName = "${project.parent.name}-${project.name}-installer"
+      version = rootProject.ext.scriptVersion
+      destinationDir = file("${rootProject.projectDir}/build/${rootProject.ext.scriptVersion}")
+  }
+
+  task hello << {
+      println "name is： ${rootProject.projectDir}/build/distributions"
+      println ossrhUsername
+      println ossrhPassword
+  }
+
+  zipScript.doLast {
+    println 'Hello Mars'
+  }
+}
+
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+      repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      pom.project {
+        name 'easyinstaller shared script snippets'
+        packaging 'jar'
+        // optionally artifactId can be defined here
+        // description 'A application used as an example on how to set up
+        //   pushing  its components to the Central Repository.'
+        // url 'http://www.example.com/example-application'
+        //
+        // scm {
+        //   connection 'scm:svn:http://foo.googlecode.com/svn/trunk/'
+        //   developerConnection 'scm:svn:https://foo.googlecode.com/svn/trunk/'
+        //   url 'http://foo.googlecode.com/svn/trunk/'
+        // }
+        //
+        // licenses {
+        //   license {
+        //     name 'The Apache License, Version 2.0'
+        //     url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        //   }
+        // }
+
+        developers {
+          developer {
+            id 'jianglibo'
+            name 'jianglibo'
+            email 'jianglibo@gmail.com'
+          }
+        }
+      }
+    }
+  }
+}
+
+// task collectZips(type: Copy) {
+//    into "build/${project.ext.scriptVersion}"
+//    from projectDir
+//    include fileTree(dir: projectDir, include: "**/*${project.ext.scriptVersion}.zip").getFiles()
+// }
+//
+// task ppp << {
+//   FileTree tree = fileTree(dir: projectDir, include: "**/*${project.ext.scriptVersion}.zip")
+//                                   tree.each {File file ->
+//                                       println file.name
+//                                   }
+// }
