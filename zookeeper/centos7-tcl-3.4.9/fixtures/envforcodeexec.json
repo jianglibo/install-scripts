@@ -1,17 +1,17 @@
 {
   "remoteFolder" : "/opt/easyinstaller",
   "box" : {
-    "ip" : "192.168.2.14",
-    "name" : "box3",
-    "hostname" : "a2.host.name",
+    "ip" : "192.168.2.10",
+    "name" : "box1",
+    "hostname" : "192.168.2.10",
     "roles" : "r1,r2,r3",
-    "dnsServer" : "192.168.2.60",
-    "ips" : "192.168.2.15,192.168.2.16",
-    "ports" : "80,8080"
+    "dnsServer" : "",
+    "ips" : "",
+    "ports" : ""
   },
   "boxGroup" : {
     "name" : "boxgroup1",
-    "configContent" : "",
+    "configContent" : "<!-- yaml->json -->\r\nzkports: 2888,3888\r\nconfigFile: /var/zoo.cfg\r\nbinDir: /opt/zookeeper\r\nzkconfig:\r\n  tickTime: 1999\r\n  dataDir: /var/lib/zookeeper/\r\n  clientPort: 2181\r\n  initLimit: 5\r\n  syncLimit: 2",
     "boxes" : [ {
       "ip" : "192.168.2.10",
       "name" : "box1",
@@ -41,7 +41,7 @@
   "software" : {
     "name" : "zookeeper",
     "sversion" : "3.4.9",
-    "ostype" : "centos7",
+    "ostype" : "CentOs7",
     "runas" : "",
     "filesToUpload" : [ "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz" ],
     "configContent" : "{\r\n  \"zkports\" : \"2888,3888\",\r\n  \"configFile\" : \"/var/zoo.cfg\",\r\n  \"binDir\" : \"/opt/zookeeper\",\r\n  \"zkconfig\" : {\r\n    \"tickTime\" : \"1999\",\r\n    \"dataDir\" : \"/var/lib/zookeeper/\",\r\n    \"clientPort\" : \"2181\",\r\n    \"initLimit\" : \"5\",\r\n    \"syncLimit\" : \"2\"\r\n  }\r\n}",

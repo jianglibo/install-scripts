@@ -17,4 +17,4 @@ include 'services:webservice'
 */
 
 rootProject.name = 'install-scripts'
-include 'zookeeper:centos7-3.4.9'
+include 'zookeeper:centos7-3.4.9', 'zookeeper:centos7-powershell-3.4.9', 'powershell:centos7-6.0.0_alpha.10', 'tcl:centos7-1.8.5'
