@@ -18,18 +18,20 @@ apply plugin: 'signing'
 // }
 
 ext {
-  scriptVersion = '0.1.1'
+  scriptVersion = '0.1.2'
 }
 
 
 group = "com.jianglibo.easyinstaller"
 archivesBaseName = "scriptsnippets"
+// version = "${scriptVersion}"
 version = "${scriptVersion}-SNAPSHOT"
 
 signing { sign configurations.archives }
 
 jar {
     baseName = 'scriptsnippets'
+    // version = "${scriptVersion}"
     version = "${scriptVersion}-SNAPSHOT"
 }
 
@@ -70,22 +72,21 @@ uploadArchives {
         name 'easyinstaller shared script snippets'
         packaging 'jar'
         // optionally artifactId can be defined here
-        // description 'A application used as an example on how to set up
-        //   pushing  its components to the Central Repository.'
-        // url 'http://www.example.com/example-application'
-        //
-        // scm {
-        //   connection 'scm:svn:http://foo.googlecode.com/svn/trunk/'
-        //   developerConnection 'scm:svn:https://foo.googlecode.com/svn/trunk/'
-        //   url 'http://foo.googlecode.com/svn/trunk/'
-        // }
-        //
-        // licenses {
-        //   license {
-        //     name 'The Apache License, Version 2.0'
-        //     url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-        //   }
-        // }
+        description 'A application used as an example on how to set up pushing  its components to the Central Repository.'
+        url 'https://github.com/jianglibo/install-scripts'
+
+        scm {
+          connection 'https://github.com/jianglibo/install-scripts.git'
+          developerConnection 'https://github.com/jianglibo/install-scripts.git'
+          url 'https://github.com/jianglibo/install-scripts'
+        }
+
+        licenses {
+          license {
+            name 'The Apache License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+          }
+        }
 
         developers {
           developer {
