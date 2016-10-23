@@ -17,20 +17,22 @@ apply plugin: 'signing'
 //     testCompile 'junit:junit:4.12'
 // }
 
+ext {
+  scriptVersion = '0.1.1'
+}
+
+
 group = "com.jianglibo.easyinstaller"
 archivesBaseName = "scriptsnippets"
-version = "0.1.0-SNAPSHOT"
+version = "${scriptVersion}-SNAPSHOT"
 
 signing { sign configurations.archives }
 
 jar {
     baseName = 'scriptsnippets'
-    version = '0.1.0-SNAPSHOT'
+    version = "${scriptVersion}-SNAPSHOT"
 }
 
-ext {
-  scriptVersion = '0.1.0'
-}
 
 subprojects {
   task zipScript(type: Zip) {
