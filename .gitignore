@@ -42,3 +42,4 @@ Vagrantfile
 _site/
 tgzFolder/
 *.rpm
+**.gz
