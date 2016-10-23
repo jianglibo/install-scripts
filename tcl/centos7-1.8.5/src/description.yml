@@ -1,10 +1,12 @@
+name: tcl
+ostype: CentOs7
+sversion: 1.8.5
 runner: bash
-preferredFormat: YAML
+preferredFormat: JSON
 codeToExecute: code.sh
 configContent: config.yml
 codeFileExt:
 codeLineSeperator: LF
-runas: 
+runas:
 actions: install
 filesToUpload:
-  - https://github.com/jianglibo/easyinstaller/blob/master/Vagrantfile.tpl

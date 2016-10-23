@@ -1,7 +1,7 @@
 name: zookeeper
 ostype: CentOs7
-sversion: 3.4.9
-runner: bash
+sversion: tcl-3.4.9
+runner: tclsh
 preferredFormat: JSON
 codeToExecute: code.tcl
 configContent: config.yml # content of this file will insert into software configContent field.

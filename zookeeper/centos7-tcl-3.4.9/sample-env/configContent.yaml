@@ -1,4 +1,3 @@
-<!-- yaml->json -->
 zkports: 2888,3888
 configFile: /var/zoo.cfg
 binDir: /opt/zookeeper

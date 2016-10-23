@@ -87,10 +87,14 @@ namespace eval EnvDictNs {
   proc readEnvFileJson {fileName} {
     set jd [::json::json2dict [readWholeFile $fileName]]
     set bgConfigContent [dict get $jd boxGroup configContent]
-    dict set jd boxGroup configContent [::json::json2dict $bgConfigContent]
-    set sfConfigContent [dict get $jd software configContent]
-    dict set jd software configContent [::json::json2dict $sfConfigContent]
+    if {[string length $bgConfigContent] > 0} {
+      dict set jd boxGroup configContent [::json::json2dict $bgConfigContent]
+    }
 
+    set sfConfigContent [dict get $jd software configContent]
+    if {[string length $sfConfigContent] > 0} {
+      dict set jd software configContent [::json::json2dict $sfConfigContent]
+    }
     return $jd
   }
 

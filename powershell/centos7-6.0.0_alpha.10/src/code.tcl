@@ -10,18 +10,24 @@ EnvDictNs::initialize [lindex $argv 1]
 
 set rpmFile [EnvDictNs::getUpload *rpm*]
 
-if {[EnvDictNs::isInstalled powershell]} {
-    puts "powershell already installed.@@success@@"
+if { [string length $rpmFile] == 0} {
+  puts "cannot found rmp file in filesToUpload."
 } else {
-  if { [catch {exec yum install -y $rpmFile msg o] } {
-      if {[string match -nocase "*Nothing to do*" $msg]} {
-          puts "already installed @@success@@"
-          exit 0
+  if {! [file exists $rpmFile]} {
+    puts "file $rpmFile not exists."
+  } else {
+    if {[EnvDictNs::isInstalled powershell]} {
+        puts "powershell already installed.@@success@@"
+    } else {
+      if { [catch {exec yum install -y $rpmFile} msg o] } {
+          if {[string match -nocase "*Nothing to do*" $msg]} {
+              puts "already installed @@success@@"
+          } else {
+              puts $msg
+          }
       } else {
-          puts $msg
-          exit 1
+        puts "@@success@@"
       }
+    }
   }
 }
-puts "@@success@@"
-# for test only

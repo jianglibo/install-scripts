@@ -1,10 +1,13 @@
+name: powershell
+ostype: CentOs7
+sversion: 6.0.0_alpha.10
 runner: bash
-preferredFormat: YAML
+preferredFormat: JSON
 codeToExecute: code.tcl
 configContent: config.yml
 codeFileExt:
 codeLineSeperator: LF
-runas: 
+runas:
 actions: install
 filesToUpload:
   - https://github.com/PowerShell/PowerShell/releases/download/v6.0.0-alpha.10/powershell-6.0.0_alpha.10-1.el7.centos.x86_64.rpm

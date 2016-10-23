@@ -4,65 +4,68 @@ package require yaml
 eval ::tcltest::configure $::argv
 
 set ::baseDir [file join [file dirname [info script]] ..]
+
+set ::fixJson [file normalize [file join $::baseDir fixtures envforcodeexec.json]]
+
 lappend auto_path $::baseDir
 
 namespace eval ::example::test {
     namespace import ::tcltest::*
     testConstraint X [expr {1}]
 
-    test topProperty {} -constraints {X win} -setup {
+    test topProperty {} -constraints {X unix} -setup {
       } -body {
         source [file normalize [file join $::baseDir shared.tcl]]
-        EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+        EnvDictNs::initialize $::fixJson
         return [dict get $EnvDictNs::envdict remoteFolder]
       } -cleanup {
       } -result {/opt/easyinstaller}
 
 
-      test boxGroupProperty {} -constraints {X win} -setup {
+      test boxGroupProperty {} -constraints {X unix} -setup {
         } -body {
           source [file normalize [file join $::baseDir shared.tcl]]
-          EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+          EnvDictNs::initialize $::fixJson
           return [dict get $EnvDictNs::boxGroupConfigContent zkconfig tickTime]
         } -cleanup {
         } -result {1999}
 
-      test softwareProperty {} -constraints {X win} -setup {
+      test softwareProperty {} -constraints {X unix} -setup {
         } -body {
             source [file normalize [file join $::baseDir shared.tcl]]
-            EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+            EnvDictNs::initialize $::fixJson
             return [dict get $EnvDictNs::softwareConfigContent zkconfig tickTime]
         } -cleanup {
         } -result {1999}
 
-        test filesToUpload {} -constraints {X win} -setup {
+        test filesToUpload {} -constraints {X unix} -setup {
           } -body {
               source [file normalize [file join $::baseDir shared.tcl]]
-              EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+              EnvDictNs::initialize $::fixJson
               return [EnvDictNs::getUpload]
           } -cleanup {
           } -result {/opt/easyinstaller/zookeeper-3.4.9.tar.gz}
 
-        test filesToUploadExists {} -constraints {X win} -setup {
+        test filesToUploadExists {} -constraints {X unix} -setup {
           } -body {
               source [file normalize [file join $::baseDir shared.tcl]]
-              EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+              EnvDictNs::initialize $::fixJson
               return [EnvDictNs::getUpload *zookeeper*]
           } -cleanup {
           } -result {/opt/easyinstaller/zookeeper-3.4.9.tar.gz}
 
-        test filesToUploadNotExists {} -constraints {X win} -setup {
+        test filesToUploadNotExists {} -constraints {X unix} -setup {
           } -body {
               source [file normalize [file join $::baseDir shared.tcl]]
-              EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+              EnvDictNs::initialize $::fixJson
               return [EnvDictNs::getUpload *notexists*]
           } -cleanup {
           } -result {}
 
-      test filesToUploads {} -constraints {X win} -setup {
+      test filesToUploads {} -constraints {X unix} -setup {
         } -body {
             source [file normalize [file join $::baseDir shared.tcl]]
-            EnvDictNs::initialize [file normalize [file join $::baseDir test envforcodeexec.json]]
+            EnvDictNs::initialize $::fixJson
             return [EnvDictNs::getUploads]
         } -cleanup {
         } -result {/opt/easyinstaller/zookeeper-3.4.9.tar.gz}
