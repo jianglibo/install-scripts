@@ -74,4 +74,19 @@ Describe "PsCommon" {
             @{gp=$curg;value=$_}
         } -End {$ht} | Group-Object -AsHashTable -AsString -Property {$_["gp"]}).Count | Should Be 3
     }
+
+    It "can handle kvFile" {
+        $cf = Join-Path -Path $here -ChildPath "fixtures\dnsmasq.conf"
+        $kvf = New-KvFile -FilePath $cf
+        Test-Path $cf | Should Be $True
+        ($kvf.lines).count | Should Be 666
+
+        $kvf.addKv("a", "b")
+        ($kvf.lines).count | Should Be 667
+
+        $kvf.commentKv("a");
+        ($kvf.lines).count | Should Be 667
+
+        ($kvf.lines | Where-Object {$_ -eq "#a=b"}).count | Should Be 1
+    }
 }

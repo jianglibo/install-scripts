@@ -75,19 +75,90 @@ function New-CentOsUtil {
 
     $isServiceRunning = {
         Param([parameter(Mandatory=$True)][String]$serviceName)
-        systemctl status $serviceName | Select-Object -First 4 | Where-Object {$_ -match "\s+Active:.*\(running\)"}
+        [Boolean](systemctl status $serviceName | Select-Object -First 4 | Where-Object {$_ -match "\s+Active:.*\(running\)"})
     }
     $coul = $coul | Add-Member -MemberType ScriptMethod -Name isServiceRunning -Value $isServiceRunning -PassThru
 
     $isEnabled = {
         Param([parameter(Mandatory=$True)][String]$serviceName)
-        systemctl is-enabled $serviceName | Where-Object {$_ -match "enabled"}
+        [Boolean](systemctl is-enabled $serviceName | Where-Object {$_ -match "enabled"})
     }
     $coul = $coul | Add-Member -MemberType ScriptMethod -Name isEnabled -Value $isEnabled -PassThru
 
     return $coul
 }
 
+function New-KvFile {
+ Param
+     (
+       [parameter(Mandatory=$True)]
+       [String]
+       $FilePath,
+       [parameter(Mandatory=$False)]
+       [String]
+       $commentPattern = "^\s*#.*"
+    )
+
+    $kvf = New-Object -TypeName PSObject -Property @{FilePath=$FilePath;lines=Get-Content $FilePath}
+
+    $addKv = {
+        param([String]$k, [String]$v)
+        $done = $False
+        $lines = $this.lines | ForEach-Object {
+            if ($done) {
+                $_
+            } else {
+                if (($_ -match "^\s*$k=") -or ($_ -match "${commentPattern}$k=")) {
+                    $done = $True
+                    "$k=$v"
+                } else {
+                    $_
+                }
+            }
+        }
+
+        if (!$done) {
+            $lines += "$k=$v"
+        }
+        $this.lines = $lines
+    }
+
+    $kvf = $kvf | Add-Member -MemberType ScriptMethod -Name addKv -Value $addKv -PassThru
+
+     $commentKv = {
+        param([String]$k)
+        $done = $False
+        $lines = $this.lines | ForEach-Object {
+            if ($done) {
+                $_
+            } else {
+                if ($_ -match "^$k=") {
+                    $done = $True
+                    "#$_"
+                } else {
+                    $_
+                }
+            }
+        }
+        if ($done) { # if changed.
+            $this.lines = $lines
+        }
+    }
+
+    $kvf = $kvf | Add-Member -MemberType ScriptMethod -Name commentKv -Value $commentKv -PassThru
+
+    $writeToFile = {
+        param([parameter(Position=0,Mandatory=$False)][String]$fileToWrite)
+        if (!$fileToWrite) {
+            $fileToWrite = $this.FilePath
+        }
+        Set-Content -Path $fileToWrite -Value $this.lines
+    }
+
+    $kvf = $kvf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value $writeToFile -PassThru
+
+    return $kvf
+}
 
 function New-SectionKvFile {
  Param

@@ -4,7 +4,7 @@ exec tclsh "$0" ${1+"$@"}
 
 package require yaml
 
-# insert-common-script-here:classpath:scripts/tcl/shared.tcl
+# insert-common-script-here:tcl/shared.tcl
 
 EnvDictNs::initialize [lindex $argv 1]
 
