@@ -1,5 +1,5 @@
 ﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.TestsNix\.', '.'
 . "$here\$sut"
 
 Describe "PsCommon" {
@@ -16,7 +16,7 @@ Describe "PsCommon" {
              Param([String]$fileToWrite)
              $fileToWrite
         }
-        $oo.appp("abaac") | Should Be "abaac" 
+        $oo.appp("abaac") | Should Be "abaac"
     }
     It "should addKv commentKv work" {
         $kvf = New-SectionKvFile -FilePath (Join-Path $here -ChildPath "fixtures\NetworkManager.conf")
@@ -63,15 +63,5 @@ Describe "PsCommon" {
 
         $line2 | Should Be @("# Configuration file for NetworkManager.", "#")
         Remove-Item -Path $tmpf
-    }
-
-    It "should handle ip addr" {
-        $ipaddrout = Join-Path -Path $here -ChildPath "fixtures\ipaddr.txt"
-        (Get-Content $ipaddrout | ForEach-Object -Begin {$curg = $null} -Process {
-            if($_ -match "^\d+:\s*(\w+):") {
-                $curg = $Matches[1]
-            }
-            @{gp=$curg;value=$_}
-        } -End {$ht} | Group-Object -AsHashTable -AsString -Property {$_["gp"]}).Count | Should Be 3
     }
 }

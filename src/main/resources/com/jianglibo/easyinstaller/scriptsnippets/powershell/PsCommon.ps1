@@ -32,7 +32,12 @@ function Run-Tar {
     if ($r.Count -gt 0) {$false} else {$True}
 }
 
-function New-CentOs7Nm {
+# https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Using_the_Command_Line_Interface.html
+function New-IpUtil {
+
+}
+
+function New-CentOs7Nmcli {
  Param
      (
        [parameter(Mandatory=$False)]
@@ -55,6 +60,32 @@ function New-CentOs7Nm {
     } -PassThru
 
     return $nm
+}
+
+function New-OsUtil {
+    Param([ValidateSet("centos","unbuntu")][parameter(Mandatory=$True)][String]$ostype="centos")
+    
+    switch ($ostype) {
+        "centos" {New-CentOsUtil}
+    }
+}
+
+function New-CentOsUtil {
+    $coul = New-Object -TypeName PSObject
+
+    $isServiceRunning = {
+        Param([parameter(Mandatory=$True)][String]$serviceName)
+        systemctl status $serviceName | Select-Object -First 4 | Where-Object {$_ -match "\s+Active:.*\(running\)"}
+    }
+    $coul = $coul | Add-Member -MemberType ScriptMethod -Name isServiceRunning -Value $isServiceRunning -PassThru
+
+    $isEnabled = {
+        Param([parameter(Mandatory=$True)][String]$serviceName)
+        systemctl is-enabled $serviceName | Where-Object {$_ -match "enabled"}
+    }
+    $coul = $coul | Add-Member -MemberType ScriptMethod -Name isEnabled -Value $isEnabled -PassThru
+
+    return $coul
 }
 
 
