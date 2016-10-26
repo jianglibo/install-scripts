@@ -243,4 +243,27 @@ Describe "PsCommon" {
         $false -eq "" | Should Be $True
 
     }
+
+    It "is about function" {
+    # https://technet.microsoft.com/en-us/library/hh847829.aspx
+        function Get-Pipeline 
+          { 
+              process {"The value is: $_"} 
+          }
+       1,2,4 | Get-Pipeline | Write-Output -NoEnumerate | Should Be @("The value is: 1","The value is: 2","The value is: 4")
+
+       $ov = 55
+       function Use-var {
+            process {$ov}
+       }
+       1,2,4 | Use-var | Should Be 55
+
+        function Get-PipelineInput
+          {
+              process {"Processing:  $input " }
+              end {"End:   The input is: $input" }
+          }  
+
+     1,2,4 | Get-PipelineInput | Select-Object -Last 1 | Should Be "End:   The input is: "
+    }
 }
