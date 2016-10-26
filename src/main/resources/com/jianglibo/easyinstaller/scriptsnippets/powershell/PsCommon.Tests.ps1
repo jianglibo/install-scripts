@@ -89,4 +89,64 @@ Describe "PsCommon" {
 
         ($kvf.lines | Where-Object {$_ -eq "#a=b"}).count | Should Be 1
     }
+
+    It "Should handle select object" {
+        1,2,3 | Select-Object @{N="k";E={$_ + 1}} | Select-Object -ExpandProperty k | Write-Output -NoEnumerate | Should Be @(2,3,4)
+    }
+
+    It "should handle addHost" {
+        $fixture = Join-Path -Path $here -ChildPath "fixtures\hosts"
+        $hf = New-HostsFile -FilePath $fixture
+        $hf.FilePath -cmatch "hosts$" | Should Be $True
+        $hf.lines.count | Should Be 2
+
+        $hf.addHost("192.168.33.10", "hello.cc")
+        $hf.lines.count | Should Be 3
+        $hf.addHost("192.168.33.10", "hello.cc")
+        $hf.lines.count | Should Be 3
+
+        $hf.lines | Select-String -Pattern "\s+hello.cc" | Write-Output -NoEnumerate | Should Be @("192.168.33.10 hello.cc")
+
+        $hf.addHost("192.168.33.10", "hello.dd")
+        $hf.lines | Select-String -Pattern "\s+hello.cc" | Write-Output -NoEnumerate | Should Be @("192.168.33.10 hello.cc hello.dd")
+    }
+
+    It "should handle varagrs" {
+        function t-f {
+            Param($ports)
+            if ($ports -is [String]) {
+                $ports = $ports -split "[^\d]+"
+            }
+            $ports -join ","
+        }
+
+        t-f "1,2,3" | Should Be "1,2,3"
+        t-f 1,2,3 | Should Be "1,2,3"
+        t-f "1.2.3" | Should Be "1,2,3"
+    }
+
+    It "should handle envforexec" {
+        $fixture = Join-Path -Path $here -ChildPath "fixtures\envforcodeexec.json"
+        $efe = New-EnvForExec $fixture
+
+        $efe.jsonObj.getType().Name | Should  Be "pscustomobject"
+
+        $efe.jsonObj.remoteFolder | Should  Be "/opt/easyinstaller"
+
+        $p1 = $efe.jsonObj.remoteFolder | Join-Path -ChildPath "zookeeper-3.4.9.tar.gz"
+        $efe.getUploadedFile() | Should Be $p1
+
+        [Boolean]$efe.getUploadedFile("akb") | Should Be $False
+
+        $p1 = $efe.jsonObj.remoteFolder | Join-Path -ChildPath "zookeeper-3.4.9.tar.gz"
+        [Boolean]$efe.getUploadedFile("akb") | Should Be $False
+
+        $efe.softwareConfig.jsonObj | Should Be $True
+
+        $efe.softwareConfig.jsonObj.zkports | Should Be "2888,3888"
+
+        #$efe.softwareConfig.asHt("zkconfig").getType() | Should Be System.Collections.Specialized.OrderedDictionary
+
+        ([HashTable]$efe.softwareConfig.asHt("zkconfig")).GetEnumerator() | ForEach-Object {"$_.Key=$_.Value"} | Write-Output -NoEnumerate | Should Be ""
+    }
 }

@@ -160,6 +160,97 @@ function New-KvFile {
     return $kvf
 }
 
+function New-SoftwareConfig {
+    Param([String]$scstr)
+    $sc = New-Object -TypeName PSObject -Property @{jsonObj=ConvertFrom-Json $scstr}
+
+    $sc = $sc | Add-Member -MemberType ScriptMethod -Name asHt -Value {
+        Param([String]$pn)
+        $tob = $this.jsonObj
+        ($pn -split "\W+").ForEach({
+            $tob = $tob.$_
+        })
+        if ($tob -is [PSCustomObject]) {
+            $oht = [ordered]@{}
+            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.name]=$_.value}
+            $oht
+        } else {
+            $tob
+        }
+    } -PassThru
+    $sc
+}
+
+
+function New-EnvForExec {
+ Param
+     (
+       [parameter(Mandatory=$True)]
+       [String]$envfile)
+
+    $efe = New-Object -TypeName PSObject -Property @{JsonObj=Get-Content $envfile | ConvertFrom-Json}
+
+    $efe = $efe | Add-Member -MemberType NoteProperty -Name softwareConfig -Value (New-SoftwareConfig $efe.JsonObj.software.configContent)  -PassThru
+
+    $efe = $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
+        Param([String]$ptn)
+
+        $allfns = $this.jsonObj.software.filesToUpload
+        if ($allfns) {
+            if($ptn) {
+                $fullfn = $allfns | Where-Object {$_ -match $ptn}| Select-Object -First 1
+            } else {
+                $fullfn = $allfns | Select-Object -First 1
+            }
+            if ($fullfn) {
+                $this.jsonObj.remoteFolder | Join-Path -ChildPath ($fullfn -split "/" | Select-Object -Last 1)
+            }
+            
+        }
+    } -PassThru
+    $efe
+}
+
+
+function New-HostsFile {
+ Param
+     (
+       [parameter(Mandatory=$False)]
+       [String]
+       $FilePath = "/etc/hosts"
+    )
+    $hf = New-Object -TypeName PSObject -Property @{FilePath=$FilePath;lines=Get-Content $FilePath}
+
+    $hf = $hf | Add-Member -MemberType ScriptMethod -Name addHost -Value {
+        Param([parameter(Mandatory=$True)][String]$ip, [parameter(Mandatory=$True)][String]$hn)
+        $done = $False
+        $this.lines = $this.lines | Select-Object @{N="parts";E={$_ -split "\s+"}} | Where-Object {$_.parts.Length -gt 0} | ForEach-Object {
+            if($done) {
+               return $_
+            }
+            if($_.parts[0] -eq $ip) {
+                if ($_.parts -notcontains $hn){
+                    $_.parts += $hn
+                }
+                $done = $True
+            }
+            $_
+        } | Select-Object @{N="line"; E={$_.parts -join " "}} | Select-Object -ExpandProperty line
+        if (!$done) {
+            $this.lines += "$ip $hn"
+        }
+    } -PassThru
+
+
+     $hf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value {
+        Param([parameter(Position=0,Mandatory=$False)][String]$fileToWrite)
+        if (!$fileToWrite) {
+            $fileToWrite = $this.FilePath
+        }
+        Set-Content -Path $fileToWrite -Value $this.lines
+    } -PassThru
+}
+
 function New-SectionKvFile {
  Param
      (

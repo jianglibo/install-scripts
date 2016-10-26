@@ -10,7 +10,7 @@ Param(
 
 $envForExec = Get-Content $envfile | ConvertFrom-Json
 
-# insert-common-script-here:classpath:scripts/powershell/PsCommon.ps1
+# insert-common-script-here:powershell/PsCommon.ps1
 # Remove-Item /opt/vvvvv/* -Recurse -Force
 
 $softwareConfig = ConvertFrom-Json $envForExec.software.configContent

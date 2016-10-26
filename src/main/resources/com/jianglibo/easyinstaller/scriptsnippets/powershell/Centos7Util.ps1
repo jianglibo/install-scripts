@@ -7,7 +7,32 @@ stop NetworkManager, disable NetworkManager service,
 #>
 
 function New-Centos7Util {
-  
+    $osutil = New-Object -TypeName PSObject
+    
+    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name disableNetworkManager -Value {
+        systemctl stop NetworkManager
+        systemctl disable NetworkManager
+    } -PassThru
 
+    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name setHostName -Value {
+        Param([String]$hn)
+        hostnamectl --static set-hostname $hn
+    } -PassThru
 
+    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name installNtp -Value {
+        yum install -y ntp ntpdate
+        systemctl enable ntpd
+        ntpdate pool.ntp.org
+        systemctl start ntpd
+    } -PassThru
+
+    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name openFireWall -Value {
+        Param($prot, $ports)
+        if ($ports -is [Array]) {
+            $ports = $ports -join ","
+        }
+        firewall-cmd --permanent --zone=public --add-port "$ports/$prot"
+        firewall-cmd --reload
+    } -PassThru
+    return $osutil
 }
