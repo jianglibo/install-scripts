@@ -11,7 +11,7 @@
   },
   "boxGroup" : {
     "name" : "boxgroup1",
-    "configContent" : "<!-- yaml->json -->\r\nzkports: 2888,3888\r\nconfigFile: /var/zoo.cfg\r\nbinDir: /opt/zookeeper\r\nzkconfig:\r\n  tickTime: 1999\r\n  dataDir: /var/lib/zookeeper/\r\n  clientPort: 2181\r\n  initLimit: 5\r\n  syncLimit: 2",
+    "configContent" : "{\r\n  \"zkports\" : \"2888,3888\",\r\n  \"configFile\" : \"/var/zoo.cfg\",\r\n  \"binDir\" : \"/opt/zookeeper\",\r\n  \"zkconfig\" : {\r\n    \"tickTime\" : \"1999\",\r\n    \"dataDir\" : \"/var/lib/zookeeper/\",\r\n    \"clientPort\" : \"2181\",\r\n    \"initLimit\" : \"5\",\r\n    \"syncLimit\" : \"2\"\r\n  }\r\n}",
     "boxes" : [ {
       "ip" : "192.168.2.10",
       "name" : "box1",

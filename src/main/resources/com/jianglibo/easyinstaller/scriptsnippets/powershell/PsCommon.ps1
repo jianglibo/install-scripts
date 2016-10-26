@@ -160,9 +160,9 @@ function New-KvFile {
     return $kvf
 }
 
-function New-SoftwareConfig {
-    Param([String]$scstr)
-    $sc = New-Object -TypeName PSObject -Property @{jsonObj=ConvertFrom-Json $scstr}
+function New-JsonObj {
+    Param($jsonObj)
+    $sc = New-Object -TypeName PSObject -Property @{jsonObj=$jsonObj}
 
     $sc = $sc | Add-Member -MemberType ScriptMethod -Name asHt -Value {
         Param([String]$pn)
@@ -172,7 +172,7 @@ function New-SoftwareConfig {
         })
         if ($tob -is [PSCustomObject]) {
             $oht = [ordered]@{}
-            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.name]=$_.value}
+            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.Name]=$_.Value}
             $oht
         } else {
             $tob
@@ -188,9 +188,9 @@ function New-EnvForExec {
        [parameter(Mandatory=$True)]
        [String]$envfile)
 
-    $efe = New-Object -TypeName PSObject -Property @{JsonObj=Get-Content $envfile | ConvertFrom-Json}
+    $efe = New-JsonObj (Get-Content $envfile | ConvertFrom-Json)
 
-    $efe = $efe | Add-Member -MemberType NoteProperty -Name softwareConfig -Value (New-SoftwareConfig $efe.JsonObj.software.configContent)  -PassThru
+    $efe = $efe | Add-Member -MemberType NoteProperty -Name softwareConfig -Value (New-JsonObj (ConvertFrom-Json $efe.JsonObj.software.configContent))  -PassThru
 
     $efe = $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
         Param([String]$ptn)
@@ -354,5 +354,3 @@ function New-SectionKvFile {
 
     return $skf
 }
-
-# "1", "2" | Select-Object @{N="line"; E={$_}}, @{N="sstart"; E={$_ -eq "1"}}
