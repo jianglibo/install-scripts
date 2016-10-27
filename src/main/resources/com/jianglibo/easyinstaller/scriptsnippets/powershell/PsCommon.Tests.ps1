@@ -1,28 +1,11 @@
-﻿# https://technet.microsoft.com/en-us/library/hh847828.aspx
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 . "$here\$sut"
 
 Describe "PsCommon" {
-    It "should handler Property" {
-        $a = [PSCustomObject]@{a=1}
-        $a.psobject.Properties | Where-Object MemberType -EQ "NoteProperty" | ForEach-Object {"{0}={1}" -f $_.Name, $_.Value} | Should Be "a=1"
+    It "does something useful" {
+        $true | Should Be $true
     }
-    It "should format string" {
-        #place holder
-
-        "{0}.{1}" -f "a","b" | Should Be "a.b"
-
-        #currency
-        ("{0:C2}" -f 181 | Out-String) -match ".{1}181\.00" | Should Be $True
-
-        #Float
-        "{0:F2}" -f 1.8292 | Should Be "1.83"
-
-        #percent
-        "{0:P}" -f 1.8292 | Should Be "182.92%"
-    }
-
     It "should handle out context" {
         $twoReached = $False
         (1,2,3 | ForEach-Object {if ($_ -gt 1) {$twoReached = $True; $_}} | ForEach-Object {if ($twoReached) {$_}}).Count | Should Be 2
@@ -164,106 +147,35 @@ Describe "PsCommon" {
 
         #$efe.softwareConfig.asHt("zkconfig").getType() | Should Be System.Collections.Specialized.OrderedDictionary
 
-        $ht = ([HashTable]$efe.softwareConfig.asHt("zkconfig"))
-        $ht.initLimit | Should Be "5"
-        $ht["initLimit"] | Should Be "5"
+        $kvary = ([HashTable]$efe.softwareConfig.asHt("zkconfig")).GetEnumerator() | ForEach-Object {"{0}={1}" -f $_.Key, $_.Value}
+
+        $kvary -contains "initLimit=5" | Should Be $True
+        
     }
 
-    
-    It "should swith right" {
-        $v = "start"
-        switch ("fourteen") 
-            {
-                1 {$v = "It is one."; Break}
-                2 {$v = "It is two."; Break}
-                3 {$v = "It is three."; Break}
-                4 {$v = "It is four."; Break}
-                3 {$v = "Three again."; Break}
-                "fo*" {$v = "That's too many."}
-            }
-        $v | Should Be "start"
+    It "should inert a line" {
+        $tmp = New-TemporaryFile
 
-        switch -Regex ("fourteen") 
-            {
-                1 {$v = "It is one."; Break}
-                2 {$v = "It is two."; Break}
-                3 {$v = "It is three."; Break}
-                4 {$v = "It is four."; Break}
-                3 {$v = "Three again."; Break}
-                "fo*" {$v = "That's too many."}
-            }
-        $v | Should Be "That's too many."
-     }
+        Set-Content -Path $tmp -Value 'a', 'ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"', 'b', 'c'
 
-     It "should save outVariable" {
-        Write-Output "hello" -OutVariable ss
-        Write-Output "hello" -OutVariable ss
-        Write-Output "hello" -OutVariable ss
-        $ss | Should Be "hello"
+        (Get-Content $tmp).Count | Should Be 4
 
-        Write-Output "hello" -OutVariable +ss
-        Write-Output "hello" -OutVariable +ss
-        Write-Output "hello" -OutVariable +ss
+        Insert-Lines $tmp "^ZOOBINDIR=" "hello"
+        $c = Get-Content $tmp
+        $c[1] | Should Be "hello"
+        $c.Count | Should Be 5
 
-        $ss | Should Be @("hello", "hello", "hello", "hello")
-    }
-    It "should be run in linux" {
-        $ep = "Variable:isLinux"
-        if (Test-Path $ep) {
-            if (Get-Item $ep) { "yes" }
-        }
-    }
-    It "should create custom object" {
-        $obj = [PSCustomObject]@{
-            Property1 = 'one'
-            Property2 = 'two'
-            Property3 = 'three'
-        }
+        Set-Content -Path $tmp -Value 'a', 'ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"', 'b', 'c'
+        Insert-Lines -FilePath $tmp "^ZOOBINDIR=" -lines "hello","1","2" -after
+        $c = Get-Content $tmp
+        $c[2] | Should Be "hello"
+        $c.Count | Should Be 7
 
-        $obj | Get-Member | select -ExpandProperty TypeName|  Should Be "System.Management.Automation.PSCustomObject"
-
-        $obj = New-Object PSObject
-        Add-Member -InputObject $obj -MemberType NoteProperty -Name customproperty -Value ""
-
-        $obj | Get-Member | select -ExpandProperty TypeName|  Should Be "System.Management.Automation.PSCustomObject"
-    }
-    It "should try catch error" {
-        $w = try { nosenceword}  catch { "ehlo"}
-        $w | Should Be "ehlo"
-    }
-    It "should all be false" {
-        $(if ("") {"space"} else {"True"}) | Should Be "True"
-        0 -eq $false | Should Be $True
-        -not 0 | Should Be $True
-        -not 1 | Should Be $False
-        $true -eq 2 | Should Be $True
-        2 -eq $true | Should Be $False
-        -not "" | Should Be $True
-        "" -eq $false | Should Be $False
-        $false -eq "" | Should Be $True
-
+        Remove-Item $tmp
     }
 
-    It "is about function" {
-    # https://technet.microsoft.com/en-us/library/hh847829.aspx
-        function Get-Pipeline 
-          { 
-              process {"The value is: $_"} 
-          }
-       1,2,4 | Get-Pipeline | Write-Output -NoEnumerate | Should Be @("The value is: 1","The value is: 2","The value is: 4")
-
-       $ov = 55
-       function Use-var {
-            process {$ov}
-       }
-       1,2,4 | Use-var | Should Be 55
-
-        function Get-PipelineInput
-          {
-              process {"Processing:  $input " }
-              end {"End:   The input is: $input" }
-          }  
-
-     1,2,4 | Get-PipelineInput | Select-Object -Last 1 | Should Be "End:   The input is: "
+    It "about replace" {
+        "abc" -replace "a","b" | Should Be "bbc"
+        "0ab1c2" -replace "[a-z]+","b" | Should Be "0b1b2"
     }
 }

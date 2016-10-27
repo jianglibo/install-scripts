@@ -31,6 +31,10 @@ function Decorate-Env {
     $myenv
 }
 
+function Uninstall-Zk {
+    Param($myenv)
+}
+
 function Install-Zk {
     Param($myenv)
     if (!(Test-Path $myenv.configFolder)) {
@@ -46,6 +50,22 @@ function Install-Zk {
     if (Test-Path $tgzFile) {
         Run-Tar $tgzFile -DestFolder $myenv.binDir
     }
+
+    # get executable file: /opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh
+    # "$ZOOBINDIR/zkEnv.sh", so we can find zkEnv.sh in same directory. zkEnv.sh need ZOOCFGDIR, when get ZOOCFGDIR, it read config from ZOOCFGDIR/zookeeper-env.sh
+    # or we can write all value just to zkEnv.sh, just before ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"
+
+    $zkServerBin = (Get-ChildItem -Path $myenv.binDir -Recurse | Where-Object Name -EQ zkServer.sh).FullName
+    $zkEnv = $zkServerBin | Split-Path -Parent | Join-Path -ChildPath zkEnv.sh
+
+    # after success install, we will create a file only known to this installation script. called: easyinstaller-result.properties
+
+
+    $ZOOCFG = Split-Path -Path $myenv.configFile -Leaf
+    $ZOOCFGDIR = $myenv.configFolder
+
+    $envlines = "ZOOCFG=`"${ZOOCFG}`"", "ZOOCFGDIR=`"$ZOOCFGDIR`""
+    Insert-Lines -FilePath $zkEnv -ptn "^ZOOBINDIR=" -lines $envlines
 }
 
 switch ($action) {

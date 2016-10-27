@@ -1,5 +1,5 @@
 zkports: "2888,3888"
-configFile: "/var/zoo.cfg"
+configFile: "/var/zookeeper/zoo.cfg"
 binDir: "/opt/zookeeper"
 zkconfig:
   tickTime: "1999"

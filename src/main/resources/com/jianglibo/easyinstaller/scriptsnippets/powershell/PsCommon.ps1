@@ -160,9 +160,9 @@ function New-KvFile {
     return $kvf
 }
 
-function New-JsonObj {
-    Param($jsonObj)
-    $sc = New-Object -TypeName PSObject -Property @{jsonObj=$jsonObj}
+function New-SoftwareConfig {
+    Param([String]$scstr)
+    $sc = New-Object -TypeName PSObject -Property @{jsonObj=ConvertFrom-Json $scstr}
 
     $sc = $sc | Add-Member -MemberType ScriptMethod -Name asHt -Value {
         Param([String]$pn)
@@ -172,13 +172,30 @@ function New-JsonObj {
         })
         if ($tob -is [PSCustomObject]) {
             $oht = [ordered]@{}
-            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.Name]=$_.Value}
+            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.name]=$_.value}
             $oht
         } else {
             $tob
         }
     } -PassThru
     $sc
+}
+
+function Insert-Lines {
+    Param([String]$FilePath, [String]$ptn, $lines, [switch]$after)
+    $content = Get-Content $FilePath | ForEach-Object {
+        if ($_ -match $ptn) {
+            if (! $after) {
+                @() + $lines + $_
+            } else {
+                ,$_ + $lines
+            }
+        } else {
+            $_
+        }
+    }
+
+    Set-Content -Path $FilePath -Value $content
 }
 
 
@@ -188,12 +205,16 @@ function New-EnvForExec {
        [parameter(Mandatory=$True)]
        [String]$envfile)
 
-    $efe = New-JsonObj (Get-Content $envfile | ConvertFrom-Json)
+    $efe = New-Object -TypeName PSObject -Property @{JsonObj=Get-Content $envfile | ConvertFrom-Json}
 
-    $efe = $efe | Add-Member -MemberType NoteProperty -Name softwareConfig -Value (New-JsonObj (ConvertFrom-Json $efe.JsonObj.software.configContent))  -PassThru
+    $efe = $efe | Add-Member -MemberType NoteProperty -Name softwareConfig -Value (New-SoftwareConfig $efe.JsonObj.software.configContent)  -PassThru
+
+    if (! (Test-Path $efe.JsonObj.remoteFolder)) {
+        New-Item -ItemType Directory $efe.JsonObj.remoteFolder
+    }
 
     $efe = $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
-        Param([String]$ptn)
+        Param([String]$ptn, [Boolean]$onlyName=$False)
 
         $allfns = $this.jsonObj.software.filesToUpload
         if ($allfns) {
@@ -203,9 +224,13 @@ function New-EnvForExec {
                 $fullfn = $allfns | Select-Object -First 1
             }
             if ($fullfn) {
-                $this.jsonObj.remoteFolder | Join-Path -ChildPath ($fullfn -split "/" | Select-Object -Last 1)
+                $fn = $fullfn -split "/" | Select-Object -Last 1
+                if ($onlyName) {
+                    $fn
+                } else {
+                    $this.jsonObj.remoteFolder | Join-Path -ChildPath $fn
+                }
             }
-            
         }
     } -PassThru
     $efe
@@ -354,3 +379,5 @@ function New-SectionKvFile {
 
     return $skf
 }
+
+# "1", "2" | Select-Object @{N="line"; E={$_}}, @{N="sstart"; E={$_ -eq "1"}}

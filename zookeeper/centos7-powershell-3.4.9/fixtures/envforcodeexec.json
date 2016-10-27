@@ -44,7 +44,7 @@
     "ostype" : "CentOs7",
     "runas" : "",
     "filesToUpload" : [ "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz" ],
-    "configContent" : "{\r\n  \"zkports\" : \"2888,3888\",\r\n  \"configFile\" : \"/var/zoo.cfg\",\r\n  \"binDir\" : \"/opt/zookeeper\",\r\n  \"zkconfig\" : {\r\n    \"tickTime\" : \"1999\",\r\n    \"dataDir\" : \"/var/lib/zookeeper/\",\r\n    \"clientPort\" : \"2181\",\r\n    \"initLimit\" : \"5\",\r\n    \"syncLimit\" : \"2\"\r\n  }\r\n}",
+    "configContent" : "{\r\n  \"zkports\" : \"2888,3888\",\r\n  \"configFile\" : \"/var/zookeeper/zoo.cfg\",\r\n  \"binDir\" : \"/opt/zookeeper\",\r\n  \"zkconfig\" : {\r\n    \"tickTime\" : \"1999\",\r\n    \"dataDir\" : \"/var/lib/zookeeper/\",\r\n    \"clientPort\" : \"2181\",\r\n    \"initLimit\" : \"5\",\r\n    \"syncLimit\" : \"2\"\r\n  }\r\n}",
     "actions" : "install",
     "preferredFormat" : "JSON"
   }
