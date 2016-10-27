@@ -11,31 +11,46 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # Remove-Item /opt/vvvvv/* -Recurse -Force
 
-$envForExec = New-EnvForExec $envfile
+function Decorate-Env {
+    Param([parameter(ValueFromPipeline=$True)]$myenv)
+    $myenv = $myenv | Add-Member -MemberType ScriptProperty -Name zkconfigLines -Value {
+        $this.softwareConfig.asHt("zkconfig").GetEnumerator() |
+            ForEach-Object {"{0}={1}" -f $_.Key,$_.Value} | Sort-Object
+        } -PassThru
+    $myenv = $myenv | Add-Member -MemberType ScriptProperty -Name serviceLines -Value {
+        $this.jsonObj.boxGroup.boxes |
+             Select-Object @{n="serverId"; e={$_.ip.split('\.')[-1]}}, hostname |
+             ForEach-Object {"server.{0}={1}:{2}:{3}" -f (@($_.serverId, $_.hostname) + $this.softwareConfig.jsonObj.zkports.Split(','))} |
+             Sort-Object
+        } -PassThru
+    $myenv = $myenv | Add-Member -MemberType NoteProperty -Name DataDir -Value ($myenv.softwareConfig.jsonObj.zkconfig.dataDir) -PassThru
 
-function gen-zkcfglines {
-    $zkconfigLines = $envForExec.softwareConfig.asHt("zkconfig") | foreach {"{0}={1}" -f $_.Key,$_.Value}
-    $srvlines = $envForExec.boxGroup.boxes | Select-Object @{n="serverId"; e={$_.ip.split('\.')[-1]}}, hostname | ForEach-Object {"server.{0}={1}:{2}:{3}" -f (@($_.serverId, $_.hostname) + $softwareConfig.zkports.Split(','))}
-    $zkconfigLines + $srvlines
+    $myenv = $myenv | Add-Member -MemberType NoteProperty -Name configFolder -Value (Split-Path -Parent $myenv.softwareConfig.jsonObj.configFile) -PassThru
+    $myenv = $myenv | Add-Member -MemberType NoteProperty -Name configFile -Value $myenv.softwareConfig.jsonObj.configFile -PassThru
+    $myenv = $myenv | Add-Member -MemberType NoteProperty -Name binDir -Value $myenv.softwareConfig.jsonObj.binDir -PassThru
+    $myenv
+}
+
+function Install-Zk {
+    Param($myenv)
+    if (!(Test-Path $myenv.configFolder)) {
+        New-Item -Path $myenv.configFolder -ItemType Directory | Out-Null
+    }
+
+    if (!(Test-Path $myenv.DataDir)) {
+        New-Item -Path $myenv.DataDir -ItemType Directory | Out-Null
+    }
+    $myenv.zkconfigLines + $myenv.serviceLines | Out-File $myenv.configFile
+
+    $tgzFile = $myenv.getUploadedFile()
+    if (Test-Path $tgzFile) {
+        Run-Tar $tgzFile -DestFolder $myenv.binDir
+    }
 }
 
 switch ($action) {
     "install" {
-        $configFileFolder = Split-Path -Parent $envForExec.softwareConfig.jsonObj.configFile
-        if (!(Test-Path $configFileFolder)) {
-            New-Item -Path $configFileFolder -ItemType Directory | Out-Null
-        }
-        $dataDir = $envForExec.softwareConfig.jsonObj.zkconfig.dataDir
-
-        if (!(Test-Path $dataDir)) {
-            New-Item -Path $dataDir -ItemType Directory | Out-Null
-        }
-        gen-zkcfglines | Out-File $envForExec.softwareConfig.jsonObj.configFile
-
-        $tgzFile = $envForExec.getUploadedFile()
-        if (Test-Path $tgzFile) {
-            Run-Tar $tgzFile -DestFolder $envForExec.softwareConfig.jsonObj.binDir
-        }
+        Install-Zk (New-EnvForExec $envfile | Decorate-Env)
         break
     }
 }
