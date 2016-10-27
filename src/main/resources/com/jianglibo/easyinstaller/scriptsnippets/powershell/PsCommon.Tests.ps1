@@ -126,30 +126,35 @@ Describe "PsCommon" {
     }
 
     It "should handle envforexec" {
-        $fixture = Join-Path -Path $here -ChildPath "fixtures\envforcodeexec.json"
+        $fixture = Join-Path -Path $here -ChildPath "fixtures/envforcodeexec.json"
         $efe = New-EnvForExec $fixture
 
-        $efe.jsonObj.getType().Name | Should  Be "pscustomobject"
+        $efe.getType().Name | Should  Be "pscustomobject"
 
-        $efe.jsonObj.remoteFolder | Should  Be "/opt/easyinstaller"
+        $efe.remoteFolder | Should  Be "/opt/easyinstaller"
 
-        $p1 = $efe.jsonObj.remoteFolder | Join-Path -ChildPath "zookeeper-3.4.9.tar.gz"
+        $p1 = $efe.remoteFolder | Join-Path -ChildPath "zookeeper-3.4.9.tar.gz"
+
         $efe.getUploadedFile() | Should Be $p1
 
         [Boolean]$efe.getUploadedFile("akb") | Should Be $False
 
-        $p1 = $efe.jsonObj.remoteFolder | Join-Path -ChildPath "zookeeper-3.4.9.tar.gz"
+        $p1 = $efe.remoteFolder | Join-Path -ChildPath "zookeeper-3.4.9.tar.gz"
         [Boolean]$efe.getUploadedFile("akb") | Should Be $False
 
-        $efe.softwareConfig.jsonObj | Should Be $True
+        $efe.software.configContent | Should Be $True
 
-        $efe.softwareConfig.jsonObj.zkports | Should Be "2888,3888"
+        $efe.software.configContent.zkports | Should Be "2888,3888"
 
-        #$efe.softwareConfig.asHt("zkconfig").getType() | Should Be System.Collections.Specialized.OrderedDictionary
-
-        $kvary = ([HashTable]$efe.softwareConfig.asHt("zkconfig")).GetEnumerator() | ForEach-Object {"{0}={1}" -f $_.Key, $_.Value}
+        $kvary = ([HashTable]$efe.software.configContent.asHt("zkconfig")).GetEnumerator() | ForEach-Object {"{0}={1}" -f $_.Key, $_.Value}
 
         $kvary -contains "initLimit=5" | Should Be $True
+
+        $efe.software.fullName | Should Be "zookeeper-CentOs7-3.4.9"
+
+        $efe.resultFolder -replace "\\","/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-3.4.9"
+
+        Test-Path $efe.resultFolder  -PathType Container | Should Be $True
         
     }
 
@@ -165,6 +170,8 @@ Describe "PsCommon" {
         $c[1] | Should Be "hello"
         $c.Count | Should Be 5
 
+        Test-Path ($tmp.FullName + ".origin") -PathType Leaf | Should Be $True
+
         Set-Content -Path $tmp -Value 'a', 'ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"', 'b', 'c'
         Insert-Lines -FilePath $tmp "^ZOOBINDIR=" -lines "hello","1","2" -after
         $c = Get-Content $tmp
@@ -177,5 +184,23 @@ Describe "PsCommon" {
     It "about replace" {
         "abc" -replace "a","b" | Should Be "bbc"
         "0ab1c2" -replace "[a-z]+","b" | Should Be "0b1b2"
+    }
+
+    It "should by reference" {
+        function t-t {
+            Param($ht)
+            $ht.newkey = "123"
+        }
+
+        $outht = @{x=5}
+        t-t $outht
+
+        $outht.newkey | Should Be "123"
+    }
+
+    It "should Out-File work" {
+        $t = New-TemporaryFile
+        @(1,2,3) | Out-File -FilePath $t
+        Get-Content $t | Write-Output -NoEnumerate | Should Be @(1,2,3)
     }
 }

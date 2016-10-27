@@ -36,14 +36,17 @@ Describe "code" {
         $tgzFile = $decorated.getUploadedFile()
 
         if (-not (Test-Path $tgzFile)) {
-            if (Test-Path $fixtureFile) {
+            if (Test-Path $fixtureFile -PathType Leaf) {
                 Copy-Item $fixtureFile $tgzFile
-                Install-Zk $decorated
-                Test-Path $decorated.binDir | Should Be $True
-                Test-Path $decorated.DataDir | Should Be $True
-                Test-Path $decorated.configFolder | Should Be $True
-                Test-Path $decorated.configFile | Should Be $True
             }
         }
+
+        Install-Zk $decorated
+        Test-Path $decorated.binDir | Should Be $True
+        Test-Path $decorated.DataDir | Should Be $True
+        Test-Path $decorated.configFolder | Should Be $True
+        Test-Path $decorated.configFile | Should Be $True
+        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-3.4.9/easyinstaller-result.json"
+
     }
 }

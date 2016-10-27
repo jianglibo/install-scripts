@@ -37,6 +37,30 @@ function New-IpUtil {
 
 }
 
+function Insert-Lines {
+    Param([String]$FilePath, [String]$ptn, $lines, [switch]$after)
+    if ($FilePath -is [System.IO.FileInfo]) {
+        $FilePath = $FilePath.FullName
+    }
+    $bkFile = $FilePath + ".origin"
+    if (! (Test-Path $bkFile)) {
+        Copy-Item $FilePath -Destination $bkFile
+    }
+    $content = Get-Content $FilePath | ForEach-Object {
+        if ($_ -match $ptn) {
+            if (! $after) {
+                @() + $lines + $_
+            } else {
+                ,$_ + $lines
+            }
+        } else {
+            $_
+        }
+    }
+
+    Set-Content -Path $FilePath -Value $content
+}
+
 function New-CentOs7Nmcli {
  Param
      (
@@ -160,13 +184,11 @@ function New-KvFile {
     return $kvf
 }
 
-function New-SoftwareConfig {
-    Param([String]$scstr)
-    $sc = New-Object -TypeName PSObject -Property @{jsonObj=ConvertFrom-Json $scstr}
-
-    $sc = $sc | Add-Member -MemberType ScriptMethod -Name asHt -Value {
+function Add-AsHtScriptMethod {
+    Param($pscustomob)
+    $pscustomob | Add-Member -MemberType ScriptMethod -Name asHt -Value {
         Param([String]$pn)
-        $tob = $this.jsonObj
+        $tob = $this
         ($pn -split "\W+").ForEach({
             $tob = $tob.$_
         })
@@ -177,27 +199,8 @@ function New-SoftwareConfig {
         } else {
             $tob
         }
-    } -PassThru
-    $sc
-}
-
-function Insert-Lines {
-    Param([String]$FilePath, [String]$ptn, $lines, [switch]$after)
-    $content = Get-Content $FilePath | ForEach-Object {
-        if ($_ -match $ptn) {
-            if (! $after) {
-                @() + $lines + $_
-            } else {
-                ,$_ + $lines
-            }
-        } else {
-            $_
-        }
     }
-
-    Set-Content -Path $FilePath -Value $content
 }
-
 
 function New-EnvForExec {
  Param
@@ -205,18 +208,33 @@ function New-EnvForExec {
        [parameter(Mandatory=$True)]
        [String]$envfile)
 
-    $efe = New-Object -TypeName PSObject -Property @{JsonObj=Get-Content $envfile | ConvertFrom-Json}
+    $efe = Get-Content $envfile | ConvertFrom-Json
 
-    $efe = $efe | Add-Member -MemberType NoteProperty -Name softwareConfig -Value (New-SoftwareConfig $efe.JsonObj.software.configContent)  -PassThru
+    $efe.software.configContent = $efe.software.configContent | ConvertFrom-Json
 
-    if (! (Test-Path $efe.JsonObj.remoteFolder)) {
-        New-Item -ItemType Directory $efe.JsonObj.remoteFolder
+    $efe.software | Add-Member -MemberType ScriptProperty -Name fullName -Value {
+        "{0}-{1}-{2}" -f $this.name,$this.ostype,$this.sversion
     }
 
-    $efe = $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
-        Param([String]$ptn, [Boolean]$onlyName=$False)
+    Add-AsHtScriptMethod $efe.software.configContent
 
-        $allfns = $this.jsonObj.software.filesToUpload
+    $efe | Add-Member -MemberType NoteProperty -Name resultFolder -Value ($efe.remoteFolder | Join-Path -ChildPath "results" | Join-Path -ChildPath $efe.software.fullName)
+
+    $efe | Add-Member -MemberType NoteProperty -Name resultFile -Value ($efe.resultFolder | Join-Path -ChildPath "easyinstaller-result.json")
+
+    if (! (Test-Path $efe.remoteFolder)) {
+        New-Item -ItemType Directory $efe.remoteFolder
+    }
+
+    if (! (Test-Path $efe.resultFolder)) {
+        New-Item -ItemType Directory $efe.resultFolder
+    }
+
+
+    $efe = $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
+        Param([String]$ptn, [switch]$OnlyName)
+
+        $allfns = $this.software.filesToUpload
         if ($allfns) {
             if($ptn) {
                 $fullfn = $allfns | Where-Object {$_ -match $ptn}| Select-Object -First 1
@@ -228,7 +246,7 @@ function New-EnvForExec {
                 if ($onlyName) {
                     $fn
                 } else {
-                    $this.jsonObj.remoteFolder | Join-Path -ChildPath $fn
+                    $this.remoteFolder | Join-Path -ChildPath $fn
                 }
             }
         }
