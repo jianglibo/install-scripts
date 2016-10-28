@@ -10,3 +10,4 @@ zkconfig:
   clientPort: "2181"
   initLimit: "5"
   syncLimit: "2"
+  dataLogDir: "/var/lib/zookeeper/"

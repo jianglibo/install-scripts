@@ -24,15 +24,13 @@ ext {
 
 group = "com.jianglibo.easyinstaller"
 archivesBaseName = "scriptsnippets"
-// version = "${scriptVersion}"
-version = "${scriptVersion}-SNAPSHOT"
+version = "${scriptVersion}"
 
 signing { sign configurations.archives }
 
 jar {
     baseName = 'scriptsnippets'
-    // version = "${scriptVersion}"
-    version = "${scriptVersion}-SNAPSHOT"
+    version = "${scriptVersion}"
 }
 
 

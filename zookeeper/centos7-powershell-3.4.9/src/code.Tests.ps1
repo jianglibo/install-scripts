@@ -6,6 +6,8 @@ $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
 $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.Ps1" -Resolve
 . $commonPath
 
+. (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
+
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 $resutl = . "$here\$sut" -envfile $envfile -action t
 
@@ -25,7 +27,7 @@ Describe "code" {
         $decorated.configFile | Should Be "/var/zookeeper/zoo.cfg"
         $decorated.binDir | Should Be "/opt/zookeeper"
         $decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
-        $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
+        $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
     }
     It "should be installed" {
         if (!$IsLinux) {

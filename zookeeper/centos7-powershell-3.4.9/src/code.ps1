@@ -52,7 +52,8 @@ function Install-Zk {
       New-Item -Path $myenv.logDir -ItemType Directory | Out-Null
     }
 
-    $myenv.zkconfigLines + $myenv.serviceLines | Out-File $myenv.configFile
+    # encoding is very important.
+    $myenv.zkconfigLines + $myenv.serviceLines | Out-File $myenv.configFile -Encoding ascii
 
     $tgzFile = $myenv.getUploadedFile()
     if (Test-Path $tgzFile -PathType Leaf) {
@@ -79,15 +80,15 @@ function Install-Zk {
     $ZOOPIDFILE = $myenv.pidFile
     $ZOO_LOG_DIR = $myenv.logDir
     # there is a bug in zkServer.sh, it cannot extract ZOO_DATADIR from config file.
-    $ZOO_DATADIR = $myenv.DataDir
+    # $ZOO_DATADIR = $myenv.DataDir
     $ZOO_LOG4J_PROP = $myenv.logProp
 
     $envlines = "ZOOCFG=`"${ZOOCFG}`"",
                  "ZOOCFGDIR=`"$ZOOCFGDIR`"",
                  "ZOOPIDFILE=`"${ZOOPIDFILE}`"",
                  "ZOO_LOG_DIR=`"${ZOO_LOG_DIR}`"",
-                 "ZOO_LOG4J_PROP=`"${ZOO_LOG4J_PROP}`"",
-                 "ZOO_DATADIR=`"${ZOO_DATADIR}`""
+                 "ZOO_LOG4J_PROP=`"${ZOO_LOG4J_PROP}`""
+   #              "ZOO_DATADIR=`"${ZOO_DATADIR}`""
 
     Insert-Lines -FilePath $zkEnv -ptn "^ZOOBINDIR=" -lines $envlines
 

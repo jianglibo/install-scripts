@@ -1,13 +1,13 @@
 {
   "remoteFolder": "/opt/easyinstaller",
   "box": {
-    "ip": "192.168.33.110",
-    "name": "box1",
-    "hostname": "192.168.33.110",
+    "ip": "192.168.33.112",
+    "name": "box3",
+    "hostname": "a2.host.name",
     "roles": "r1,r2,r3",
     "dnsServer": "",
-    "ips": "",
-    "ports": ""
+    "ips": "192.168.2.15,192.168.2.16",
+    "ports": "80,8080"
   },
   "boxGroup": {
     "name": "boxgroup1",
@@ -50,7 +50,7 @@
     "filesToUpload": [
       "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz"
     ],
-    "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"logDir\":\"/opt/zookeeper/logs\",\"logProp\":\"INFO,CONSOLE\",\"pidFile\":\"/opt/zookeeper/server.pid\",\"binDir\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\"}}",
+    "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"logDir\":\"/opt/zookeeper/logs\",\"logProp\":\"INFO,CONSOLE\",\"pidFile\":\"/opt/zookeeper/server.pid\",\"binDir\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\",\"dataLogDir\":\"/var/lib/zookeeper/\"}}",
     "actions": "install",
     "preferredFormat": "JSON"
   }
