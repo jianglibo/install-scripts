@@ -28,6 +28,9 @@ function Decorate-Env {
     $myenv | Add-Member -MemberType NoteProperty -Name configFolder -Value (Split-Path -Parent $myenv.software.configContent.configFile)
     $myenv | Add-Member -MemberType NoteProperty -Name configFile -Value $myenv.software.configContent.configFile
     $myenv | Add-Member -MemberType NoteProperty -Name binDir -Value $myenv.software.configContent.binDir
+    $myenv | Add-Member -MemberType NoteProperty -Name logDir -Value $myenv.software.configContent.logDir
+    $myenv | Add-Member -MemberType NoteProperty -Name pidFile -Value $myenv.software.configContent.pidFile
+    $myenv | Add-Member -MemberType NoteProperty -Name logProp -Value $myenv.software.configContent.logProp
     $myenv
 }
 
@@ -44,6 +47,11 @@ function Install-Zk {
     if (!(Test-Path $myenv.DataDir)) {
         New-Item -Path $myenv.DataDir -ItemType Directory | Out-Null
     }
+
+    if (!(Test-Path $myenv.logDir)) {
+      New-Item -Path $myenv.logDir -ItemType Directory | Out-Null
+    }
+
     $myenv.zkconfigLines + $myenv.serviceLines | Out-File $myenv.configFile
 
     $tgzFile = $myenv.getUploadedFile()
@@ -53,29 +61,62 @@ function Install-Zk {
         exit
     }
 
+    # write myid file.
+
+    $myenv.box.ip -split "\." | Select-Object -Last 1 | Set-Content -Path (Join-Path $myenv.DataDir -ChildPath "myid")
+
     # get executable file: /opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh
     # "$ZOOBINDIR/zkEnv.sh", so we can find zkEnv.sh in same directory. zkEnv.sh need ZOOCFGDIR, when get ZOOCFGDIR, it read config from ZOOCFGDIR/zookeeper-env.sh
     # or we can write all value just to zkEnv.sh, just before ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"
 
     $zkServerBin = (Get-ChildItem -Path $myenv.binDir -Recurse -Filter "zkServer.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkServer.sh$"}).FullName
+    Join-Path -Path $zkServerBin "../../conf/" | Get-ChildItem | Copy-Item -Destination $myenv.configFolder
     $zkEnv = $zkServerBin | Split-Path -Parent | Join-Path -ChildPath zkEnv.sh
 
     # after success install, we will create a file only known to this installation script. called: easyinstaller-result.json
     $ZOOCFG = Split-Path -Path $myenv.configFile -Leaf
     $ZOOCFGDIR = $myenv.configFolder
+    $ZOOPIDFILE = $myenv.pidFile
+    $ZOO_LOG_DIR = $myenv.logDir
+    # there is a bug in zkServer.sh, it cannot extract ZOO_DATADIR from config file.
+    $ZOO_DATADIR = $myenv.DataDir
+    $ZOO_LOG4J_PROP = $myenv.logProp
 
-    $envlines = "ZOOCFG=`"${ZOOCFG}`"", "ZOOCFGDIR=`"$ZOOCFGDIR`""
+    $envlines = "ZOOCFG=`"${ZOOCFG}`"",
+                 "ZOOCFGDIR=`"$ZOOCFGDIR`"",
+                 "ZOOPIDFILE=`"${ZOOPIDFILE}`"",
+                 "ZOO_LOG_DIR=`"${ZOO_LOG_DIR}`"",
+                 "ZOO_LOG4J_PROP=`"${ZOO_LOG4J_PROP}`"",
+                 "ZOO_DATADIR=`"${ZOO_DATADIR}`""
+
     Insert-Lines -FilePath $zkEnv -ptn "^ZOOBINDIR=" -lines $envlines
 
     # start command read this file to find executable. or use systemd
-    @{zkServerBin=$zkServerBin} | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force
-    
+    @{executable=$zkServerBin} | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force
+
+    # write hostname to hosts.
+    $hf = New-HostsFile
+    $myenv.boxGroup.boxes | Where-Object {$_.ip -ne $_.hostname} | ForEach-Object {$hf.addHost($_.ip, $_.hostname)}
+    $hf.writeToFile()
+
+    #change hostname
+    $osutil = New-Centos7Util
+    if ($myenv.box.ip -ne $myenv.box.hostname) {
+        $osutil.setHostName($myenv.box.hostname)
+    }
+    # open firewall
+    $osutil.openFireWall($myenv.software.configContent.zkports)
+
+    # change run user.
 }
 
 switch ($action) {
     "install" {
         Install-Zk (New-EnvForExec $envfile | Decorate-Env)
         break
+    }
+    "start" {
+
     }
 }
 

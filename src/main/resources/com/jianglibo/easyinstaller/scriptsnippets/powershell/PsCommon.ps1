@@ -94,23 +94,6 @@ function New-OsUtil {
     }
 }
 
-function New-CentOsUtil {
-    $coul = New-Object -TypeName PSObject
-
-    $isServiceRunning = {
-        Param([parameter(Mandatory=$True)][String]$serviceName)
-        [Boolean](systemctl status $serviceName | Select-Object -First 4 | Where-Object {$_ -match "\s+Active:.*\(running\)"})
-    }
-    $coul = $coul | Add-Member -MemberType ScriptMethod -Name isServiceRunning -Value $isServiceRunning -PassThru
-
-    $isEnabled = {
-        Param([parameter(Mandatory=$True)][String]$serviceName)
-        [Boolean](systemctl is-enabled $serviceName | Where-Object {$_ -match "enabled"})
-    }
-    $coul = $coul | Add-Member -MemberType ScriptMethod -Name isEnabled -Value $isEnabled -PassThru
-
-    return $coul
-}
 
 function New-KvFile {
  Param
@@ -264,7 +247,7 @@ function New-HostsFile {
     )
     $hf = New-Object -TypeName PSObject -Property @{FilePath=$FilePath;lines=Get-Content $FilePath}
 
-    $hf = $hf | Add-Member -MemberType ScriptMethod -Name addHost -Value {
+    $hf | Add-Member -MemberType ScriptMethod -Name addHost -Value {
         Param([parameter(Mandatory=$True)][String]$ip, [parameter(Mandatory=$True)][String]$hn)
         $done = $False
         $this.lines = $this.lines | Select-Object @{N="parts";E={$_ -split "\s+"}} | Where-Object {$_.parts.Length -gt 0} | ForEach-Object {
@@ -282,16 +265,23 @@ function New-HostsFile {
         if (!$done) {
             $this.lines += "$ip $hn"
         }
-    } -PassThru
+        $this
+    }
 
-
-     $hf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value {
+    $hf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value {
         Param([parameter(Position=0,Mandatory=$False)][String]$fileToWrite)
         if (!$fileToWrite) {
             $fileToWrite = $this.FilePath
         }
         Set-Content -Path $fileToWrite -Value $this.lines
-    } -PassThru
+    }
+
+    $hf
+}
+
+function New-RandomPassword {
+    Param([parameter(ValueFromPipeline)][int]$Count=8)
+    (0x20..0x7e | ForEach-Object {[char]$_} | Get-Random -Count $Count) -join ""
 }
 
 function New-SectionKvFile {

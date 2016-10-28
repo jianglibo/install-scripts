@@ -9,30 +9,70 @@ stop NetworkManager, disable NetworkManager service,
 function New-Centos7Util {
     $osutil = New-Object -TypeName PSObject
     
-    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name disableNetworkManager -Value {
+    $osutil | Add-Member -MemberType ScriptMethod -Name disableNetworkManager -Value {
         systemctl stop NetworkManager
         systemctl disable NetworkManager
-    } -PassThru
+        1
+    }
 
-    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name setHostName -Value {
+    $osutil | Add-Member -MemberType ScriptMethod -Name setHostName -Value {
         Param([String]$hn)
         hostnamectl --static set-hostname $hn
-    } -PassThru
+        1
+    }
 
-    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name installNtp -Value {
+    $osutil | Add-Member -MemberType ScriptMethod -Name isServiceRunning -Value {
+        Param([parameter(Mandatory=$True)][String]$serviceName)
+        [Boolean](systemctl status $serviceName | Select-Object -First 4 | Where-Object {$_ -match "\s+Active:.*\(running\)"})
+    }
+
+    $osutil | Add-Member -MemberType ScriptMethod -Name isServiceEnabled -Value {
+        Param([parameter(Mandatory=$True)][String]$serviceName)
+        [Boolean](systemctl is-enabled $serviceName | Where-Object {$_ -match "enabled"})
+    }
+
+    $osutil | Add-Member -MemberType ScriptMethod -Name installNtp -Value {
         yum install -y ntp ntpdate
         systemctl enable ntpd
         ntpdate pool.ntp.org
         systemctl start ntpd
-    } -PassThru
-
-    $osutil = $osutil | Add-Member -MemberType ScriptMethod -Name openFireWall -Value {
-        Param($prot, $ports)
+        1
+    }
+    # prerequirements, yum install python-pip, pip install decorator
+    # every command's out put will send to result receiver.
+    $osutil | Add-Member -MemberType ScriptMethod -Name openFireWall -Value {
+        Param($ports, [String]$prot="tcp")
         if ($ports -is [Array]) {
             $ports = $ports -join ","
         }
-        firewall-cmd --permanent --zone=public --add-port "$ports/$prot"
-        firewall-cmd --reload
-    } -PassThru
-    return $osutil
+        $firewalld = "firewalld"
+        $out = @()
+        if (! $this.isServiceEnabled($firewalld)) {
+            $out += (systemctl enable $firewalld)
+        }
+
+        if (! $this.isServiceRunning($firewalld)) {
+            $out += (systemctl start $firewalld)
+        }
+
+       $out += (firewall-cmd --permanent --zone=public --add-port "$ports/$prot")
+       $out += (firewall-cmd --reload)
+       $out
+    }
+
+    $osutil | Add-Member -MemberType ScriptMethod -Name userm -Value {
+        Param([String]$un, [switch]$delete)
+        if ($delete) {
+            if ((Select-String -Path /etc/passwd -Pattern ("^{0}:.*" -f $un)).Matches.Value) {
+                userdel -f $un
+            }
+        } else {
+            if (! (Select-String -Path /etc/passwd -Pattern ("^{0}:.*" -f $un)).Matches.Value) {
+                useradd -r -M -s /sbin/nologin $un
+            }
+        }
+        1
+    }
+
+    $osutil
 }

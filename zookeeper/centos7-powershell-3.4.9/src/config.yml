@@ -1,5 +1,8 @@
 zkports: "2888,3888"
 configFile: "/var/zookeeper/zoo.cfg"
+logDir: /opt/zookeeper/logs
+logProp: "INFO,CONSOLE"
+pidFile: /opt/zookeeper/server.pid
 binDir: "/opt/zookeeper"
 zkconfig:
   tickTime: "1999"

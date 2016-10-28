@@ -24,7 +24,7 @@ Describe "code" {
         ($decorated.configFolder -replace '\\','/') | Should Be "/var/zookeeper"
         $decorated.configFile | Should Be "/var/zookeeper/zoo.cfg"
         $decorated.binDir | Should Be "/opt/zookeeper"
-        $decorated.serviceLines -join "," | Should Be "server.10=192.168.2.10:2888:3888,server.11=a1.host.name:2888:3888,server.14=a2.host.name:2888:3888"
+        $decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
         $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
     }
     It "should be installed" {
@@ -46,7 +46,11 @@ Describe "code" {
         Test-Path $decorated.DataDir | Should Be $True
         Test-Path $decorated.configFolder | Should Be $True
         Test-Path $decorated.configFile | Should Be $True
-        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-3.4.9/easyinstaller-result.json"
+        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
 
+        (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
+
+        $zkEnv = (Get-ChildItem -Path $myenv.binDir -Recurse -Filter "zkEnv.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkEnv.sh$"}).FullName
+        
     }
 }

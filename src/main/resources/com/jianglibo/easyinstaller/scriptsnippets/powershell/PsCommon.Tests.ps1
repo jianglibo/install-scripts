@@ -109,6 +109,9 @@ Describe "PsCommon" {
 
         $hf.addHost("192.168.33.10", "hello.dd")
         $hf.lines | Select-String -Pattern "\s+hello.cc" | Write-Output -NoEnumerate | Should Be @("192.168.33.10 hello.cc hello.dd")
+
+        $hf.addHost("192.168.33.10", "hello.dd").addHost("192.168.33.10", "hello.dd").addHost("192.168.33.10", "hello.dd")
+        $hf.lines | Select-String -Pattern "\s+hello.cc" | Write-Output -NoEnumerate | Should Be @("192.168.33.10 hello.cc hello.dd")
     }
 
     It "should handle varagrs" {
@@ -202,5 +205,45 @@ Describe "PsCommon" {
         $t = New-TemporaryFile
         @(1,2,3) | Out-File -FilePath $t
         Get-Content $t | Write-Output -NoEnumerate | Should Be @(1,2,3)
+    }
+
+    It "is more about function" {
+        function Get-Pipeline { 
+          process {"The value is: $_"} 
+        }
+        1,2 | Get-Pipeline |Write-Output -NoEnumerate| Should Be @("The value is: 1", "The value is: 2")
+
+        function Get-PipelineBeginEnd {
+          begin {"Begin: The input is $input"}
+          end {"End:   The input is $input" }
+       }
+
+       1,2 | Get-PipelineBeginEnd | Write-Output -NoEnumerate | Should Be @("Begin: The input is ","End:   The input is 1 2")
+    }
+
+    It "is a random password gen" {
+        $r = New-RandomPassword
+        $r.length | Should Be 8
+
+        $r = New-RandomPassword 12
+        $r.length | Should Be 12
+
+        $r = New-RandomPassword -Count 13
+        $r.length | Should Be 13
+
+        $r = 15 | New-RandomPassword
+        $r.length | Should Be 15
+    }
+
+    It "should handle remain args" {
+        function t-t {
+            Param([int]$i, [string]$s, [parameter(ValueFromRemainingArguments)]$others)
+            $others
+        }
+
+        (t-t 1 "s" 1 2 3 4).length | Should Be 4
+        (t-t 1 "s" 1 2 3 4).getType() | Should Be "System.Object[]"
+        (t-t 1 "s" 1,2,3,4).length | Should Be 4
+        (t-t 1 "s" 1,2,3,4).getType() | Should Be "System.Object[]"
     }
 }
