@@ -10,4 +10,4 @@ codeLineSeperator: LF
 runas:
 actions: install,start,stop,restart
 filesToUpload:
-  - https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz
+  - http://apache.01link.hk/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz

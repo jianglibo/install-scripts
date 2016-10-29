@@ -9,7 +9,7 @@ Param(
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# Remove-Item /opt/vvvvv/* -Recurse -Force
+# insert-common-script-here:powershell/Centos7Util.ps1
 
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
