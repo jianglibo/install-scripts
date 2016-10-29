@@ -1,12 +1,12 @@
 {
   "remoteFolder": "/opt/easyinstaller",
   "box": {
-    "ip": "192.168.33.112",
-    "name": "box3",
-    "hostname": "a2.host.name",
+    "ip": "192.168.33.111",
+    "name": "box2",
+    "hostname": "a1.host.name",
     "roles": "r1,r2,r3",
-    "dnsServer": "",
-    "ips": "192.168.2.15,192.168.2.16",
+    "dnsServer": "192.168.2.60",
+    "ips": "192.168.2.12,192.168.2.13",
     "ports": "80,8080"
   },
   "boxGroup": {
@@ -47,6 +47,7 @@
     "sversion": "powershell-3.4.9",
     "ostype": "CentOs7",
     "runas": "",
+    "runner": "powershell -File {code} -envfile {envfile} -action {action}",
     "filesToUpload": [
       "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz"
     ],

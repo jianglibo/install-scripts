@@ -1,3 +1,4 @@
-2. .\gradlew uploadArchives
+1. .\gradlew uploadArchives
+2. .\gradlew zipScript
 3. goto http://central.sonatype.org releaseit.
 5. git tag version. git tag -a v1.4 -m "my version 1.4",  it push origin --tags

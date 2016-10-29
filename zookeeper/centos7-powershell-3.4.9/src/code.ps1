@@ -93,7 +93,7 @@ function Install-Zk {
     Insert-Lines -FilePath $zkEnv -ptn "^ZOOBINDIR=" -lines $envlines
 
     # start command read this file to find executable. or use systemd
-    @{executable=$zkServerBin} | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force
+    @{executable=$zkServerBin} | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 
     # write hostname to hosts.
     $hf = New-HostsFile
@@ -108,16 +108,26 @@ function Install-Zk {
     # open firewall
     $osutil.openFireWall($myenv.software.configContent.zkports)
 
+    # write app.sh, this file can be invoked direct on server.
+    "#!/usr/bin/env bash", ('$(', (New-Runner $myenv.software.runner -envfile $envfile -code $MyInvocation.MyCommand.Path), ')' -join "") | Out-File -FilePath $myenv.appFile -Encoding ascii
+
     # change run user.
 }
 
+function Change-Status {
+    Param($myenv, [String]$action)
+    $result = Get-Content $myenv.resultFile | ConvertFrom-Json
+    $result.executable, $action -join " " | Invoke-Expression
+}
+
+$myenv = New-EnvForExec $envfile | Decorate-Env
 switch ($action) {
     "install" {
-        Install-Zk (New-EnvForExec $envfile | Decorate-Env)
+        Install-Zk $myenv
         break
     }
-    "start" {
-
+    default {
+        Change-Status -myenv $myenv -action $action
     }
 }
 

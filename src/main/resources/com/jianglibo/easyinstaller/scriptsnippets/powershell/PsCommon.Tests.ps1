@@ -246,4 +246,13 @@ Describe "PsCommon" {
         (t-t 1 "s" 1,2,3,4).length | Should Be 4
         (t-t 1 "s" 1,2,3,4).getType() | Should Be "System.Object[]"
     }
+
+    It "handle new-runner" {
+        New-Runner "bash" -envfile "/abcc" | Should Be 'bash /abcc -envfile /abcc -action $1'
+        New-Runner "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" | Should Be 'powershell -File /abcc.Ps1 -envfile /abcc.Ps1.env -action $1'
+
+        New-Runner "bash" -envfile "/abcc" -code "/abcccode" | Should Be 'bash /abcccode -envfile /abcc -action $1'
+        New-Runner "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" -code "/abcccode.Ps1" | Should Be 'powershell -File /abcccode.Ps1 -envfile /abcc.Ps1.env -action $1'
+
+    }
 }

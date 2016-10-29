@@ -94,6 +94,19 @@ function New-OsUtil {
     }
 }
 
+function New-Runner {
+    Param([parameter(Mandatory=$True)][String]$runner, [parameter(Mandatory=$True)][String]$envfile, $code)
+    if (! $code) {
+        $code = $envfile -replace "\.env$",""
+    }
+    if ($runner -cmatch "(\{code\}|\{envfile\}|\{action\})") {
+        $r = $runner -replace "\{code\}",$code
+        $r = $r -replace "\{envfile\}",$envfile
+        $r -replace "\{action\}",'$1'
+    } else {
+        $runner, $code, "-envfile", $envfile, "-action", '$1' -join " "
+    }
+}
 
 function New-KvFile {
  Param
@@ -204,6 +217,7 @@ function New-EnvForExec {
     $efe | Add-Member -MemberType NoteProperty -Name resultFolder -Value ($efe.remoteFolder | Join-Path -ChildPath "results" | Join-Path -ChildPath $efe.software.fullName)
 
     $efe | Add-Member -MemberType NoteProperty -Name resultFile -Value ($efe.resultFolder | Join-Path -ChildPath "easyinstaller-result.json")
+    $efe | Add-Member -MemberType NoteProperty -Name appFile -Value ($efe.resultFolder | Join-Path -ChildPath "app.sh")
 
     if (! (Test-Path $efe.remoteFolder)) {
         New-Item -ItemType Directory $efe.remoteFolder

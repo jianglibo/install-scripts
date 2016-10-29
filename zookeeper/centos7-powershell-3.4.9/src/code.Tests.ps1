@@ -53,6 +53,10 @@ Describe "code" {
         (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
 
         $zkEnv = (Get-ChildItem -Path $myenv.binDir -Recurse -Filter "zkEnv.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkEnv.sh$"}).FullName
+
+        #Change-Status $decorated "stop" | Out-String | Should Be "Stopping zookeeper ... STOPPED\n"
+
+        #Change-Status $decorated "start" | Out-String | Should Be "Starting zookeeper ... STARTED\n"
         
     }
 }
