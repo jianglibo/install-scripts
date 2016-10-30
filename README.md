@@ -64,7 +64,8 @@ Here we direct source these two files.
 ## Magic behind "insert-common-script-here:powershell/PsCommon.ps1"
 
 When easyinstaller meet this pattern in script file, It will search in order:
-1. if you use full path format, just find it there. for example: insert-common-script-here:classpath:powershell/PsCommon.ps1, insert-common-script-here:file:///powershell/PsCommon.ps1, insert-common-script-here:http://xx.xx.xx/powershell/PsCommon.ps1,
-2. in a configurable folder, if there sits "powershell/PsCommon.ps1"
-3. other classpath you config
-4. java classpath "com/jianglibo/easyinstaller/scriptsnippets/" + "powershell/PsCommon.ps1"
+
+* if you use full path format, just find it there. for example: insert-common-script-here:classpath:powershell/PsCommon.ps1, insert-common-script-here:file:///powershell/PsCommon.ps1, insert-common-script-here:http://xx.xx.xx/powershell/PsCommon.ps1,
+* in a configurable folder, if there sits "powershell/PsCommon.ps1"
+* other classpath you config
+* java classpath "com/jianglibo/easyinstaller/scriptsnippets/" + "powershell/PsCommon.ps1"
