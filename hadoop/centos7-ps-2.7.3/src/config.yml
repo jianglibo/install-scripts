@@ -1,7 +1,33 @@
 installDir: "/opt/hadoop"
+ports:
+  namenode:
+    api: 8020
+    http: 50070
+    https: 50470
+    backup: 50100
+    backuphttp: 50105
+  journalnode:
+    rpc: 8485
+    http: 8480
+    https: 8481
+  snamenode:
+    http: 50090
+    https: 50091
+  datanode:
+    api: 50010
+    http: 50075
+    ipc: 50020
+    https: 50475
+  resourcemanager:
+    rm: 8032
+    scheduler: 8030
+    resourceTracker: 8031
+    admin: 8033
+    webapp: 8042
 coreSite:
   - name: fs.defaultFS
-    value: hdfs://host:port/
+# value should from hdfsPort and box which has a NameNode role. hdfs://host:port/
+    value:
     description:
   - name: io.file.buffer.size
     value: 131072
