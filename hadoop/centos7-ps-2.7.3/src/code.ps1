@@ -11,6 +11,44 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+
+<#
+XmlDocument doc = new XmlDocument();
+doc.LoadXml("<book genre='novel' ISBN='1-861001-57-5'>" +
+            "<title>Pride And Prejudice</title>" +
+            "</book>");
+#>
+# doc.DocumentElement.AppendChild(elem);
+
+function Add-TagWithTextValue {
+    Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
+    [System.Xml.XmlElement]$elem = $parent.OwnerDocument.CreateElement($tag)
+    [System.Xml.XmlText]$text = $parent.OwnerDocument.CreateTextNode($value)
+    $elem.AppendChild($text) | Out-Null  # The node added.
+    $parent.AppendChild($elem)
+}
+
+function Add-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
+    if (! $doc) {
+        $doc = $parent.OwnerDocument
+    }
+
+    if (! $parent) {
+        if ($doc.configuration) {
+            $parent = $doc.configuration
+        } else {
+            $parent = $doc.DocumentElement
+        }
+    }
+    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
+    Add-TagWithTextValue -parent $property -tag "name" -value $name
+    Add-TagWithTextValue -parent $property -tag "value" -value $value
+    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
+    $parent.AppendChild($property)
+}
+
+
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
     $myenv | Add-Member -MemberType ScriptProperty -Name zkconfigLines -Value {

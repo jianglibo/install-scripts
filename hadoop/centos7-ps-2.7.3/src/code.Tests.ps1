@@ -9,54 +9,75 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 . (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
-$resutl = . "$here\$sut" -envfile $envfile -action t
 
-<#
-ZOOBINDIR=/opt/zookeeper/zookeeper-3.4.9/bin
-ZOOBINDIR,ZOOCFGDIR, insert to /opt/zookeeper/zookeeper-3.4.9/bin/zkEnv.sh before line ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"
-others can put into : "${ZOOCFGDIR}/zookeeper-env.sh": ZOOCFG,ZOO_LOG_DIR,ZOO_LOG4J_PROP, even JAVA_HOME
-#>
+$resutl = . "$here\$sut" -envfile $envfile -action t
 
 
 Describe "code" {
+    It "should handle core-default.xml" {
+        $dxml = Join-Path -Path $here -ChildPath "../fixtures/core-default.xml"
+        [xml]$o = Get-Content $dxml
 
-    It "should deco env" {
-        $decorated = (New-EnvForExec $envfile | Decorate-Env)
-        $decorated.DataDir | Should Be "/var/lib/zookeeper/"
-        ($decorated.configFolder -replace '\\','/') | Should Be "/var/zookeeper"
-        $decorated.configFile | Should Be "/var/zookeeper/zoo.cfg"
-        $decorated.binDir | Should Be "/opt/zookeeper"
-        $decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
-        $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
-    }
-    It "should be installed" {
-        if (!$IsLinux) {
-            return
-        }
-        $decorated = (New-EnvForExec $envfile | Decorate-Env)
-        $fixtureFile = Join-Path $testTgzFolder -ChildPath $decorated.getUploadedFile("", $True)
-        $tgzFile = $decorated.getUploadedFile()
+        $o.configuration | Should Be $true
+        ($o.configuration.property | Where-Object Name -EQ "hadoop.tmp.dir").value = "/abc"
 
-        if (-not (Test-Path $tgzFile)) {
-            if (Test-Path $fixtureFile -PathType Leaf) {
-                Copy-Item $fixtureFile $tgzFile
-            }
-        }
+        $tf = New-TemporaryFile
 
-        Install-Zk $decorated
-        Test-Path $decorated.binDir | Should Be $True
-        Test-Path $decorated.DataDir | Should Be $True
-        Test-Path $decorated.configFolder | Should Be $True
-        Test-Path $decorated.configFile | Should Be $True
-        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
-
-        (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
-
-        $zkEnv = (Get-ChildItem -Path $myenv.binDir -Recurse -Filter "zkEnv.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkEnv.sh$"}).FullName
-
-        #Change-Status $decorated "stop" | Out-String | Should Be "Stopping zookeeper ... STOPPED\n"
-
-        #Change-Status $decorated "start" | Out-String | Should Be "Starting zookeeper ... STARTED\n"
+        $o.Save($tf)
+        # mata of xml should be remain.
+        (Get-Content $tf | Out-String) -match "<\?xml-styleshee" | Should Be $true
         
+        # value should be changed.
+        (([xml](Get-Content $tf)).configuration.property | Where-Object Name -EQ "hadoop.tmp.dir").value | Should Be "/abc"
+    }
+
+    <#
+    <?xml version="1.0" encoding="utf-8"?>
+    <Racine>
+    <Machine IP="128.200.1.1">
+        Mach1<Adapters>Network</Adapters>
+    </Machine>
+    </Racine>
+    #>
+    It "should create new xml document" {
+        [xml]$xmlDoc = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+</configuration>
+"@
+        $xmlDoc.DocumentElement.Name | Should Be "configuration"
+        $xmlDoc.configuration | Should Be $False
+
+        if ($xmlDoc.configuration) {
+            $configuration = $xmlDoc.configuration
+        } else {
+            $configuration = $xmlDoc.DocumentElement
+        }
+        Add-HadoopProperty -parent $configuration  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
+        $tf = New-TemporaryFile
+        $xmlDoc.Save($tf)
+        (Get-Content $tf | Out-String) -match "<name>hadoop\.common\.configuration\.version</name>" | Should Be $true
+        Remove-Item -Path $tf
+
+        [xml]$xmlDoc = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+</configuration>
+"@
+        Add-HadoopProperty -doc $xmlDoc  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
+        $tf = New-TemporaryFile
+        $xmlDoc.Save($tf)
+        (Get-Content $tf | Out-String) -match "<name>hadoop\.common\.configuration\.version</name>" | Should Be $true
+        Remove-Item -Path $tf
+    }
+
+    It "should handle core-site.xml" {
+        $dxml = Join-Path -Path $here -ChildPath "../fixtures/etc/hadoop/core-site.xml"
+        [xml]$o = Get-Content $dxml
+
+        $o.configuration | Should Be $false
+
     }
 }
