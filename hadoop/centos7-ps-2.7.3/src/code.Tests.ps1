@@ -54,7 +54,7 @@ Describe "code" {
         } else {
             $configuration = $xmlDoc.DocumentElement
         }
-        Add-HadoopProperty -parent $configuration  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
+        Set-HadoopProperty -parent $configuration  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
         $tf = New-TemporaryFile
         $xmlDoc.Save($tf)
         (Get-Content $tf | Out-String) -match "<name>hadoop\.common\.configuration\.version</name>" | Should Be $true
@@ -66,7 +66,7 @@ Describe "code" {
 <configuration>
 </configuration>
 "@
-        Add-HadoopProperty -doc $xmlDoc  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
+        Set-HadoopProperty -doc $xmlDoc  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
         $tf = New-TemporaryFile
         $xmlDoc.Save($tf)
         (Get-Content $tf | Out-String) -match "<name>hadoop\.common\.configuration\.version</name>" | Should Be $true

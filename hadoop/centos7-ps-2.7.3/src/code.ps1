@@ -30,10 +30,18 @@ function Add-TagWithTextValue {
 
 function Add-HadoopProperty {
     Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
+    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
+    Add-TagWithTextValue -parent $property -tag "name" -value $name
+    Add-TagWithTextValue -parent $property -tag "value" -value $value
+    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
+    $parent.AppendChild($property)
+}
+
+function Set-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
     if (! $doc) {
         $doc = $parent.OwnerDocument
     }
-
     if (! $parent) {
         if ($doc.configuration) {
             $parent = $doc.configuration
@@ -41,11 +49,16 @@ function Add-HadoopProperty {
             $parent = $doc.DocumentElement
         }
     }
-    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
-    Add-TagWithTextValue -parent $property -tag "name" -value $name
-    Add-TagWithTextValue -parent $property -tag "value" -value $value
-    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
-    $parent.AppendChild($property)
+
+    # exists item.
+    $node =  $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
+    if ($node) {
+        $node.Name = $name
+        $node.Value = $value
+        $node.Description = $descprition
+    } else {
+        Add-HadoopProperty -doc $doc -parent $parent -name $name -value $value -descprition $descprition
+    }
 }
 
 
@@ -57,8 +70,21 @@ function Decorate-Env {
 
     $myenv | Add-Member -MemberType NoteProperty -Name defaultFS -Value ("hdfs://{0}:{1}" -f $nameNodeBox.hostname, $myenv.software.configContent.ports.namenode.api)
     $myenv | Add-Member -MemberType NoteProperty -Name resourceManagerHostName -Value $resourceManagerBox.hostname
+
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv
+}
+
+function Get-HadoopDirInfomation {
+    Param($myenv)
+    $h = @{}
+    $h.hadoopDaemon=(Get-ChildItem $myenv.InstallDir -Recurse -Filter | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"}).FullName
+    $h.etcHadoop = Join-Path -Path $h.hadoopDaemon -ChildPath "../etc/hadoop"
+    $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
+    $h.hdfsSite = Join-Path $h.etcHadoop -ChildPath "hdfs-site.xml"
+    $h.yarnSite = Join-Path $h.etcHadoop -ChildPath "yarn-site.xml"
+    $h.mapredSite = Join-Path $h.etcHadoop -ChildPath "mapred-site.xml"
+    $h    
 }
 
 function Install-Hd {
@@ -73,6 +99,11 @@ function Install-Hd {
     } else {
         return
     }
+    $h = Get-HadoopDirInfomation -myenv $myenv
+
+    [xml]$coreSiteDoc = Get-Content $h.coreSite
+
+
 }
 
 function Change-Status {

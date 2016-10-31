@@ -93,6 +93,7 @@ function Install-Zk {
     Insert-Lines -FilePath $zkEnv -ptn "^ZOOBINDIR=" -lines $envlines
 
     # start command read this file to find executable. or use systemd
+    # no need, it can reason from other information.
     @{executable=$zkServerBin} | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 
     # write hostname to hosts.
