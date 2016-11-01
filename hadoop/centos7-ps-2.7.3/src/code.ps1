@@ -11,7 +11,6 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
-
 <#
 XmlDocument doc = new XmlDocument();
 doc.LoadXml("<book genre='novel' ISBN='1-861001-57-5'>" +
@@ -38,7 +37,7 @@ function Add-HadoopProperty {
 }
 
 function Set-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
     if (! $doc) {
         $doc = $parent.OwnerDocument
     }
@@ -72,31 +71,74 @@ function Decorate-Env {
     $myenv | Add-Member -MemberType NoteProperty -Name resourceManagerHostName -Value $resourceManagerBox.hostname
 
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
+    $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("hadoop-.*\.tar\.gz"))
     $myenv
 }
 
 function Get-HadoopDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hadoopDaemon = (Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"}).FullName
-    $h.etcHadoop = Join-Path -Path $h.hadoopDaemon -ChildPath "../etc/hadoop"
+    $h.hadoopDaemon = (Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1).FullName
+    $h.hdfsCmd = Join-Path -Path $h.hadoopDaemon -ChildPath "../../bin/hdfs"
+    $h.etcHadoop = Join-Path -Path $h.hadoopDaemon -ChildPath "../../etc/hadoop"
     $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
     $h.hdfsSite = Join-Path $h.etcHadoop -ChildPath "hdfs-site.xml"
     $h.yarnSite = Join-Path $h.etcHadoop -ChildPath "yarn-site.xml"
     $h.mapredSite = Join-Path $h.etcHadoop -ChildPath "mapred-site.xml"
+
+    if (! (Test-Path $h.mapredSite)) {
+        Join-Path $h.etcHadoop -ChildPath "mapred-site.xml.template" | Copy-Item -Destination $h.mapredSite | Out-Null
+    }
     $h    
+}
+
+function Format-Hdfs {
+    Param($myenv)
+    $h = Get-HadoopDirInfomation $myenv
+    $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
+    if (! $resultJson.dfsFormatted) {
+        $h.hdfsCmd, "namenode", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
+        $resultJson.dfsFormatted = $True
+        $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
+    }
+}
+
+function start-dfs {
+    Param($myenv)
+    $h = Get-HadoopDirInfomation $myenv
+    $roles = $myenv.box.roles -split ","
+
+    if ("NameNode" -in $roles) {
+        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
+        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
+    } elseif ("DataNode" -in $roles) {
+        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
+        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
+    }
+}
+
+function start-yarn {
+    Param($myenv)
+    $h = Get-HadoopDirInfomation $myenv
+    $roles = $myenv.box.roles -split ","
+    if ("ResourceManager" -in $roles) {
+        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
+        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
+    } elseif ("NodeManager" -in $roles) {
+        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
+        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
+    }
 }
 
 function Install-Hadoop {
     Param($myenv)
+    $resultHash = @{}
     if (!(Test-Path $myenv.InstallDir)) {
         New-Item -Path $myenv.InstallDir -ItemType Directory | Out-Null
     }
 
-    $tgzFile = $myenv.getUploadedFile("hadoop-.*\.tar\.gz")
-
-    if (Test-Path $tgzFile -PathType Leaf) {
-        Run-Tar $tgzFile -DestFolder $myenv.InstallDir
+    if (Test-Path $myenv.tgzFile -PathType Leaf) {
+        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir
     } else {
         return
     }
@@ -105,17 +147,10 @@ function Install-Hadoop {
     [xml]$coreSiteDoc = Get-Content $h.coreSite
 
     $myenv.software.configContent.coreSite | ForEach-Object {
-        switch ($_.Name ) {
-            "fs.defaultFS" {
-                Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $myenv.defaultFS
-                break
-            }
-
-            default {
-                if ($_.Value) {
-                    Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $_.Value
-                }
-            }
+        if ($_.Name -eq "fs.defaultFS") {
+            Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $myenv.defaultFS
+        } elseif($_.Value){
+            Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $_.Value
         }
     }
     Save-Xml -doc $coreSiteDoc -FilePath $h.coreSite -encoding ascii
@@ -132,8 +167,31 @@ function Install-Hadoop {
 
     [xml]$yarnSiteDoc = Get-Content $h.yarnSite
     $myenv.software.configContent.yarnSite | ForEach-Object {
-        if ($_.Value) {
-            Set-HadoopProperty -doc $yarnSiteDoc -name $_.Name -value $_.Value
+        $n = $_.Name
+        switch ($n) {
+            "yarn.resourcemanager.address" {
+                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.api)
+            }
+            "yarn.resourcemanager.scheduler.address" {
+                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.scheduler)
+            }
+            "yarn.resourcemanager.resource-tracker.address" {
+                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.resourceTracker)
+            }
+            "yarn.resourcemanager.admin.address" {
+                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.admin)
+            }
+            "yarn.resourcemanager.webapp.address" {
+                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.webapp)
+            }
+            "yarn.resourcemanager.hostname" {
+                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value $myenv.resourceManagerHostName
+            }
+            default {
+                if ($C.Value) {
+                   Set-HadoopProperty -doc $yarnSiteDoc -name $n -value $_.Value
+                }
+            }
         }
     }
     Save-Xml -doc $yarnSiteDoc -FilePath $h.yarnSite -encoding ascii
@@ -146,6 +204,8 @@ function Install-Hadoop {
         }
     }
     Save-Xml -doc $mapredSiteDoc -FilePath $h.mapredSite -encoding ascii
+
+    $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 }
 
 function Change-Status {

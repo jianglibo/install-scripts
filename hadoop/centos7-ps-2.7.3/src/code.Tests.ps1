@@ -82,10 +82,14 @@ Describe "code" {
         Test-Path $tgzFile -PathType Leaf | Should Be $True
 
         $myenv.getUploadedFile("hadoop-.*\.tar\.gz") | Should Be "/opt/easyinstaller/hadoop-2.7.3.tar.gz"
+        $myenv.tgzFile = $tgzFile
 
-#        if (! (Test-Path "/opt/easyinstaller/hadoop-2.7.3.tar.gz")) {
-#            Copy-Item -Path ()
-#        }
+
+        $myenv.software.configContent.coreSite | Select-Object -ExpandProperty Name | Write-Output -OutVariable +snames
+
+        $snames -contains "fs.defaultFS" | Should Be $true
+        $snames -contains "io.file.buffer.size" | Should Be $true
+
         Install-Hadoop $myenv
 
         $di = Get-HadoopDirInfomation $myenv
@@ -94,9 +98,12 @@ Describe "code" {
         $yarnSite = Get-Item $di.yarnSite
         $mapredSite = Get-Item $di.mapredSite
 
-        $coreSite.Length | Should Be  (Get-Item $di.coreSite).Length
-        $hdfsSite.Length | Should Be  (Get-Item $di.hdfsSite).Length
-        $yarnSite.Length | Should Be  (Get-Item $di.yarnSite).Length
-        $mapredSite.Length | Should Be  (Get-Item $di.mapredSite).Length
+    
+        [xml]$coreSiteDoc = Get-Content $coreSite
+
+        $pnames = $coreSiteDoc.configuration.property | Select-Object -ExpandProperty Name | Write-Output -NoEnumerate
+
+        $pnames | Should Be "fs.defaultFS", "io.file.buffer.size"
+
     }
 }

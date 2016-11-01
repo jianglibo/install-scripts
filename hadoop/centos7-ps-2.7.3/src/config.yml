@@ -1,4 +1,5 @@
 installDir: "/opt/hadoop"
+dfsClusterName: mydfscluster
 ports:
   namenode:
     api: 8020
@@ -19,7 +20,7 @@ ports:
     ipc: 50020
     https: 50475
   resourcemanager:
-    rm: 8032
+    api: 8032
     scheduler: 8030
     resourceTracker: 8031
     admin: 8033
@@ -34,7 +35,7 @@ coreSite:
     description:
 hdfsSite:
   - name: dfs.namenode.name.dir
-    value:
+    value: /opt/hadoop/dfs.namenode.name.dir
     description:
   - name: dfs.hosts
     value:

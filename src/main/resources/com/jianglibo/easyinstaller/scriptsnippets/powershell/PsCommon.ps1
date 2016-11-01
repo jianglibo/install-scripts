@@ -36,7 +36,7 @@ function Save-Xml {
     Param([xml]$doc, $FilePath, $encoding="ascii")
     $sw = New-Object System.IO.StringWriter
     $doc.Save($sw)
-    $sw.ToString() | Out-File -FilePath $FilePath -Encoding $encoding
+    $sw.ToString() -replace "utf-16", "utf-8" | Out-File -FilePath $FilePath -Encoding $encoding
 }
 
 # https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Using_the_Command_Line_Interface.html
