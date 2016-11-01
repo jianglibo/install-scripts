@@ -78,7 +78,7 @@ function Decorate-Env {
 function Get-HadoopDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hadoopDaemon=(Get-ChildItem $myenv.InstallDir -Recurse -Filter | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"}).FullName
+    $h.hadoopDaemon = (Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"}).FullName
     $h.etcHadoop = Join-Path -Path $h.hadoopDaemon -ChildPath "../etc/hadoop"
     $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
     $h.hdfsSite = Join-Path $h.etcHadoop -ChildPath "hdfs-site.xml"
@@ -87,13 +87,14 @@ function Get-HadoopDirInfomation {
     $h    
 }
 
-function Install-Hd {
+function Install-Hadoop {
     Param($myenv)
     if (!(Test-Path $myenv.InstallDir)) {
         New-Item -Path $myenv.InstallDir -ItemType Directory | Out-Null
     }
 
     $tgzFile = $myenv.getUploadedFile("hadoop-.*\.tar\.gz")
+
     if (Test-Path $tgzFile -PathType Leaf) {
         Run-Tar $tgzFile -DestFolder $myenv.InstallDir
     } else {
@@ -103,7 +104,48 @@ function Install-Hd {
 
     [xml]$coreSiteDoc = Get-Content $h.coreSite
 
+    $myenv.software.configContent.coreSite | ForEach-Object {
+        switch ($_.Name ) {
+            "fs.defaultFS" {
+                Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $myenv.defaultFS
+                break
+            }
 
+            default {
+                if ($_.Value) {
+                    Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $_.Value
+                }
+            }
+        }
+    }
+    Save-Xml -doc $coreSiteDoc -FilePath $h.coreSite -encoding ascii
+
+    
+    [xml]$hdfsSiteDoc = Get-Content $h.hdfsSite
+    $myenv.software.configContent.hdfsSite | ForEach-Object {
+        if ($_.Value) {
+            Set-HadoopProperty -doc $hdfsSiteDoc -name $_.Name -value $_.Value
+        }
+    }
+    Save-Xml -doc $hdfsSiteDoc -FilePath $h.hdfsSite -encoding ascii
+
+
+    [xml]$yarnSiteDoc = Get-Content $h.yarnSite
+    $myenv.software.configContent.yarnSite | ForEach-Object {
+        if ($_.Value) {
+            Set-HadoopProperty -doc $yarnSiteDoc -name $_.Name -value $_.Value
+        }
+    }
+    Save-Xml -doc $yarnSiteDoc -FilePath $h.yarnSite -encoding ascii
+
+
+    [xml]$mapredSiteDoc = Get-Content $h.mapredSite
+    $myenv.software.configContent.mapredSite | ForEach-Object {
+        if ($_.Value) {
+            Set-HadoopProperty -doc $mapredSiteDoc -name $_.Name -value $_.Value
+        }
+    }
+    Save-Xml -doc $mapredSiteDoc -FilePath $h.mapredSite -encoding ascii
 }
 
 function Change-Status {
@@ -118,7 +160,7 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
     "install" {
-        Install-Hd $myenv
+        Install-Hadoop $myenv
         break
     }
     default {

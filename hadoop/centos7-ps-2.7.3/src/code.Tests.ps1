@@ -32,15 +32,6 @@ Describe "code" {
         # value should be changed.
         (([xml](Get-Content $tf)).configuration.property | Where-Object Name -EQ "hadoop.tmp.dir").value | Should Be "/abc"
     }
-
-    <#
-    <?xml version="1.0" encoding="utf-8"?>
-    <Racine>
-    <Machine IP="128.200.1.1">
-        Mach1<Adapters>Network</Adapters>
-    </Machine>
-    </Racine>
-    #>
     It "should create new xml document" {
         [xml]$xmlDoc = @"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -78,8 +69,34 @@ Describe "code" {
     It "should handle core-site.xml" {
         $dxml = Join-Path -Path $here -ChildPath "../fixtures/etc/hadoop/core-site.xml"
         [xml]$o = Get-Content $dxml
-
         $o.configuration | Should Be $false
+    }
 
+    It  "should install hadoop" {
+        $myenv = New-EnvForExec $envfile | Decorate-Env
+
+        $myenv.InstallDir | Should Be "/opt/hadoop"
+
+        $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/hadoop-2.7.3.tar.gz"
+
+        Test-Path $tgzFile -PathType Leaf | Should Be $True
+
+        $myenv.getUploadedFile("hadoop-.*\.tar\.gz") | Should Be "/opt/easyinstaller/hadoop-2.7.3.tar.gz"
+
+#        if (! (Test-Path "/opt/easyinstaller/hadoop-2.7.3.tar.gz")) {
+#            Copy-Item -Path ()
+#        }
+        Install-Hadoop $myenv
+
+        $di = Get-HadoopDirInfomation $myenv
+        $coreSite =  Get-Item $di.coreSite
+        $hdfsSite = Get-Item $di.hdfsSite
+        $yarnSite = Get-Item $di.yarnSite
+        $mapredSite = Get-Item $di.mapredSite
+
+        $coreSite.Length | Should Be  (Get-Item $di.coreSite).Length
+        $hdfsSite.Length | Should Be  (Get-Item $di.hdfsSite).Length
+        $yarnSite.Length | Should Be  (Get-Item $di.yarnSite).Length
+        $mapredSite.Length | Should Be  (Get-Item $di.mapredSite).Length
     }
 }
