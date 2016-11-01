@@ -1,6 +1,6 @@
-name: zookeeper
+name: hadoop
 ostype: CentOs7
-sversion: powershell-3.4.9
+sversion: ps-2.7.3
 runner: powershell -File {code} -envfile {envfile} -action {action}
 preferredFormat: JSON
 codeToExecute: code/code.ps1

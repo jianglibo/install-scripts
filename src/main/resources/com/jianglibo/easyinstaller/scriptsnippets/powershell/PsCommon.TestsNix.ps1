@@ -2,11 +2,15 @@
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.TestsNix\.', '.'
 . "$here\$sut"
 
-Describe "PsCommon" {
-    It "should handle OsUtil" {
-        $osutil = New-OsUtil -ostype centos
-        $osutil.isServiceRunning("crond") | Should Be $True
+. "$here\Centos7Util.ps1"
 
-        $osutil.isEnabled("crond") | Should Be $True
+Describe "PsCommon" {
+
+    It "should save to xml" {
+        [xml]$doc = "<a></a>"
+        $tf = New-TemporaryFile
+        Save-Xml -doc $doc -FilePath $tf -encoding ascii
+        (Get-Content $tf) -match "<a>" | Should Be $true
+        Remove-Item $tf
     }
 }

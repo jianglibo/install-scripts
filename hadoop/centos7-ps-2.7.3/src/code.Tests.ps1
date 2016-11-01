@@ -18,12 +18,14 @@ Describe "code" {
         $dxml = Join-Path -Path $here -ChildPath "../fixtures/core-default.xml"
         [xml]$o = Get-Content $dxml
 
+        $o -is [xml] | Should Be $true
+
         $o.configuration | Should Be $true
         ($o.configuration.property | Where-Object Name -EQ "hadoop.tmp.dir").value = "/abc"
 
         $tf = New-TemporaryFile
-
-        $o.Save($tf)
+        # compatibility with linux powershell
+        Save-Xml -doc $o -FilePath $tf -encoding ascii
         # mata of xml should be remain.
         (Get-Content $tf | Out-String) -match "<\?xml-styleshee" | Should Be $true
         
@@ -56,7 +58,7 @@ Describe "code" {
         }
         Set-HadoopProperty -parent $configuration  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
         $tf = New-TemporaryFile
-        $xmlDoc.Save($tf)
+        Save-Xml -doc $xmlDoc -FilePath $tf -encoding ascii
         (Get-Content $tf | Out-String) -match "<name>hadoop\.common\.configuration\.version</name>" | Should Be $true
         Remove-Item -Path $tf
 
@@ -68,7 +70,7 @@ Describe "code" {
 "@
         Set-HadoopProperty -doc $xmlDoc  -name "hadoop.common.configuration.version" -value 0.23.0 -descprition "version of this configuration file"
         $tf = New-TemporaryFile
-        $xmlDoc.Save($tf)
+        Save-Xml -doc $xmlDoc -FilePath $tf -encoding ascii
         (Get-Content $tf | Out-String) -match "<name>hadoop\.common\.configuration\.version</name>" | Should Be $true
         Remove-Item -Path $tf
     }

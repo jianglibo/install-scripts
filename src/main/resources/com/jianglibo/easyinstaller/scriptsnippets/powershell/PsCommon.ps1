@@ -32,6 +32,13 @@ function Run-Tar {
     if ($r.Count -gt 0) {$false} else {$True}
 }
 
+function Save-Xml {
+    Param([xml]$doc, $FilePath, $encoding="ascii")
+    $sw = New-Object System.IO.StringWriter
+    $doc.Save($sw)
+    $sw.ToString() | Out-File -FilePath $FilePath -Encoding $encoding
+}
+
 # https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Using_the_Command_Line_Interface.html
 function New-IpUtil {
 

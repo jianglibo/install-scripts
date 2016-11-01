@@ -108,11 +108,14 @@ function Install-Hd {
 
 function Change-Status {
     Param($myenv, [String]$action)
-    $result = Get-Content $myenv.resultFile | ConvertFrom-Json
-    $result.executable, $action -join " " | Invoke-Expression
+    if (Test-Path $myenv.resultFile) {
+        $result = Get-Content $myenv.resultFile | ConvertFrom-Json
+        $result.executable, $action -join " " | Invoke-Expression
+    }
 }
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
+
 switch ($action) {
     "install" {
         Install-Hd $myenv
