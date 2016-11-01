@@ -17,4 +17,22 @@ Describe "PsCommon" {
         (Get-Content $tf) -match "utf-16" | Should Be $null
         Remove-Item $tf
     }
+
+    It "should hand over environment to bash" {
+        
+        $shf = Join-Path $here -ChildPath "fixtures/myenvtest.sh"
+        Test-Path $shf -PathType Leaf | Should Be $True
+
+        $cmd = "bash $shf"
+
+        ($cmd | Invoke-Expression | Out-String ).Trim() | Should Be ""
+
+        Set-Content env:J_HOME "hello"
+
+        ($cmd | Invoke-Expression | Out-String).Trim() | Should Be "hello"
+
+        Set-Content env:J_HOME "hello1"
+
+        ($cmd | Invoke-Expression | Out-String).Trim() | Should Be "hello1"
+    }
 }
