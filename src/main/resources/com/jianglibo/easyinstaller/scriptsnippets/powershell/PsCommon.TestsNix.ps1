@@ -77,4 +77,31 @@ expect {
     Remove-Item $bsf
     Remove-Item $tclf
     }
+
+    # runuser -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
+    # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
+    It "should run as user" {
+            $bs = @'
+echo "hello$USER"
+'@
+
+    $bsf = New-TemporaryFile
+
+    $bs | Out-File -FilePath $bsf -Encoding ascii
+
+    $osutil = New-Centos7Util
+
+    $osutil.userm("abc")
+
+    chown abc $bsf
+    chmod u+x $bsf
+
+    $runas = 'runuser -s /bin/bash -c {0}  {1}' -f $bsf,"abc"
+    
+    $v = $runas | Invoke-Expression
+
+    $v | Should Be "helloabc"
+
+    Remove-Item $bsf
+    }
 }

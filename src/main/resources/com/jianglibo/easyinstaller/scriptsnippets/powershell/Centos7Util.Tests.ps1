@@ -4,37 +4,57 @@ $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 
 Describe "Centos7Util" {
     It "should disable networkmanager" {
-        $osutil = New-Centos7Util
-        $osutil.disableNetworkManager() | Should Be 1
+        $networkmanager = "NetworkManager"
+
+        if (Centos7-IsServiceEnabled -serviceName $networkmanager) {
+            Centos7-NetworkManager -action disable
+        }
+
+        Centos7-IsServiceEnabled -serviceName $networkmanager | Should Be $False
+        Centos7-IsServiceRunning -serviceName $networkmanager | Should Be $False
+
+        Centos7-NetworkManager -action enable
+        Centos7-IsServiceEnabled -serviceName $networkmanager | Should Be $True
+        Centos7-IsServiceRunning -serviceName $networkmanager | Should Be $True
     }
     It "should set hostname" {
-        $osutil = New-Centos7Util
-        $osutil.setHostName() | Should Be 1
+        $hn = hostname
+        Centos7-SetHostName -hostname "a.b.c"
+        hostname | Should Be "a.b.c"
+        Centos7-SetHostName $hn
     }
     It "should open firewall" {
-        $osutil = New-Centos7Util
         $fwd = "firewalld"
-        systemctl stop $fwd
-        systemctl disable $fwd
-        $out =  $osutil.openFireWall("8080")
-        $out.getType() | Should Be "System.Object[]"
-        $out.Count | Should be 2
+        if (Centos7-IsServiceEnabled -serviceName $fwd) {
+            systemctl stop $fwd *>1 | Out-Null
+            systemctl disable $fwd *>1 | Out-Null
+        }
 
-        $out -join "," | Should Be "success,success"
+        Centos7-FileWall -ports "8081"
+        $r = firewall-cmd --list-all | Where-Object {$_ -match "^\s+ports"} | Select-Object -First 1
         
+        $r -match "8081/tcp" | Should Be $True
+        Centos7-FileWall -ports "8081" -delete
     }
     It "should handle user manager" {
-        $osutil = New-Centos7Util
+        $username = "a" + (Get-Random)
+    
+        Centos7-UserManager -username $username -action add
 
-        $un = "a" + (Get-Random)
-        $osutil.userm($un) | Should Be 1
+        Centos7-UserManager -username $username -action exists | Should Be $True
+        
+        $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
 
-        Select-String -Path /etc/passwd -Pattern "^${un}:" | Should Be $True
+        $r.Count | Should Be 1
+        
+        Centos7-UserManager -username $username -action remove
 
-        $osutil.userm($un, $True) | Should Be 1
+        $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
+        $r.Count | Should Be 0
+
+        Centos7-UserManager -username "xxxxxxxxxxu" -action exists | Should Be $False
     }
 }
 
 # remember
-
 # useradd -r , create a user has no login.
