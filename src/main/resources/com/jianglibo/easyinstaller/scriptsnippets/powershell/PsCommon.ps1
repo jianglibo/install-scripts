@@ -68,39 +68,6 @@ function Insert-Lines {
     Set-Content -Path $FilePath -Value $content
 }
 
-function New-CentOs7Nmcli {
- Param
-     (
-       [parameter(Mandatory=$False)]
-       [Boolean]
-       $EnableNetworkManager = $True,
-       [parameter(Mandatory=$False)]
-       [Boolean]
-       $EnableDns = $False
-    )
-    $nm = New-Object -TypeName PSObject
-    $d = [ordered]@{NetworkManagerEnabled=$EnableNetworkManager;DnsEnabled=$EnableDns}
-    $nm = $nm | Add-Member -NotePropertyMembers $d -PassThru
-    
-    $nm = $nm | Add-Member -MemberType ScriptMethod -Name init -Value {
-        if ($this.EnableNetworkManager) {
-            systemctl enable NetworkManager
-        } else {
-            systemctl disable NetworkManager
-        }
-    } -PassThru
-
-    return $nm
-}
-
-function New-OsUtil {
-    Param([ValidateSet("centos","unbuntu")][parameter(Mandatory=$True)][String]$ostype="centos")
-    
-    switch ($ostype) {
-        "centos" {New-CentOsUtil}
-    }
-}
-
 function New-Runner {
     Param([parameter(Mandatory=$True)][String]$runner, [parameter(Mandatory=$True)][String]$envfile, $code)
     if (! $code) {

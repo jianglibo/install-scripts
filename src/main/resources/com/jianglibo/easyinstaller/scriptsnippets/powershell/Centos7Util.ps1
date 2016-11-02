@@ -93,6 +93,13 @@ function Centos7-UserManager {
 # runuser -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 
-function Run-User {
+function Centos7-Run-User {
     Param([string]$shell="/bin/bash", [string]$scriptfile, [string]$user)
+
+    Centos7-UserManager -username $user -action add
+
+    chown $user $scriptfile | Out-Null
+    chmod u+x $scriptfile | Out-Null
+
+    'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptfile,$user | Invoke-Expression
 }

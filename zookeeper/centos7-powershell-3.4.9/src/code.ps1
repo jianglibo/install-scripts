@@ -4,7 +4,7 @@
 Param(
     [parameter(Mandatory=$true)]
     $envfile,
-    [parameter(Mandatory=$true)]
+    [string]
     $action
 )
 
@@ -27,7 +27,7 @@ function Decorate-Env {
 
     $myenv | Add-Member -MemberType NoteProperty -Name configFolder -Value (Split-Path -Parent $myenv.software.configContent.configFile)
     $myenv | Add-Member -MemberType NoteProperty -Name configFile -Value $myenv.software.configContent.configFile
-    $myenv | Add-Member -MemberType NoteProperty -Name binDir -Value $myenv.software.configContent.binDir
+    $myenv | Add-Member -MemberType NoteProperty -Name installTo -Value $myenv.software.configContent.installTo
     $myenv | Add-Member -MemberType NoteProperty -Name logDir -Value $myenv.software.configContent.logDir
     $myenv | Add-Member -MemberType NoteProperty -Name pidFile -Value $myenv.software.configContent.pidFile
     $myenv | Add-Member -MemberType NoteProperty -Name logProp -Value $myenv.software.configContent.logProp
@@ -40,6 +40,10 @@ function Uninstall-Zk {
 
 function Install-Zk {
     Param($myenv)
+
+    $resultHash = @{}
+    $resultHash.env = @{}
+
     if (!(Test-Path $myenv.configFolder)) {
         New-Item -Path $myenv.configFolder -ItemType Directory | Out-Null
     }
@@ -57,7 +61,7 @@ function Install-Zk {
 
     $tgzFile = $myenv.getUploadedFile()
     if (Test-Path $tgzFile -PathType Leaf) {
-        Run-Tar $tgzFile -DestFolder $myenv.binDir
+        Run-Tar $tgzFile -DestFolder $myenv.installTo
     } else {
         exit
     }
@@ -70,31 +74,33 @@ function Install-Zk {
     # "$ZOOBINDIR/zkEnv.sh", so we can find zkEnv.sh in same directory. zkEnv.sh need ZOOCFGDIR, when get ZOOCFGDIR, it read config from ZOOCFGDIR/zookeeper-env.sh
     # or we can write all value just to zkEnv.sh, just before ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"
 
-    $zkServerBin = (Get-ChildItem -Path $myenv.binDir -Recurse -Filter "zkServer.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkServer.sh$"}).FullName
+    $zkServerBin = (Get-ChildItem -Path $myenv.installTo -Recurse -Filter "zkServer.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkServer.sh$"}).FullName
     Join-Path -Path $zkServerBin "../../conf/" | Get-ChildItem | Copy-Item -Destination $myenv.configFolder
     $zkEnv = $zkServerBin | Split-Path -Parent | Join-Path -ChildPath zkEnv.sh
 
     # after success install, we will create a file only known to this installation script. called: easyinstaller-result.json
-    $ZOOCFG = Split-Path -Path $myenv.configFile -Leaf
-    $ZOOCFGDIR = $myenv.configFolder
-    $ZOOPIDFILE = $myenv.pidFile
-    $ZOO_LOG_DIR = $myenv.logDir
-    # there is a bug in zkServer.sh, it cannot extract ZOO_DATADIR from config file.
-    # $ZOO_DATADIR = $myenv.DataDir
-    $ZOO_LOG4J_PROP = $myenv.logProp
+    $env:ZOOCFG = Split-Path -Path $myenv.configFile -Leaf
+    $env:ZOOCFGDIR = $myenv.configFolder
+    $env:ZOOPIDFILE = $myenv.pidFile
+    $env:ZOO_LOG_DIR = $myenv.logDir
+    $env:ZOO_LOG4J_PROP = $myenv.logProp
 
+    $resultHash.env.ZOOCFG = $env:ZOOCFG
+    $resultHash.env.ZOOCFGDIR = $env:ZOOCFGDIR
+    $resultHash.env.ZOOPIDFILE = $env:ZOOPIDFILE
+    $resultHash.env.ZOO_LOG_DIR = $env:ZOO_LOG_DIR
+    $resultHash.env.ZOO_LOG4J_PROP = $env:ZOO_LOG4J_PROP
+<#
     $envlines = "ZOOCFG=`"${ZOOCFG}`"",
                  "ZOOCFGDIR=`"$ZOOCFGDIR`"",
                  "ZOOPIDFILE=`"${ZOOPIDFILE}`"",
                  "ZOO_LOG_DIR=`"${ZOO_LOG_DIR}`"",
                  "ZOO_LOG4J_PROP=`"${ZOO_LOG4J_PROP}`""
-   #              "ZOO_DATADIR=`"${ZOO_DATADIR}`""
-
     Insert-Lines -FilePath $zkEnv -ptn "^ZOOBINDIR=" -lines $envlines
-
+#>
     # start command read this file to find executable. or use systemd
     # no need, it can reason from other information.
-    @{executable=$zkServerBin} | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
+    $resultHash.executable = $zkServerBin
 
     # write hostname to hosts.
     $hf = New-HostsFile
@@ -102,26 +108,51 @@ function Install-Zk {
     $hf.writeToFile()
 
     #change hostname
-    $osutil = New-Centos7Util
     if ($myenv.box.ip -ne $myenv.box.hostname) {
-        $osutil.setHostName($myenv.box.hostname)
+        Centos7-SetHostName -hostname $myenv.box.hostname
     }
     # open firewall
-    $osutil.openFireWall($myenv.software.configContent.zkports)
-
+    Centos7-FileWall -ports $myenv.software.configContent.zkports
     # write app.sh, this file can be invoked direct on server.
-    "#!/usr/bin/env bash", ('$(', (New-Runner $myenv.software.runner -envfile $envfile -code $MyInvocation.MyCommand.Path), ')' -join "") | Out-File -FilePath $myenv.appFile -Encoding ascii
 
+    $user = $myenv.software.runas
+    'runuser -s /bin/bash -c "{0}"  {1}' -f (New-Runner $myenv.software.runner -envfile $envfile -code $MyInvocation.MyCommand.Path),$user | Out-File -FilePath $myenv.appFile -Encoding ascii
+
+    $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # change run user.
+    if ($user) {
+        Centos7-UserManager -username $user -action add
+        chown -R "${user}:${user}" $myenv.installTo
+    }
+}
+
+function Get-RunuserCmd {
+    Param($myenv, $action)
+    $result = Get-Content $myenv.resultFile | ConvertFrom-Json
+
+    Add-AsHtScriptMethod -pscustomob $result
+
+    [HashTable]$envs = $result.asHt("env")
+
+    $envs.GetEnumerator() | ForEach-Object {
+        Set-Content -Path ("env:" + $_.Key) -Value $_.Value
+    }
+
+    $user = $myenv.software.runas
+
+    'runuser -s /bin/bash -c "{0}" {1}' -f ($result.executable, $action -join " ").Trim(),$user
 }
 
 function Change-Status {
-    Param($myenv, [String]$action)
-    $result = Get-Content $myenv.resultFile | ConvertFrom-Json
-    $result.executable, $action -join " " | Invoke-Expression
+    Param($myenv, [ValidateSet("start","start-foreground","stop", "restart", "status", "upgrade", "print-cmd")][String]$action)
+    Get-RunuserCmd -myenv $myenv -action $action | Invoke-Expression
 }
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
+
+if (! $action) {
+    return
+}
 switch ($action) {
     "install" {
         Install-Zk $myenv

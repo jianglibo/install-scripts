@@ -34,6 +34,8 @@ Describe "PsCommon" {
         Set-Content env:J_HOME "hello1"
 
         ($cmd | Invoke-Expression | Out-String).Trim() | Should Be "hello1"
+
+        "runuser -s /bin/bash -c $shf zookeeper" | Invoke-Expression | Should Be "hello1"
     }
 
     It "can work with tcl expect" {
@@ -88,20 +90,11 @@ echo "hello$USER"
     $bsf = New-TemporaryFile
 
     $bs | Out-File -FilePath $bsf -Encoding ascii
-
-    $osutil = New-Centos7Util
-
-    $osutil.userm("abc")
-
-    chown abc $bsf
-    chmod u+x $bsf
-
-    $runas = 'runuser -s /bin/bash -c {0}  {1}' -f $bsf,"abc"
     
-    $v = $runas | Invoke-Expression
-
-    $v | Should Be "helloabc"
-
+    $r = Centos7-Run-User -scriptfile $bsf -user "abc"
+    Centos7-UserManager -username "abc" -action remove
     Remove-Item $bsf
+
+    $r | Should Be "helloabc"
     }
 }

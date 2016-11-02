@@ -9,7 +9,8 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 . (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
-$resutl = . "$here\$sut" -envfile $envfile -action t
+
+$resutl = . "$here\$sut" -envfile $envfile
 
 <#
 ZOOBINDIR=/opt/zookeeper/zookeeper-3.4.9/bin
@@ -25,9 +26,11 @@ Describe "code" {
         $decorated.DataDir | Should Be "/var/lib/zookeeper/"
         ($decorated.configFolder -replace '\\','/') | Should Be "/var/zookeeper"
         $decorated.configFile | Should Be "/var/zookeeper/zoo.cfg"
-        $decorated.binDir | Should Be "/opt/zookeeper"
+        $decorated.installTo | Should Be "/opt/zookeeper"
         $decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
         $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
+
+        $decorated.software.runas | Should Be "zookeeper"
     }
     It "should be installed" {
         if (!$IsLinux) {
@@ -44,19 +47,25 @@ Describe "code" {
         }
 
         Install-Zk $decorated
-        Test-Path $decorated.binDir | Should Be $True
+        Test-Path $decorated.installTo | Should Be $True
         Test-Path $decorated.DataDir | Should Be $True
         Test-Path $decorated.configFolder | Should Be $True
         Test-Path $decorated.configFile | Should Be $True
-        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
 
+        Get-RunuserCmd -myenv $decorated | Should Be 'runuser -s /bin/bash -c "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh" zookeeper'
+
+        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
         (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
 
-        $zkEnv = (Get-ChildItem -Path $myenv.binDir -Recurse -Filter "zkEnv.sh" | Where-Object {($_.FullName -replace "\\","/") -match "/bin/zkEnv.sh$"}).FullName
+        $r = Change-Status -myenv $decorated -action start | Out-String
 
-        #Change-Status $decorated "stop" | Out-String | Should Be "Stopping zookeeper ... STOPPED\n"
+        if ($r -match "already running as") {
+            Change-Status -myenv $decorated -action stop
+        } else {
+            $r = Change-Status -myenv $decorated -action start | Out-String
+            $r -match "already running as" | Should Be $False
+        }
+        Change-Status -myenv $decorated -action status
 
-        #Change-Status $decorated "start" | Out-String | Should Be "Starting zookeeper ... STARTED\n"
-        
     }
 }

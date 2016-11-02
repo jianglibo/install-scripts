@@ -3,7 +3,7 @@ configFile: "/var/zookeeper/zoo.cfg"
 logDir: /opt/zookeeper/logs
 logProp: "INFO,CONSOLE"
 pidFile: /opt/zookeeper/server.pid
-binDir: "/opt/zookeeper"
+installTo: "/opt/zookeeper"
 zkconfig:
   tickTime: "1999"
   dataDir: "/var/lib/zookeeper/"

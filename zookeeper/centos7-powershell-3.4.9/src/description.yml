@@ -7,7 +7,7 @@ codeToExecute: code/code.ps1
 configContent: config.yml # content of this file will insert into software configContent field.
 codeFileExt: .ps1
 codeLineSeperator: LF
-runas:
+runas: zookeeper
 actions: install,start,stop,restart
 filesToUpload:
   - https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz

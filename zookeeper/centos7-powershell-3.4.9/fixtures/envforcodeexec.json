@@ -11,7 +11,7 @@
   },
   "boxGroup": {
     "name": "boxgroup1",
-    "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"binDir\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\"}}",
+    "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"installTo\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\"}}",
     "boxes": [
       {
         "ip": "192.168.33.110",
@@ -46,12 +46,12 @@
     "name": "zookeeper",
     "sversion": "powershell-3.4.9",
     "ostype": "CentOs7",
-    "runas": "",
+    "runas": "zookeeper",
     "runner": "powershell -File {code} -envfile {envfile} -action {action}",
     "filesToUpload": [
       "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz"
     ],
-    "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"logDir\":\"/opt/zookeeper/logs\",\"logProp\":\"INFO,CONSOLE\",\"pidFile\":\"/opt/zookeeper/server.pid\",\"binDir\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\",\"dataLogDir\":\"/var/lib/zookeeper/\"}}",
+    "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"logDir\":\"/opt/zookeeper/logs\",\"logProp\":\"INFO,CONSOLE\",\"pidFile\":\"/opt/zookeeper/server.pid\",\"installTo\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\",\"dataLogDir\":\"/var/lib/zookeeper/\"}}",
     "actions": "install",
     "preferredFormat": "JSON"
   }
