@@ -5,11 +5,17 @@ Param(
     [parameter(Mandatory=$true)]
     $envfile,
     [string]
-    $action
+    $action,
+    [string]
+    $codefile
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
+
+if (! $codefile) {
+    $codefile = $MyInvocation.MyCommand.Path
+}
 
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
@@ -116,7 +122,7 @@ function Install-Zk {
     # write app.sh, this file can be invoked direct on server.
 
     $user = $myenv.software.runas
-    'runuser -s /bin/bash -c "{0}"  {1}' -f (New-Runner $myenv.software.runner -envfile $envfile -code $MyInvocation.MyCommand.Path),$user | Out-File -FilePath $myenv.appFile -Encoding ascii
+    'runuser -s /bin/bash -c "{0}"  {1}' -f (New-Runner $myenv.software.runner -envfile $envfile -code $codefile),$user | Out-File -FilePath $myenv.appFile -Encoding ascii
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # change run user.

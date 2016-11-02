@@ -1,6 +1,8 @@
 ﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 
+$codefile = Join-Path -Path $here -ChildPath $sut
+
 $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
 
 $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.Ps1" -Resolve
@@ -10,7 +12,7 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 
-$resutl = . "$here\$sut" -envfile $envfile
+$resutl = . $codefile -envfile $envfile -codefile $codefile
 
 <#
 ZOOBINDIR=/opt/zookeeper/zookeeper-3.4.9/bin
@@ -61,10 +63,10 @@ Describe "code" {
 
         if ($r -match "already running as") {
             Change-Status -myenv $decorated -action stop
-        } else {
-            $r = Change-Status -myenv $decorated -action start | Out-String
-            $r -match "already running as" | Should Be $False
         }
+        $r = Change-Status -myenv $decorated -action start | Out-String
+        $r -match "already running as" | Should Be $False
+        
         Change-Status -myenv $decorated -action status
 
     }
