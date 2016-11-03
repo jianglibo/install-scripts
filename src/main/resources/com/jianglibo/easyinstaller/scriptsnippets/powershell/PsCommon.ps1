@@ -32,6 +32,19 @@ function Run-Tar {
     if ($r.Count -gt 0) {$false} else {$True}
 }
 
+function Run-String {
+    Param([string]$execute, [parameter(ValueFromPipeline)][string]$content, [parameter(ValueFromRemainingArguments=$True)]$others)
+    $tf = (New-TemporaryFile).FullName
+
+    $content | Out-File -FilePath $tf -Encoding ascii
+
+    # chmod u+x $tf *>1 | Out-Null
+
+    (($execute,$tf) + $others) -join " " | Invoke-Expression
+
+    Remove-Item -Path $tf
+}
+
 function Save-Xml {
     Param([xml]$doc, $FilePath, $encoding="ascii")
     $sw = New-Object System.IO.StringWriter

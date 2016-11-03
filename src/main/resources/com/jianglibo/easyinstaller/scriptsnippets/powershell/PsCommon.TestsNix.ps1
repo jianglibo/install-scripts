@@ -19,7 +19,6 @@ Describe "PsCommon" {
     }
 
     It "should hand over environment to bash" {
-        
         $shf = Join-Path $here -ChildPath "fixtures/myenvtest.sh"
         Test-Path $shf -PathType Leaf | Should Be $True
 
@@ -48,17 +47,13 @@ select yn in "Yes" "No"; do
     esac
 done
 '@
-    $bsf = New-TemporaryFile
-    $bs | Set-Content -Path $bsf
+        $bsf = New-TemporaryFile
+        $bs | Set-Content -Path $bsf
 
-    $tcls = @'
-#!/bin/sh
-# exp.tcl \
-exec tclsh "$0" ${1+"$@"}
-
+        $tcls = @'
 package require Expect
 set timeout 100000
-spawn {spawn-command}
+spawn -noecho {spawn-command}
 expect {
 		"Enter password: $" {
 			exp_send "$password\r"
@@ -71,30 +66,32 @@ expect {
       timeout {}
 }
 '@
-    
-    $tclf = New-TemporaryFile
-    $tcls -replace "{spawn-command}",("bash",$bsf -join " ") | Set-Content -Path $tclf
-    "bash", $tclf -join " " | Invoke-Expression
-
-    Remove-Item $bsf
-    Remove-Item $tclf
+        $tcls -replace "{spawn-command}",("bash",$bsf -join " ") | Run-String -execute "tclsh" | Select-Object -First 1 | Should Be "Do you wish to install this program?"
+        Remove-Item $bsf
     }
 
     # runuser -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
     # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
     It "should run as user" {
-            $bs = @'
-echo "hello$USER"
-'@
+        $bs = 'echo "hello$USER"'
+        $bsf = New-TemporaryFile
 
-    $bsf = New-TemporaryFile
-
-    $bs | Out-File -FilePath $bsf -Encoding ascii
+        $bs | Out-File -FilePath $bsf -Encoding ascii
     
-    $r = Centos7-Run-User -scriptfile $bsf -user "abc"
-    Centos7-UserManager -username "abc" -action remove
-    Remove-Item $bsf
+        $r = Centos7-Run-User -scriptfile $bsf -user "abc"
 
-    $r | Should Be "helloabc"
+        Centos7-UserManager -username "abc" -action remove
+        Remove-Item $bsf
+        $r | Should Be "helloabc"
+    }
+
+    It "handle run-string" {
+        $bs = 'echo "hello$1"'
+        Run-String -execute bash -content $bs -others "abc" | Should Be "helloabc"
+
+        $bs = 'echo "hello$1$2"'
+        Run-String -execute bash -content $bs "abc" "def" | Should Be "helloabcdef"
+
+        Run-String -execute bash -content $bs -others "abc","def" | Should Be "helloabcdef"
     }
 }

@@ -33,6 +33,15 @@ Describe "code" {
         $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
 
         $decorated.software.runas | Should Be "zookeeper"
+
+
+
+        $decorated.allFolders.Count |  Should Be 4
+
+        $decorated.allFolders[0] | Should Be "/opt/zookeeper"
+        $decorated.allFolders[1] | Should Be "/opt/zookeeper/logs"
+        $decorated.allFolders[2] | Should Be "/var/lib/zookeeper/"
+        $decorated.allFolders[3] | Should Be "/var/zookeeper"
     }
     It "should be installed" {
         if (!$IsLinux) {
@@ -54,7 +63,7 @@ Describe "code" {
         Test-Path $decorated.configFolder | Should Be $True
         Test-Path $decorated.configFile | Should Be $True
 
-        Get-RunuserCmd -myenv $decorated | Should Be 'runuser -s /bin/bash -c "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh" zookeeper'
+        Centos7-GetRunuserCmd -myenv $decorated | Should Be 'runuser -s /bin/bash -c "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh" zookeeper'
 
         $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
         (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
