@@ -1,4 +1,4 @@
-installDir: "/opt/hadoop"
+installDir: /opt/hadoop
 dfsClusterName: mydfscluster
 ports:
   namenode:
@@ -51,7 +51,7 @@ hdfsSite:
     description:
 # for datanode.
   - name: dfs.datanode.data.dir
-    value:
+    value: /opt/hadoop/dfs.datanode.data.dir
     description:
 yarnSite:
   - name: yarn.acl.enable
@@ -105,16 +105,16 @@ yarnSite:
     value:
     description:
   - name: yarn.nodemanager.local-dirs
-    value:
+    value: /opt/hadoop/yarn.nodemanager.local-dirs
     description:
   - name: yarn.nodemanager.log-dirs
-    value:
+    value: /opt/hadoop/yarn.nodemanager.log-dirs
     description:
   - name: yarn.nodemanager.log.retain-seconds
     value:
     description:
   - name: yarn.nodemanager.remote-app-log-dir
-    value:
+    value: /opt/hadoop/yarn.nodemanager.remote-app-log-dir
     description:
   - name: yarn.nodemanager.remote-app-log-dir-suffix
     value:

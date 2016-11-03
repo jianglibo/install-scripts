@@ -186,10 +186,7 @@ function Add-AsHtScriptMethod {
 }
 
 function New-EnvForExec {
- Param
-     (
-       [parameter(Mandatory=$True)]
-       [String]$envfile)
+    Param([parameter(Mandatory=$True)][String]$envfile)
 
     $efe = Get-Content $envfile | ConvertFrom-Json
 
@@ -206,6 +203,8 @@ function New-EnvForExec {
     $efe | Add-Member -MemberType NoteProperty -Name resultFile -Value ($efe.resultFolder | Join-Path -ChildPath "easyinstaller-result.json")
     $efe | Add-Member -MemberType NoteProperty -Name appFile -Value ($efe.resultFolder | Join-Path -ChildPath "app.sh")
 
+    $efe | Add-Member -MemberType NoteProperty -Name myRoles -Value (($efe.box.roles | Trim-All) -split ',')
+
     if (! (Test-Path $efe.remoteFolder)) {
         New-Item -ItemType Directory $efe.remoteFolder
     }
@@ -214,8 +213,7 @@ function New-EnvForExec {
         New-Item -ItemType Directory $efe.resultFolder
     }
 
-
-    $efe = $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
+    $efe | Add-Member -MemberType ScriptMethod -Name getUploadedFile -Value {
         Param([String]$ptn, [switch]$OnlyName)
 
         $allfns = $this.software.filesToUpload
@@ -235,7 +233,6 @@ function New-EnvForExec {
             }
         }
     } -PassThru
-    $efe
 }
 
 
@@ -389,4 +386,31 @@ function New-SectionKvFile {
     return $skf
 }
 
-# "1", "2" | Select-Object @{N="line"; E={$_}}, @{N="sstart"; E={$_ -eq "1"}}
+# string utils
+
+function Trim-All {
+    Param([parameter(ValueFromPipeline)][string]$content)
+    if ($content) {
+        $content.Trim()
+    } else {
+        ""
+    }
+}
+
+function Trim-Start {
+    Param([parameter(ValueFromPipeline)][string]$content)
+    if ($content) {
+        $content.TrimStart()
+    } else {
+        ""
+    }
+}
+
+function Trim-End {
+    Param([parameter(ValueFromPipeline)][string]$content)
+    if ($content) {
+        $content.TrimEnd()
+    } else {
+        ""
+    }
+}

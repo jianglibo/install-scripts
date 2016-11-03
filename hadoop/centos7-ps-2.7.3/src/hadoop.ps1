@@ -8,7 +8,6 @@ Param(
     $action,
     [string]
     $codefile
-
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
@@ -77,7 +76,8 @@ function Decorate-Env {
 function Get-HadoopDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hadoopDaemon = (Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1).FullName
+    $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+    $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 | Select-Object -ExpandProperty FullName
     $h.hdfsCmd = Join-Path -Path $h.hadoopDaemon -ChildPath "../../bin/hdfs"
     $h.etcHadoop = Join-Path -Path $h.hadoopDaemon -ChildPath "../../etc/hadoop"
     $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
@@ -104,39 +104,39 @@ function Format-Hdfs {
 
 function start-dfs {
     Param($myenv)
-<#
     $h = Get-HadoopDirInfomation $myenv
-    $roles = $myenv.box.roles -split ","
-
-    if ("NameNode" -in $roles) {
-        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
-        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
-    } elseif ("DataNode" -in $roles) {
-        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
-        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
+    if ("NameNode" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
+#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
+    } elseif ("DataNode" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
+#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
     }
-#>
 }
 
 function start-yarn {
     Param($myenv)
-<#
     $h = Get-HadoopDirInfomation $myenv
-    $roles = $myenv.box.roles -split ","
-    if ("ResourceManager" -in $roles) {
-        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
-        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
-    } elseif ("NodeManager" -in $roles) {
-        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
-        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
+    if ("ResourceManager" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
+#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
+    } elseif ("NodeManager" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
+#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
     }
-#>
 }
 
 function Install-Hadoop {
     Param($myenv)
     $resultHash = @{}
     $resultHash.env = @{}
+
+    $hdfsDirs = @()
+    $yarnDirs = @()
 
     if (!(Test-Path $myenv.InstallDir)) {
         New-Item -Path $myenv.InstallDir -ItemType Directory | Out-Null
@@ -167,6 +167,10 @@ function Install-Hadoop {
         if ($_.Value) {
             Set-HadoopProperty -doc $hdfsSiteDoc -name $_.Name -value $_.Value
         }
+        switch ($_.Name) {
+            "dfs.namenode.name.dir" { if($_.Value) {$hdfsDirs += $_.Value }}
+            "dfs.datanode.data.dir" { if($_.Value) {$hdfsDirs += $_.Value }}
+        }
     }
     Save-Xml -doc $hdfsSiteDoc -FilePath $h.hdfsSite -encoding ascii
 
@@ -195,8 +199,13 @@ function Install-Hadoop {
                 Set-HadoopProperty -doc $yarnSiteDoc -name $n -value $myenv.resourceManagerHostName
             }
             default {
-                if ($C.Value) {
+                if ($_.Value) {
                    Set-HadoopProperty -doc $yarnSiteDoc -name $n -value $_.Value
+                }
+                switch ($n) {
+                    "yarn.nodemanager.local-dirs" { if($_.Value) {$yarnDirs += $_.Value }}
+                    "yarn.nodemanager.log-dirs" { if($_.Value) {$yarnDirs += $_.Value }}
+                    "yarn.nodemanager.remote-app-log-dir" { if($_.Value) {$yarnDirs += $_.Value }}
                 }
             }
         }
@@ -214,6 +223,20 @@ function Install-Hadoop {
     Save-Xml -doc $mapredSiteDoc -FilePath $h.mapredSite -encoding ascii
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
+
+    $user = $myenv.software.runas | Trim-All
+
+    if ("NameNode" -in $myenv.myRoles) {
+
+    }
+
+    if ("ResourceManager" -in $myenv.myRoles) {
+
+    }
+
+    if ("DataNode" -in $myenv.myRoles) {
+
+    }
 }
 
 function Change-Status {
@@ -229,7 +252,12 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 switch ($action) {
     "install" {
         Install-Hadoop $myenv
-        break
+    }
+    "start-dfs" {
+
+    }
+    "start-yarn" {
+
     }
     default {
         Change-Status -myenv $myenv -action $action

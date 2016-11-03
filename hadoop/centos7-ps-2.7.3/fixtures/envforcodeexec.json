@@ -1,17 +1,17 @@
 {
   "remoteFolder": "/opt/easyinstaller",
   "box": {
-    "ip": "192.168.33.112",
-    "name": "box3",
-    "hostname": "a2.host.name",
-    "roles": "DataNode,NodeManager",
+    "ip": "192.168.33.110",
+    "name": "box1",
+    "hostname": "192.168.33.110",
+    "roles": "NameNode,ResourceManager",
     "dnsServer": "",
-    "ips": "192.168.2.15,192.168.2.16",
-    "ports": "80,8080"
+    "ips": "",
+    "ports": ""
   },
   "boxGroup": {
     "name": "boxgroup1",
-    "configContent": "# place holder\r\n",
+    "configContent": "# place holder\n",
     "boxes": [
       {
         "ip": "192.168.33.110",

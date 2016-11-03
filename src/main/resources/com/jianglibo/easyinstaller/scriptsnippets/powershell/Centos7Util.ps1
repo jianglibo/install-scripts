@@ -122,13 +122,13 @@ function Centos7-UserManager {
 # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 
 function Centos7-Run-User {
-    Param([string]$shell="/bin/bash", [string]$scriptfile, [string]$user)
-    $user = $user.Trim()
+    Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user)
+    $user = $user | Trim-All
     if (! $user) {
         $user = $env:USER
     }
     Centos7-UserManager -username $user -action add
-    chown $user $scriptfile | Out-Null
-    chmod u+x $scriptfile | Out-Null
-    'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptfile,$user | Invoke-Expression
+#    chown $user $scriptfile | Out-Null
+#    chmod u+x $scriptfile | Out-Null
+    'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
 }
