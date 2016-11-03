@@ -5,19 +5,18 @@ Param(
     [parameter(Mandatory=$true)]
     $envfile,
     [parameter(Mandatory=$true)]
-    $action
+    $action,
+    [string]
+    $codefile
+
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
-<#
-XmlDocument doc = new XmlDocument();
-doc.LoadXml("<book genre='novel' ISBN='1-861001-57-5'>" +
-            "<title>Pride And Prejudice</title>" +
-            "</book>");
-#>
-# doc.DocumentElement.AppendChild(elem);
+if (! $codefile) {
+    $codefile = $MyInvocation.MyCommand.Path
+}
 
 function Add-TagWithTextValue {
     Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
@@ -105,6 +104,7 @@ function Format-Hdfs {
 
 function start-dfs {
     Param($myenv)
+<#
     $h = Get-HadoopDirInfomation $myenv
     $roles = $myenv.box.roles -split ","
 
@@ -115,10 +115,12 @@ function start-dfs {
         $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
         $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
     }
+#>
 }
 
 function start-yarn {
     Param($myenv)
+<#
     $h = Get-HadoopDirInfomation $myenv
     $roles = $myenv.box.roles -split ","
     if ("ResourceManager" -in $roles) {
@@ -128,11 +130,14 @@ function start-yarn {
         $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
         $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
     }
+#>
 }
 
 function Install-Hadoop {
     Param($myenv)
     $resultHash = @{}
+    $resultHash.env = @{}
+
     if (!(Test-Path $myenv.InstallDir)) {
         New-Item -Path $myenv.InstallDir -ItemType Directory | Out-Null
     }
@@ -144,8 +149,8 @@ function Install-Hadoop {
     }
     $h = Get-HadoopDirInfomation -myenv $myenv
 
+    # process core-site.xml
     [xml]$coreSiteDoc = Get-Content $h.coreSite
-
     $myenv.software.configContent.coreSite | ForEach-Object {
         if ($_.Name -eq "fs.defaultFS") {
             Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $myenv.defaultFS
@@ -156,6 +161,7 @@ function Install-Hadoop {
     Save-Xml -doc $coreSiteDoc -FilePath $h.coreSite -encoding ascii
 
     
+    # process hdfs-site.xml
     [xml]$hdfsSiteDoc = Get-Content $h.hdfsSite
     $myenv.software.configContent.hdfsSite | ForEach-Object {
         if ($_.Value) {
@@ -165,6 +171,7 @@ function Install-Hadoop {
     Save-Xml -doc $hdfsSiteDoc -FilePath $h.hdfsSite -encoding ascii
 
 
+    # process yarn-site.xml
     [xml]$yarnSiteDoc = Get-Content $h.yarnSite
     $myenv.software.configContent.yarnSite | ForEach-Object {
         $n = $_.Name
@@ -197,6 +204,7 @@ function Install-Hadoop {
     Save-Xml -doc $yarnSiteDoc -FilePath $h.yarnSite -encoding ascii
 
 
+    # process mapred-site.xml
     [xml]$mapredSiteDoc = Get-Content $h.mapredSite
     $myenv.software.configContent.mapredSite | ForEach-Object {
         if ($_.Value) {
