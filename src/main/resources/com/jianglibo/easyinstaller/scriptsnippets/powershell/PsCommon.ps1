@@ -166,6 +166,8 @@ function New-KvFile {
 
     return $kvf
 }
+# add asHt method to object, allow this object has the ability to covert one of decendant object to a hashtable, So program can iterate over it.
+# for example, $a.asHt("x.y.z") will convert $a.x.y.z to a hashtable.
 
 function Add-AsHtScriptMethod {
     Param($pscustomob)
@@ -191,6 +193,8 @@ function New-EnvForExec {
     $efe = Get-Content $envfile | ConvertFrom-Json
 
     $efe.software.configContent = $efe.software.configContent | ConvertFrom-Json
+
+    $efe.software.runas = $efe.software.runas | Split-ColonComma
 
     $efe.software | Add-Member -MemberType ScriptProperty -Name fullName -Value {
         "{0}-{1}-{2}" -f $this.name,$this.ostype,$this.sversion
@@ -413,4 +417,24 @@ function Trim-End {
     } else {
         ""
     }
+}
+
+function Split-ColonComma {
+    Param([parameter(ValueFromPipeline)][string]$content)
+    $trimed = $content.Trim()
+    if ($trimed) {
+        if ($trimed -match ':') {
+            $trimed -split ',' | ForEach-Object -End {$h} -Begin {$h = @{}} -Process {
+                    $a = $_.split(':')
+                    if ($a.length -eq 2) {
+                        $h[$a[0].trim()] = $a[1].trim()
+                    }
+                }
+        } else {
+            $trimed
+        }
+    } else {
+        ""
+    }
+
 }

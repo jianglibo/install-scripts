@@ -102,6 +102,7 @@ function Format-Hdfs {
     }
 }
 
+# in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so 
 function start-dfs {
     Param($myenv)
     $h = Get-HadoopDirInfomation $myenv

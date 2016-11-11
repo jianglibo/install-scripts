@@ -255,4 +255,21 @@ Describe "PsCommon" {
         New-Runner "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" -code "/abcccode.Ps1" | Should Be 'powershell -File /abcccode.Ps1 -envfile /abcc.Ps1.env -action $1'
 
     }
+
+    It "shoud split coloncomma" {
+        Split-ColonComma -content "" | Should Be ""
+        Split-ColonComma -content "a" | Should Be "a"
+
+        (Split-ColonComma -content "a:").Count | Should Be 1
+        (Split-ColonComma -content "a:").a | Should Be ""
+
+        (Split-ColonComma -content "a:b").Count | Should Be 1
+        (Split-ColonComma -content "a:b").a | Should Be "b"
+
+        (Split-ColonComma -content "a:b,c:d").Count | Should Be 2
+        (Split-ColonComma -content "a:b,c:d").a | Should Be "b"
+        (Split-ColonComma -content "a:b,c:d").c | Should Be "d"
+
+        ("a:b,c:d" | Split-ColonComma).c | Should Be "d"
+    }
 }

@@ -1,5 +1,7 @@
 installDir: /opt/hadoop
 dfsClusterName: mydfscluster
+envvs:
+  ABC: uvw
 ports:
   namenode:
     api: 8020
