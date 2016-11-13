@@ -272,4 +272,45 @@ Describe "PsCommon" {
 
         ("a:b,c:d" | Split-ColonComma).c | Should Be "d"
     }
+
+    It "should handle write-textfile" {
+        $tmp = New-TemporaryFile
+        $myf = $tmp | Split-Path -Parent | Join-Path -ChildPath "hello"
+
+        # out-file will auto append newline.
+        "a","b","c" | Out-File -FilePath $myf
+        (Get-Content -Path $myf | measure).Count | Should Be 3
+        (Get-Content -Path $myf) -join "," | Should Be "a,b,c"
+
+        # out-file will auto append newline.
+        "a","b","c" | Out-File -FilePath $myf -NoNewline
+        (Get-Content -Path $myf | measure).Count | Should Be 1
+        (Get-Content -Path $myf) -join "," | Should Be "abc"
+
+        # if inputobject is a string contains newline, even there is -NoNewline option, newline in the string is still keeped.
+         "a`rb`rc" | Out-File -FilePath $myf -NoNewline
+        (Get-Content -Path $myf | measure).Count | Should Be 3
+        (Get-Content -Path $myf) -join "," | Should Be "a,b,c"
+
+        [PSCustomObject]@{name=$myf;content="abc"} | Write-TextFile
+        Get-Content -Path $myf | Write-Output -NoEnumerate | Should Be "abc"
+
+        [PSCustomObject]@{name=$myf;content="abc`r`nde`tf"} | Write-TextFile
+        (Get-Content -Path $myf | measure).Count  |  Should Be 2
+        (Get-Content -Path $myf)[0] | Should Be "abc"
+
+        Remove-Item $tmp
+        Remove-Item $myf
+    }
+
+    It "should handle newline" {
+        $abc = Join-Path $here -ChildPath "fixtures\abc.txt"
+        (Get-Content $abc).GetType() | Should Be "System.Object[]"
+        "abc`ndef".GetType() | Should Be "string"
+
+        ("abc`r`ndef" | ForEach-Object {$_}).getType() | Should Be "string"
+        ("abc\r\ndef" | ForEach-Object {$_}).getType() | Should Be "string"
+
+        ("abc`rabc`r`nabc`n" -split '\r?\n|\r\n?').Length | Should Be 4
+    }
 }

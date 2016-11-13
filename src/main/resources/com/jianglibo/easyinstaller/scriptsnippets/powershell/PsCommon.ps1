@@ -438,3 +438,8 @@ function Split-ColonComma {
     }
 
 }
+
+function Write-TextFile {
+    Param([parameter(ValueFromPipelineByPropertyName)][string]$name, [parameter(ValueFromPipelineByPropertyName)][string]$content, [parameter(ValueFromPipelineByPropertyName)][string]$codeLineSeperator)
+    $content -split '\r?\n|\r\n?' | Out-File -FilePath $name -Encoding utf8 -Force
+}

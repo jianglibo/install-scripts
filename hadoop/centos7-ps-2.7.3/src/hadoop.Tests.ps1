@@ -67,9 +67,9 @@ Describe "code" {
     }
 
     It "should handle core-site.xml" {
-        $dxml = Join-Path -Path $here -ChildPath "../fixtures/etc/hadoop/core-site.xml"
+        $dxml = Join-Path -Path $here -ChildPath "configfiles/etc/hadoop/core-site.xml"
         [xml]$o = Get-Content $dxml
-        $o.configuration | Should Be $false
+        $o.configuration | Should Be $True
     }
 
     It  "should install hadoop" {
@@ -84,11 +84,25 @@ Describe "code" {
         $myenv.getUploadedFile("hadoop-.*\.tar\.gz") | Should Be "/opt/easyinstaller/hadoop-2.7.3.tar.gz"
         $myenv.tgzFile = $tgzFile
 
+        ($myenv.software.textfiles).length | Should Be 30
 
-        $myenv.software.configContent.coreSite | Select-Object -ExpandProperty Name | Write-Output -OutVariable +snames
+        $DirInfo = Get-HadoopDirInfomation -myenv $myenv
 
-        $snames -contains "fs.defaultFS" | Should Be $true
-        $snames -contains "io.file.buffer.size" | Should Be $true
+        $DirInfo.hadoopDir | Should Be "/opt/hadoop/hadoop-2.7.3"
+
+        # all name should start with etc
+        ($myenv.software.textfiles | Where-Object {$_.name -match "^etc/"}).Count | Should Be $myenv.software.textfiles.length
+
+#        $hdfssite = $myenv.software.textfiles | Where-Object name -Like "*hdfs-site.xml"
+#        $hdfssite.content | Should Be "abc"
+#        [xml]$hdfssite.configuration | Should Be $True
+        
+#        Test-Path -Path  $hdfssite.name | Should Be $True
+
+#        $myenv.software.configContent.coreSite | Select-Object -ExpandProperty Name | Write-Output -OutVariable +snames
+
+#        $snames -contains "fs.defaultFS" | Should Be $true
+#        $snames -contains "io.file.buffer.size" | Should Be $true
 
         Install-Hadoop $myenv
 

@@ -17,5 +17,47 @@
 <!-- Put site-specific property overrides in this file. -->
 
 <configuration>
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>file://${hadoop.tmp.dir}/dfs/name</value>
+    <description>Determines where on the local filesystem the DFS name node
+        should store the name table(fsimage).  If this is a comma-delimited list
+        of directories then the name table is replicated in all of the
+        directories, for redundancy. </description>
+  </property>
+
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file://${hadoop.tmp.dir}/dfs/data</value>
+    <description>Determines where on the local filesystem an DFS data node
+    should store its blocks.  If this is a comma-delimited
+    list of directories, then data will be stored in all named
+    directories, typically on different devices. The directories should be tagged
+    with corresponding storage types ([SSD]/[DISK]/[ARCHIVE]/[RAM_DISK]) for HDFS
+    storage policies. The default storage type will be DISK if the directory does
+    not have a storage type tagged explicitly. Directories that do not exist will
+    be created if local filesystem permission allows.
+    </description>
+  </property>
+
+  <property>
+    <name>dfs.blocksize</name>
+    <value>134217728</value>
+    <description>
+        The default block size for new files, in bytes.
+        You can use the following suffix (case insensitive):
+        k(kilo), m(mega), g(giga), t(tera), p(peta), e(exa) to specify the size (such as 128k, 512m, 1g, etc.),
+        Or provide complete size in bytes (such as 134217728 for 128 MB).
+    </description>
+  </property>
+  
+  <property>
+    <name>dfs.hosts</name>
+    <value></value>
+    <description>Names a file that contains a list of hosts that are
+    permitted to connect to the namenode. The full pathname of the file
+    must be specified.  If the value is empty, all hosts are
+    permitted.</description>
+  </property>
 
 </configuration>

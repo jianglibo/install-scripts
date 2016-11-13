@@ -77,9 +77,10 @@ function Get-HadoopDirInfomation {
     Param($myenv)
     $h = @{}
     $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+    $h.hadoopDir = $h.hadoopDaemon | Split-Path -Parent | Split-Path -Parent
     $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 | Select-Object -ExpandProperty FullName
-    $h.hdfsCmd = Join-Path -Path $h.hadoopDaemon -ChildPath "../../bin/hdfs"
-    $h.etcHadoop = Join-Path -Path $h.hadoopDaemon -ChildPath "../../etc/hadoop"
+    $h.hdfsCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hdfs"
+    $h.etcHadoop = Join-Path -Path $h.hadoopDir -ChildPath "etc/hadoop"
     $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
     $h.hdfsSite = Join-Path $h.etcHadoop -ChildPath "hdfs-site.xml"
     $h.yarnSite = Join-Path $h.etcHadoop -ChildPath "yarn-site.xml"
@@ -135,7 +136,6 @@ function Install-Hadoop {
     Param($myenv)
     $resultHash = @{}
     $resultHash.env = @{}
-
     $hdfsDirs = @()
     $yarnDirs = @()
 
@@ -144,14 +144,23 @@ function Install-Hadoop {
     }
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir
+        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {
         return
     }
-    $h = Get-HadoopDirInfomation -myenv $myenv
+
+    $DirInfo = Get-HadoopDirInfomation -myenv $myenv
+
+    $myenv.software.textfiles | ForEach-Object {
+        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding utf8
+    } | Out-Null
 
     # process core-site.xml
-    [xml]$coreSiteDoc = Get-Content $h.coreSite
+    [xml]$coreSiteDoc = Get-Content $DirInfo.coreSite
+
+    Set-HadoopProperty -doc $coreSiteDoc -name "fs.defaultFS" -value $myenv.defaultFS
+
+    <#
     $myenv.software.configContent.coreSite | ForEach-Object {
         if ($_.Name -eq "fs.defaultFS") {
             Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $myenv.defaultFS
@@ -159,10 +168,12 @@ function Install-Hadoop {
             Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $_.Value
         }
     }
-    Save-Xml -doc $coreSiteDoc -FilePath $h.coreSite -encoding ascii
+    #>
 
-    
+    Save-Xml -doc $coreSiteDoc -FilePath $DirInfo.coreSite -encoding ascii
+        
     # process hdfs-site.xml
+    <#
     [xml]$hdfsSiteDoc = Get-Content $h.hdfsSite
     $myenv.software.configContent.hdfsSite | ForEach-Object {
         if ($_.Value) {
@@ -174,30 +185,36 @@ function Install-Hadoop {
         }
     }
     Save-Xml -doc $hdfsSiteDoc -FilePath $h.hdfsSite -encoding ascii
+    #>
 
+    # process yarn-site.xml, because resourceManagerHostName is determined at runtime. it must write this way.
+    [xml]$yarnSiteDoc = Get-Content $DirInfo.yarnSite
 
-    # process yarn-site.xml
-    [xml]$yarnSiteDoc = Get-Content $h.yarnSite
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.api)
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.scheduler.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.scheduler)
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.resource-tracker.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.resourceTracker)
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.admin.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.admin)
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.webapp.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.webapp)
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.hostname" -value $myenv.resourceManagerHostName
+
+    <#
     $myenv.software.configContent.yarnSite | ForEach-Object {
         $n = $_.Name
         switch ($n) {
-            "yarn.resourcemanager.address" {
-                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.api)
+             {
+
             }
-            "yarn.resourcemanager.scheduler.address" {
-                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.scheduler)
+             {
+                
             }
-            "yarn.resourcemanager.resource-tracker.address" {
-                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.resourceTracker)
+             {
+                
             }
-            "yarn.resourcemanager.admin.address" {
-                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.admin)
+             {
+                
             }
-            "yarn.resourcemanager.webapp.address" {
-                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.webapp)
-            }
-            "yarn.resourcemanager.hostname" {
-                Set-HadoopProperty -doc $yarnSiteDoc -name $n -value $myenv.resourceManagerHostName
+             {
+                
             }
             default {
                 if ($_.Value) {
@@ -211,10 +228,13 @@ function Install-Hadoop {
             }
         }
     }
-    Save-Xml -doc $yarnSiteDoc -FilePath $h.yarnSite -encoding ascii
+    #>
+
+    Save-Xml -doc $yarnSiteDoc -FilePath $DirInfo.yarnSite -encoding ascii
 
 
     # process mapred-site.xml
+    <#
     [xml]$mapredSiteDoc = Get-Content $h.mapredSite
     $myenv.software.configContent.mapredSite | ForEach-Object {
         if ($_.Value) {
@@ -222,6 +242,7 @@ function Install-Hadoop {
         }
     }
     Save-Xml -doc $mapredSiteDoc -FilePath $h.mapredSite -encoding ascii
+    #>
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 
