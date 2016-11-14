@@ -136,7 +136,6 @@ function Install-Hadoop {
     Param($myenv)
     $resultHash = @{}
     $resultHash.env = @{}
-    $hdfsDirs = @()
     $yarnDirs = @()
 
     if (!(Test-Path $myenv.InstallDir)) {
@@ -160,33 +159,8 @@ function Install-Hadoop {
 
     Set-HadoopProperty -doc $coreSiteDoc -name "fs.defaultFS" -value $myenv.defaultFS
 
-    <#
-    $myenv.software.configContent.coreSite | ForEach-Object {
-        if ($_.Name -eq "fs.defaultFS") {
-            Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $myenv.defaultFS
-        } elseif($_.Value){
-            Set-HadoopProperty -doc $coreSiteDoc -name $_.Name -value $_.Value
-        }
-    }
-    #>
-
     Save-Xml -doc $coreSiteDoc -FilePath $DirInfo.coreSite -encoding ascii
         
-    # process hdfs-site.xml
-    <#
-    [xml]$hdfsSiteDoc = Get-Content $h.hdfsSite
-    $myenv.software.configContent.hdfsSite | ForEach-Object {
-        if ($_.Value) {
-            Set-HadoopProperty -doc $hdfsSiteDoc -name $_.Name -value $_.Value
-        }
-        switch ($_.Name) {
-            "dfs.namenode.name.dir" { if($_.Value) {$hdfsDirs += $_.Value }}
-            "dfs.datanode.data.dir" { if($_.Value) {$hdfsDirs += $_.Value }}
-        }
-    }
-    Save-Xml -doc $hdfsSiteDoc -FilePath $h.hdfsSite -encoding ascii
-    #>
-
     # process yarn-site.xml, because resourceManagerHostName is determined at runtime. it must write this way.
     [xml]$yarnSiteDoc = Get-Content $DirInfo.yarnSite
 
@@ -197,67 +171,45 @@ function Install-Hadoop {
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.webapp.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.webapp)
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.hostname" -value $myenv.resourceManagerHostName
 
-    <#
-    $myenv.software.configContent.yarnSite | ForEach-Object {
-        $n = $_.Name
-        switch ($n) {
-             {
-
-            }
-             {
-                
-            }
-             {
-                
-            }
-             {
-                
-            }
-             {
-                
-            }
-            default {
-                if ($_.Value) {
-                   Set-HadoopProperty -doc $yarnSiteDoc -name $n -value $_.Value
-                }
-                switch ($n) {
-                    "yarn.nodemanager.local-dirs" { if($_.Value) {$yarnDirs += $_.Value }}
-                    "yarn.nodemanager.log-dirs" { if($_.Value) {$yarnDirs += $_.Value }}
-                    "yarn.nodemanager.remote-app-log-dir" { if($_.Value) {$yarnDirs += $_.Value }}
-                }
-            }
-        }
-    }
-    #>
-
     Save-Xml -doc $yarnSiteDoc -FilePath $DirInfo.yarnSite -encoding ascii
-
-
-    # process mapred-site.xml
-    <#
-    [xml]$mapredSiteDoc = Get-Content $h.mapredSite
-    $myenv.software.configContent.mapredSite | ForEach-Object {
-        if ($_.Value) {
-            Set-HadoopProperty -doc $mapredSiteDoc -name $_.Name -value $_.Value
-        }
-    }
-    Save-Xml -doc $mapredSiteDoc -FilePath $h.mapredSite -encoding ascii
-    #>
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 
-    $user = $myenv.software.runas | Trim-All
+    # find directory used by hdfs from hdfs-site.xml
+    [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
+    $hdfsDirNames = "dfs.namenode.name.dir",
+                    "dfs.datanode.data.dir"
+
+    $hdfsDirs = $hdfsSiteDoc.configuration.property | Where-Object {$_.name -in $hdfsDirNames} | Select-Object -ExpandProperty value | ForEach-Object {$_ -replace ".*///", "/"} | ForEach-Object {
+        if (!(Test-Path $_)) {
+            New-Item -Path $_ -ItemType Directory | Out-Null
+        }
+        $_
+    }
+
+    # write profile.d
+    "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
+
+    $users = $myenv.software.runas
+
+    if ($users -is "string") {
+        $user_hdfs = $users
+        $user_yarn = $users
+    } else {
+        $user_hdfs = $users.hdfs
+        $user_yarn = $users.yarn
+    }
 
     if ("NameNode" -in $myenv.myRoles) {
-
+        $hdfsDirs | Centos7-Chown -user $user_hdfs
     }
 
     if ("ResourceManager" -in $myenv.myRoles) {
-
+        $yarnDirs | Centos7-Chown -user $user_yarn
     }
 
     if ("DataNode" -in $myenv.myRoles) {
-
+        $hdfsDirs | Centos7-Chown -user $user_hdfs
     }
 }
 
@@ -270,6 +222,11 @@ function Change-Status {
 }
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
+
+# expose all environment variables.
+$myenv.software.configContent.asHt("envvs").GetEnumerator() | ForEach-Object {
+    Set-Content -Path ("env:" + $_.Key) -Value $_.Value
+}
 
 switch ($action) {
     "install" {

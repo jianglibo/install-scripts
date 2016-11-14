@@ -33,7 +33,7 @@ function Run-Tar {
 }
 
 function Run-String {
-    Param([string]$execute, [parameter(ValueFromPipeline)][string]$content, [parameter(ValueFromRemainingArguments=$True)]$others)
+    Param([string]$execute, [parameter(ValueFromPipeline=$True)][string]$content, [parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
 
     $content | Out-File -FilePath $tf -Encoding ascii
@@ -282,7 +282,7 @@ function New-HostsFile {
 }
 
 function New-RandomPassword {
-    Param([parameter(ValueFromPipeline)][int]$Count=8)
+    Param([parameter(ValueFromPipeline=$True)][int]$Count=8)
     (0x20..0x7e | ForEach-Object {[char]$_} | Get-Random -Count $Count) -join ""
 }
 
@@ -393,7 +393,7 @@ function New-SectionKvFile {
 # string utils
 
 function Trim-All {
-    Param([parameter(ValueFromPipeline)][string]$content)
+    Param([parameter(ValueFromPipeline=$True)][string]$content)
     if ($content) {
         $content.Trim()
     } else {
@@ -402,7 +402,7 @@ function Trim-All {
 }
 
 function Trim-Start {
-    Param([parameter(ValueFromPipeline)][string]$content)
+    Param([parameter(ValueFromPipeline=$True)][string]$content)
     if ($content) {
         $content.TrimStart()
     } else {
@@ -411,7 +411,7 @@ function Trim-Start {
 }
 
 function Trim-End {
-    Param([parameter(ValueFromPipeline)][string]$content)
+    Param([parameter(ValueFromPipeline=$True)][string]$content)
     if ($content) {
         $content.TrimEnd()
     } else {
@@ -420,7 +420,7 @@ function Trim-End {
 }
 
 function Split-ColonComma {
-    Param([parameter(ValueFromPipeline)][string]$content)
+    Param([parameter(ValueFromPipeline=$True)][string]$content)
     $trimed = $content.Trim()
     if ($trimed) {
         if ($trimed -match ':') {
@@ -440,6 +440,6 @@ function Split-ColonComma {
 }
 
 function Write-TextFile {
-    Param([parameter(ValueFromPipelineByPropertyName)][string]$name, [parameter(ValueFromPipelineByPropertyName)][string]$content, [parameter(ValueFromPipelineByPropertyName)][string]$codeLineSeperator)
+    Param([parameter(ValueFromPipelineByPropertyName=$True)][string]$name, [parameter(ValueFromPipelineByPropertyName=$True)][string]$content, [parameter(ValueFromPipelineByPropertyName=$True)][string]$codeLineSeperator)
     $content -split '\r?\n|\r\n?' | Out-File -FilePath $name -Encoding utf8 -Force
 }

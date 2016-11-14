@@ -77,6 +77,8 @@ Describe "code" {
 
         $myenv.InstallDir | Should Be "/opt/hadoop"
 
+        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 1
+
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/hadoop-2.7.3.tar.gz"
 
         Test-Path $tgzFile -PathType Leaf | Should Be $True
@@ -118,6 +120,8 @@ Describe "code" {
         $pnames = $coreSiteDoc.configuration.property | Select-Object -ExpandProperty Name | Write-Output -NoEnumerate
 
         $pnames | Should Be "fs.defaultFS", "io.file.buffer.size"
+
+        Get-Content -Path "env:ABC" | Should Be "uvw"
 
     }
 }

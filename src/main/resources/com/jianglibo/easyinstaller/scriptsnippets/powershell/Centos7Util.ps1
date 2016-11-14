@@ -132,3 +132,14 @@ function Centos7-Run-User {
 #    chmod u+x $scriptfile | Out-Null
     'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
 }
+
+function Centos7-Chown {
+    Param([string]$user, [string]$group=$null, [parameter(ValueFromPipeline=$True)][string]$Path)
+    process {
+        if (!$group) {
+            $group = $user
+        }
+        Centos7-UserManager -action add -username $user
+        chown -R "${user_hdfs}:${user_hdfs}" $Path | Out-Null
+    }
+}

@@ -1,3 +1,10 @@
+n most cases, you should specify the HADOOP_PID_DIR and HADOOP_LOG_DIR directories such that they can only be written to by the users that are going to run the hadoop daemons. Otherwise there is the potential for a symlink attack.
+
+It is also traditional to configure HADOOP_PREFIX in the system-wide shell environment configuration. For example, a simple script inside /etc/profile.d:
+
+HADOOP_PREFIX=/path/to/hadoop
+export HADOOP_PREFIX
+
 NameNode
 ResourceManager
 
