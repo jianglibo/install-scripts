@@ -443,3 +443,10 @@ function Write-TextFile {
     Param([parameter(ValueFromPipelineByPropertyName=$True)][string]$name, [parameter(ValueFromPipelineByPropertyName=$True)][string]$content, [parameter(ValueFromPipelineByPropertyName=$True)][string]$codeLineSeperator)
     $content -split '\r?\n|\r\n?' | Out-File -FilePath $name -Encoding utf8 -Force
 }
+
+function Test-AbsolutePath {
+    Param([parameter(ValueFromPipeline=$True)][string]$Path)
+    process {
+        $Path.StartsWith("/") -or ($Path -match ":")
+    }
+}

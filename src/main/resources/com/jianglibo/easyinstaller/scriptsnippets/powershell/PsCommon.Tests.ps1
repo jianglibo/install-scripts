@@ -313,4 +313,12 @@ Describe "PsCommon" {
 
         ("abc`rabc`r`nabc`n" -split '\r?\n|\r\n?').Length | Should Be 4
     }
+
+    It "should test absolute path" {
+        "abc" | Test-AbsolutePath | Should Be $False
+
+        "/abc" | Test-AbsolutePath | Should Be $True
+
+        "c:\abc" | Test-AbsolutePath | Should Be $True
+    }
 }

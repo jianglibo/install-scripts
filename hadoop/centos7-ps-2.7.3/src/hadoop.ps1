@@ -134,11 +134,7 @@ function start-yarn {
 
 function Install-Hadoop {
     Param($myenv)
-    $resultHash = @{}
-    $resultHash.env = @{}
-    $yarnDirs = @()
-
-    if (!(Test-Path $myenv.InstallDir)) {
+    if (!(Test-Path $myenv.InstallDir -PathType Container)) {
         New-Item -Path $myenv.InstallDir -ItemType Directory | Out-Null
     }
 
@@ -147,6 +143,14 @@ function Install-Hadoop {
     } else {
         return
     }
+    Write-ConfigFiles -myenv $myenv | Out-Null
+}
+
+function Write-ConfigFiles {
+    Param($myenv)
+    $resultHash = @{}
+    $resultHash.env = @{}
+    $yarnDirs = @()
 
     $DirInfo = Get-HadoopDirInfomation -myenv $myenv
 
@@ -173,8 +177,6 @@ function Install-Hadoop {
 
     Save-Xml -doc $yarnSiteDoc -FilePath $DirInfo.yarnSite -encoding ascii
 
-    $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
-
     # find directory used by hdfs from hdfs-site.xml
     [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
     $hdfsDirNames = "dfs.namenode.name.dir",
@@ -187,11 +189,7 @@ function Install-Hadoop {
         $_
     }
 
-    # write profile.d
-    "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
-
     $users = $myenv.software.runas
-
     if ($users -is "string") {
         $user_hdfs = $users
         $user_yarn = $users
@@ -199,6 +197,38 @@ function Install-Hadoop {
         $user_hdfs = $users.hdfs
         $user_yarn = $users.yarn
     }
+
+    # write profile.d
+    "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
+
+    # piddir and logdir
+    $envvs = $myenv.software.configContent.asHt("envvs")
+
+    if ($envvs.HADOOP_PID_DIR) {
+        if ($envvs.HADOOP_PID_DIR | Test-AbsolutePath) {
+            $piddir = $envvs.HADOOP_PID_DIR
+        } else {
+            $piddir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_PID_DIR
+        }
+    }
+
+    if ($envvs.HADOOP_LOG_DIR) {
+        if ($envvs.HADOOP_LOG_DIR | Test-AbsolutePath) {
+            $logdir = $envvs.HADOOP_LOG_DIR
+        } else {
+            $logdir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_LOG_DIR
+        }
+    }
+
+    $resultHash.env.HADOOP_LOG_DIR = $logdir
+    $resultHash.env.HADOOP_PID_DIR = $piddir
+    $resultHash.env.HADOOP_PREFIX = $DirInfo.hadoopDir
+
+    $envvs.GetEnumerator() | Where-Object {$_.Key -notin "HADOOP_LOG_DIR", "HADOOP_PID_DIR"} | ForEach-Object {
+        $resultHash.env[$_.Key] = $_.Value
+    }
+
+    $logdir, $piddir | Centos7-Chown -user $user_hdfs
 
     if ("NameNode" -in $myenv.myRoles) {
         $hdfsDirs | Centos7-Chown -user $user_hdfs
@@ -211,6 +241,8 @@ function Install-Hadoop {
     if ("DataNode" -in $myenv.myRoles) {
         $hdfsDirs | Centos7-Chown -user $user_hdfs
     }
+
+    $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 }
 
 function Change-Status {
@@ -224,8 +256,13 @@ function Change-Status {
 $myenv = New-EnvForExec $envfile | Decorate-Env
 
 # expose all environment variables.
-$myenv.software.configContent.asHt("envvs").GetEnumerator() | ForEach-Object {
-    Set-Content -Path ("env:" + $_.Key) -Value $_.Value
+if (Test-Path $myenv.resultFile -PathType Leaf) {
+    $rh = $myenv.resultFile | ConvertFrom-Json
+    Add-AsHtScriptMethod $rh
+
+    $rh.asHt("env").GetEnumerator() | ForEach-Object {
+        Set-Content -Path "env:$($_.Key)" -Value $_.Value
+    }
 }
 
 switch ($action) {

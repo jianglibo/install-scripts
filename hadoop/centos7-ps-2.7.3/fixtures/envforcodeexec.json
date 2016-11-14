@@ -203,7 +203,7 @@
     "filesToUpload": [
       "http://apache.01link.hk/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz"
     ],
-    "configContent": "{\"installDir\":\"/opt/hadoop\",\"dfsClusterName\":\"mydfscluster\",\"envvs\":{\"ABC\":\"uvw\"},\"ports\":{\"namenode\":{\"api\":8020,\"http\":50070,\"https\":50470,\"backup\":50100,\"backuphttp\":50105},\"journalnode\":{\"rpc\":8485,\"http\":8480,\"https\":8481},\"snamenode\":{\"http\":50090,\"https\":50091},\"datanode\":{\"api\":50010,\"http\":50075,\"ipc\":50020,\"https\":50475},\"resourcemanager\":{\"api\":8032,\"scheduler\":8030,\"resourceTracker\":8031,\"admin\":8033,\"webapp\":8042}}}",
+    "configContent": "{\"installDir\":\"/opt/hadoop\",\"dfsClusterName\":\"mydfscluster\",\"envvs\":{\"ABC\":\"uvw\",\"HADOOP_PID_DIR\": \"piddir\",\"HADOOP_LOG_DIR\": \"logdir\"},\"ports\":{\"namenode\":{\"api\":8020,\"http\":50070,\"https\":50470,\"backup\":50100,\"backuphttp\":50105},\"journalnode\":{\"rpc\":8485,\"http\":8480,\"https\":8481},\"snamenode\":{\"http\":50090,\"https\":50091},\"datanode\":{\"api\":50010,\"http\":50075,\"ipc\":50020,\"https\":50475},\"resourcemanager\":{\"api\":8032,\"scheduler\":8030,\"resourceTracker\":8031,\"admin\":8033,\"webapp\":8042}}}",
     "actions": "install,start,stop,restart",
     "preferredFormat": "JSON"
   }
