@@ -134,12 +134,15 @@ function Centos7-Run-User {
 }
 
 function Centos7-Chown {
-    Param([string]$user, [string]$group=$null, [parameter(ValueFromPipeline=$True)][string]$Path)
+    Param([string]$user, [string]$group=$null, [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$Path)
     process {
         if (!$group) {
             $group = $user
         }
         Centos7-UserManager -action add -username $user
+        if ($Path -is [System.IO.FileInfo]) {
+            $Path = $Path.FullName
+        }
         chown -R "${user_hdfs}:${user_hdfs}" $Path | Out-Null
     }
 }

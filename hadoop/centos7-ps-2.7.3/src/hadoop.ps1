@@ -1,6 +1,7 @@
 ﻿# how to run this script. powershell -File /path/to/this/file.
 # ParamTest.ps1 - Show some parameter features
 # Param statement must be first non-comment, non-blank line in the script
+
 Param(
     [parameter(Mandatory=$true)]
     $envfile,
@@ -89,54 +90,14 @@ function Get-HadoopDirInfomation {
     if (! (Test-Path $h.mapredSite)) {
         Join-Path $h.etcHadoop -ChildPath "mapred-site.xml.template" | Copy-Item -Destination $h.mapredSite | Out-Null
     }
-    $h    
+    $h
 }
 
-function Format-Hdfs {
-    Param($myenv)
-    $h = Get-HadoopDirInfomation $myenv
-    $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
-    if (! $resultJson.dfsFormatted) {
-        $h.hdfsCmd, "namenode", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
-        $resultJson.dfsFormatted = $True
-        $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
-    }
-}
 
-# in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so 
-function start-dfs {
-    Param($myenv)
-    $h = Get-HadoopDirInfomation $myenv
-    if ("NameNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
-#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
-#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
-    } elseif ("DataNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
-#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
-#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
-    }
-}
-
-function start-yarn {
-    Param($myenv)
-    $h = Get-HadoopDirInfomation $myenv
-    if ("ResourceManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
-#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
-#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
-    } elseif ("NodeManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
-#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
-#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
-    }
-}
 
 function Install-Hadoop {
     Param($myenv)
-    if (!(Test-Path $myenv.InstallDir -PathType Container)) {
-        New-Item -Path $myenv.InstallDir -ItemType Directory | Out-Null
-    }
+    $myenv.InstallDir | New-Directory
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -164,7 +125,7 @@ function Write-ConfigFiles {
     Set-HadoopProperty -doc $coreSiteDoc -name "fs.defaultFS" -value $myenv.defaultFS
 
     Save-Xml -doc $coreSiteDoc -FilePath $DirInfo.coreSite -encoding ascii
-        
+
     # process yarn-site.xml, because resourceManagerHostName is determined at runtime. it must write this way.
     [xml]$yarnSiteDoc = Get-Content $DirInfo.yarnSite
 
@@ -182,12 +143,7 @@ function Write-ConfigFiles {
     $hdfsDirNames = "dfs.namenode.name.dir",
                     "dfs.datanode.data.dir"
 
-    $hdfsDirs = $hdfsSiteDoc.configuration.property | Where-Object {$_.name -in $hdfsDirNames} | Select-Object -ExpandProperty value | ForEach-Object {$_ -replace ".*///", "/"} | ForEach-Object {
-        if (!(Test-Path $_)) {
-            New-Item -Path $_ -ItemType Directory | Out-Null
-        }
-        $_
-    }
+    $hdfsDirs = $hdfsSiteDoc.configuration.property | Where-Object {$_.name -in $hdfsDirNames} | Select-Object -ExpandProperty value | ForEach-Object {$_ -replace ".*///", "/"} | New-Directory
 
     $users = $myenv.software.runas
     if ($users -is "string") {
@@ -228,7 +184,7 @@ function Write-ConfigFiles {
         $resultHash.env[$_.Key] = $_.Value
     }
 
-    $logdir, $piddir | Centos7-Chown -user $user_hdfs
+    $logdir, $piddir | New-Directory | Centos7-Chown -user $user_hdfs
 
     if ("NameNode" -in $myenv.myRoles) {
         $hdfsDirs | Centos7-Chown -user $user_hdfs
@@ -243,6 +199,9 @@ function Write-ConfigFiles {
     }
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
+    # write app.sh, this script will be invoked by root user.
+    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
+    chmod u+x $myenv.appFile
 }
 
 function Change-Status {
@@ -253,11 +212,51 @@ function Change-Status {
     }
 }
 
+function Format-Hdfs {
+    Param($myenv)
+    $h = Get-HadoopDirInfomation $myenv
+    $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
+    if (! $resultJson.dfsFormatted) {
+        $h.hdfsCmd, "namenode", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
+        $resultJson.dfsFormatted = $True
+        $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
+    }
+}
+
+# in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so
+function start-dfs {
+    Param($myenv)
+    $h = Get-HadoopDirInfomation $myenv
+    if ("NameNode" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
+#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
+    } elseif ("DataNode" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
+#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
+    }
+}
+
+function start-yarn {
+    Param($myenv)
+    $h = Get-HadoopDirInfomation $myenv
+    if ("ResourceManager" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
+#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
+    } elseif ("NodeManager" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
+#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
+    }
+}
+
 $myenv = New-EnvForExec $envfile | Decorate-Env
 
 # expose all environment variables.
 if (Test-Path $myenv.resultFile -PathType Leaf) {
-    $rh = $myenv.resultFile | ConvertFrom-Json
+    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     Add-AsHtScriptMethod $rh
 
     $rh.asHt("env").GetEnumerator() | ForEach-Object {

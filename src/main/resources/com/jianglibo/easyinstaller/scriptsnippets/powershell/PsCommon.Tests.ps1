@@ -16,7 +16,7 @@ Describe "PsCommon" {
              Param([String]$fileToWrite)
              $fileToWrite
         }
-        $oo.appp("abaac") | Should Be "abaac" 
+        $oo.appp("abaac") | Should Be "abaac"
     }
     It "should addKv commentKv work" {
         $kvf = New-SectionKvFile -FilePath (Join-Path $here -ChildPath "fixtures\NetworkManager.conf")
@@ -158,7 +158,7 @@ Describe "PsCommon" {
         $efe.resultFolder -replace "\\","/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-3.4.9"
 
         Test-Path $efe.resultFolder  -PathType Container | Should Be $True
-        
+
     }
 
     It "should inert a line" {
@@ -208,8 +208,8 @@ Describe "PsCommon" {
     }
 
     It "is more about function" {
-        function Get-Pipeline { 
-          process {"The value is: $_"} 
+        function Get-Pipeline {
+          process {"The value is: $_"}
         }
         1,2 | Get-Pipeline |Write-Output -NoEnumerate| Should Be @("The value is: 1", "The value is: 2")
 
@@ -247,12 +247,12 @@ Describe "PsCommon" {
         (t-t 1 "s" 1,2,3,4).getType() | Should Be "System.Object[]"
     }
 
-    It "handle new-runner" {
-        New-Runner "bash" -envfile "/abcc" | Should Be 'bash /abcc -envfile /abcc -action $1'
-        New-Runner "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" | Should Be 'powershell -File /abcc.Ps1 -envfile /abcc.Ps1.env -action $1'
+    It "handle new-ExecuteLine" {
+        New-ExecuteLine "bash" -envfile "/abcc" | Should Be 'bash /abcc -envfile /abcc -action $1'
+        New-ExecuteLine "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" | Should Be 'powershell -File /abcc.Ps1 -envfile /abcc.Ps1.env -action $1'
 
-        New-Runner "bash" -envfile "/abcc" -code "/abcccode" | Should Be 'bash /abcccode -envfile /abcc -action $1'
-        New-Runner "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" -code "/abcccode.Ps1" | Should Be 'powershell -File /abcccode.Ps1 -envfile /abcc.Ps1.env -action $1'
+        New-ExecuteLine "bash" -envfile "/abcc" -code "/abcccode" | Should Be 'bash /abcccode -envfile /abcc -action $1'
+        New-ExecuteLine "powershell -File {code} -envfile {envfile} -action {action}" -envfile "/abcc.Ps1.env" -code "/abcccode.Ps1" | Should Be 'powershell -File /abcccode.Ps1 -envfile /abcc.Ps1.env -action $1'
 
     }
 

@@ -77,7 +77,7 @@ Describe "code" {
 
         $myenv.InstallDir | Should Be "/opt/hadoop"
 
-        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 1
+        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 3
 
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/hadoop-2.7.3.tar.gz"
 

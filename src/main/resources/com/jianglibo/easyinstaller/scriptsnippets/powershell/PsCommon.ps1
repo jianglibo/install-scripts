@@ -81,7 +81,7 @@ function Insert-Lines {
     Set-Content -Path $FilePath -Value $content
 }
 
-function New-Runner {
+function New-ExecuteLine {
     Param([parameter(Mandatory=$True)][String]$runner, [parameter(Mandatory=$True)][String]$envfile, $code)
     if (! $code) {
         $code = $envfile -replace "\.env$",""
@@ -448,5 +448,14 @@ function Test-AbsolutePath {
     Param([parameter(ValueFromPipeline=$True)][string]$Path)
     process {
         $Path.StartsWith("/") -or ($Path -match ":")
+    }
+}
+
+function New-Directory {
+    Param([parameter(ValueFromPipeline=$True)][string]$Path)
+    process {
+        if (!(Test-Path -PathType Container -Path $Path)) {
+            New-Item -Path $Path -ItemType Directory -Force
+        }
     }
 }

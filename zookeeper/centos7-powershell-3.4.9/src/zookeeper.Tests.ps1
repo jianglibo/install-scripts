@@ -25,23 +25,22 @@ Describe "code" {
 
     It "should deco env" {
         $decorated = (New-EnvForExec $envfile | Decorate-Env)
-        $decorated.DataDir | Should Be "/var/lib/zookeeper/"
-        ($decorated.configFolder -replace '\\','/') | Should Be "/var/zookeeper"
-        $decorated.configFile | Should Be "/var/zookeeper/zoo.cfg"
-        $decorated.installTo | Should Be "/opt/zookeeper"
+        $decorated.envvs.ZOOCFGDIR -replace '\\','/' | Should Be "/var/zookeeper"
+        $decorated.installDir | Should Be "/opt/zookeeper"
         $decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
         $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
 
         $decorated.software.runas | Should Be "zookeeper"
 
+        $myenv.envvs.ZOOCFGDIR | Should Be "/var/zookeeper"
+        $myenv.envvs.ZOO_LOG_DIR | Should Be "/opt/zookeeper/logs"
 
+        ($decorated.software.textfiles).Length | Should Be 1
 
-        $decorated.allFolders.Count |  Should Be 4
+        ($decorated.software.textfiles)[0].name | Should Be "zoo.cfg"
 
-        $decorated.allFolders[0] | Should Be "/opt/zookeeper"
-        $decorated.allFolders[1] | Should Be "/opt/zookeeper/logs"
-        $decorated.allFolders[2] | Should Be "/var/lib/zookeeper/"
-        $decorated.allFolders[3] | Should Be "/var/zookeeper"
+        (($decorated.software.textfiles)[0].content -split '\r?\n|\r\n?').Count | Should Be 6
+        
     }
     It "should be installed" {
         if (!$IsLinux) {
@@ -58,10 +57,10 @@ Describe "code" {
         }
 
         Install-Zk $decorated
-        Test-Path $decorated.installTo | Should Be $True
+        Test-Path $decorated.installDir | Should Be $True
         Test-Path $decorated.DataDir | Should Be $True
-        Test-Path $decorated.configFolder | Should Be $True
-        Test-Path $decorated.configFile | Should Be $True
+        Test-Path $decorated.envvs.ZOOCFGDIR -PathType Container | Should Be $True
+        Join-Path -Path $decorated.envvs.ZOOCFGDIR -ChildPath $decorated.envvs.ZOOCFG | Test-Path -PathType Leaf| Should Be $True
 
         Centos7-GetRunuserCmd -myenv $decorated | Should Be 'runuser -s /bin/bash -c "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh" zookeeper'
 
