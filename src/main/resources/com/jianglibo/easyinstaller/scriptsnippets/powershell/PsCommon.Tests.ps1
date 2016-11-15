@@ -321,4 +321,15 @@ Describe "PsCommon" {
 
         "c:\abc" | Test-AbsolutePath | Should Be $True
     }
+
+    It "should handle varargs" {
+        $r = Choose-FirstNotNull "" $False $null 1 | Should Be 1
+        $r = Choose-FirstNotNull "" $False $null 0 | Should Be $Null
+
+        Choose-OnCondition -condition "" "a" "b" | Should Be "b"
+
+        Choose-OnCondition -condition 1 "a" "b" | Should Be "a"
+
+        Choose-OnCondition -condition 0 "a" "b" | Should Be "b"
+    }
 }

@@ -170,7 +170,7 @@ function New-KvFile {
 # for example, $a.asHt("x.y.z") will convert $a.x.y.z to a hashtable.
 
 function Add-AsHtScriptMethod {
-    Param($pscustomob)
+    Param([parameter(ValueFromPipeline=$True)]$pscustomob)
     $pscustomob | Add-Member -MemberType ScriptMethod -Name asHt -Value {
         Param([String]$pn)
         $tob = $this
@@ -184,7 +184,7 @@ function Add-AsHtScriptMethod {
         } else {
             $tob
         }
-    }
+    } -PassThru
 }
 
 function New-EnvForExec {
@@ -196,11 +196,15 @@ function New-EnvForExec {
 
     $efe.software.runas = $efe.software.runas | Split-ColonComma
 
+    if (! $efe.software.runas) {
+        $efe.software.runas = $env:USER
+    }
+
     $efe.software | Add-Member -MemberType ScriptProperty -Name fullName -Value {
         "{0}-{1}-{2}" -f $this.name,$this.ostype,$this.sversion
     }
 
-    Add-AsHtScriptMethod $efe.software.configContent
+    Add-AsHtScriptMethod $efe.software.configContent | Out-Null
 
     $efe | Add-Member -MemberType NoteProperty -Name resultFolder -Value ($efe.remoteFolder | Join-Path -ChildPath "results" | Join-Path -ChildPath $efe.software.fullName)
 
@@ -458,4 +462,17 @@ function New-Directory {
             New-Item -Path $Path -ItemType Directory -Force
         }
     }
+}
+
+function Choose-FirstNotNull {
+    $args | Where-Object { if($_) {$_}} | Select-Object -First 1
+}
+
+function Choose-OnCondition {
+   Param([parameter(Mandatory=$True)]$condition,[parameter(Position=1)]$a,[parameter(Position=2)]$b)
+   if ($condition) {
+    $a
+   } else {
+    $b
+   }
 }

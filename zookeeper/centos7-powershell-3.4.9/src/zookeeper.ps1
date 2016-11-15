@@ -108,24 +108,26 @@ function Write-ConfigFiles {
     # open firewall
     Centos7-FileWall -ports $myenv.software.configContent.zkports
 
-    $user = Centos7-GetScriptRunner -myenv $myenv
-
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # change run user.
-    if ($user) {
-        Centos7-UserManager -username $user -action add
-        $myenv.dataDir, $myenv.envvs.ZOO_LOG_DIR | Centos7-Chown -user $user
+    if ($myenv.software.runas) {
+        Centos7-UserManager -username $myenv.software.runas -action add
+        $myenv.dataDir, $myenv.envvs.ZOO_LOG_DIR | Centos7-Chown -user $myenv.software.runas
     }
 }
 
-
 function Change-Status {
     Param($myenv, [ValidateSet("start","start-foreground","stop", "restart", "status", "upgrade", "print-cmd")][String]$action)
-    Centos7-GetRunuserCmd -myenv $myenv -action $action | Invoke-Expression
+    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json | Add-AsHtScriptMethod
+    # expose environment variables.
+    $rh.asHt("env").GetEnumerator() | ForEach-Object {
+        Set-Content -Path "env:$($_.Key)" -Value $_.Value
+    }
+    Centos7-Run-User -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
 }
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
@@ -133,6 +135,9 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 if (! $action) {
     return
 }
+
+$myenv = New-EnvForExec $envfile | Decorate-Env
+
 switch ($action) {
     "install" {
         Install-Zk $myenv

@@ -21,34 +21,6 @@ function Centos7-NetworkManager {
     }
 }
 
-function Centos7-GetRunuserCmd {
-    Param($myenv, $action)
-    $result = Get-Content $myenv.resultFile | ConvertFrom-Json
-
-    Add-AsHtScriptMethod -pscustomob $result
-
-    [HashTable]$envs = $result.asHt("env")
-
-    $envs.GetEnumerator() | ForEach-Object {
-        Set-Content -Path ("env:" + $_.Key) -Value $_.Value
-    }
-
-    $user = Centos7-GetScriptRunner -myenv $myenv
-
-    'runuser -s /bin/bash -c "{0}" {1}' -f ($result.executable, $action -join " ").Trim(),$user
-}
-
-function Centos7-GetScriptRunner {
-    Param($myenv)
-    [string]$user = $myenv.software.runas
-    $user = $user.Trim()
-    if ($user) {
-        $user
-    } else {
-        $env:USER
-    }
-}
-
 function Centos7-SetHostName {
     Param([String]$hostname)
     hostnamectl --static set-hostname $hostname
