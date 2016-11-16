@@ -464,15 +464,17 @@ function New-Directory {
     }
 }
 
-function Choose-FirstNotNull {
+function Choose-FirstTrueValue {
     $args | Where-Object { if($_) {$_}} | Select-Object -First 1
 }
 
 function Choose-OnCondition {
-   Param([parameter(Mandatory=$True)]$condition,[parameter(Position=1)]$a,[parameter(Position=2)]$b)
-   if ($condition) {
-    $a
-   } else {
-    $b
+   Param([parameter(Mandatory=$True)]$condition,[parameter(Position=1)]$onTrue,[parameter(Position=2)]$onFalse)
+   process {
+       if ($condition) {
+        $onTrue
+       } else {
+        $onFalse
+       }
    }
 }

@@ -323,8 +323,8 @@ Describe "PsCommon" {
     }
 
     It "should handle varargs" {
-        $r = Choose-FirstNotNull "" $False $null 1 | Should Be 1
-        $r = Choose-FirstNotNull "" $False $null 0 | Should Be $Null
+        $r = Choose-FirstTrueValue "" $False $null 1 | Should Be 1
+        $r = Choose-FirstTrueValue "" $False $null 0 | Should Be $Null
 
         Choose-OnCondition -condition "" "a" "b" | Should Be "b"
 
