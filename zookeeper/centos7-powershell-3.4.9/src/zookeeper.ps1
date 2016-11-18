@@ -42,7 +42,7 @@ function Uninstall-Zk {
 
 function Install-Zk {
     Param($myenv)
-    $myenv.InstallDir | New-Directory
+    $myenv.InstallDir | New-Directory | Out-Null
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -55,10 +55,12 @@ function Install-Zk {
 function Write-ConfigFiles {
     Param($myenv)
     $configFile = Join-Path -Path $myenv.envvs.ZOOCFGDIR -ChildPath $myenv.envvs.ZOOCFG
+    $pidFolder = Split-Path -Path $myenv.envvs.ZOOPIDFILE -Parent
+    $logDir = $myenv.envvs.ZOO_LOG_DIR
     $resultHash = @{}
     $resultHash.env = @{}
 
-    $myenv.envvs.ZOOCFGDIR, $myenv.dataDir, $myenv.envvs.ZOO_LOG_DIR | New-Directory
+    $myenv.envvs.ZOOCFGDIR, $myenv.dataDir, $logDir | New-Directory | Out-Null
 
     $myenv.software.textfiles | ForEach-Object {
         $name = $_.name
@@ -116,7 +118,7 @@ function Write-ConfigFiles {
     # change run user.
     if ($myenv.software.runas) {
         Centos7-UserManager -username $myenv.software.runas -action add
-        $myenv.dataDir, $myenv.envvs.ZOO_LOG_DIR | Centos7-Chown -user $myenv.software.runas
+        $myenv.dataDir, $logDir, $pidFolder | Centos7-Chown -user $myenv.software.runas
     }
 }
 
@@ -147,6 +149,5 @@ switch ($action) {
         Change-Status -myenv $myenv -action $action
     }
 }
-if (!$Error) {
-    "@@success@@"
-}
+
+Print-Success

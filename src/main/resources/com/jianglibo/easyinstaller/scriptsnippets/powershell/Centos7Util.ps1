@@ -115,6 +115,6 @@ function Centos7-Chown {
         if ($Path -is [System.IO.FileInfo]) {
             $Path = $Path.FullName
         }
-        chown -R "${user_hdfs}:${user_hdfs}" $Path | Out-Null
+        chown -R "${user}:${group}" $Path | Out-Null
     }
 }
