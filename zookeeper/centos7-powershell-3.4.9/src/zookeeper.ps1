@@ -147,5 +147,6 @@ switch ($action) {
         Change-Status -myenv $myenv -action $action
     }
 }
-
-"@@success@@"
+if (!$Error) {
+    "@@success@@"
+}
