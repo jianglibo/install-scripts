@@ -9,4 +9,4 @@ codeFileExt:
 codeLineSeperator: LF
 runas:
 actions: install
-filesToUpload:
+filesToUpload: []

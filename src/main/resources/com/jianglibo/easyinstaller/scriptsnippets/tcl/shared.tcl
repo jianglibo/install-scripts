@@ -15,8 +15,13 @@ namespace eval EnvDictNs {
     set envdict [readEnvFileJson $envfile]
     set remoteFolder [dict get $envdict remoteFolder]
     set software [dict get $envdict software]
-    set boxGroupConfigContent [dict get $envdict boxGroup configContent]
-    set softwareConfigContent [dict get $envdict software configContent]
+    if {[dict exists $envdict boxGroup configContent]} {
+      set boxGroupConfigContent [dict get $envdict boxGroup configContent]
+    }
+    if {[dict exists $envdict software configContent]} {
+      set softwareConfigContent [dict get $envdict software configContent]
+    }
+
     set selfBox [dict get $envdict box]
     set boxes [dict get $envdict boxGroup boxes]
 
@@ -86,14 +91,18 @@ namespace eval EnvDictNs {
 
   proc readEnvFileJson {fileName} {
     set jd [::json::json2dict [readWholeFile $fileName]]
-    set bgConfigContent [dict get $jd boxGroup configContent]
-    if {[string length $bgConfigContent] > 0} {
-      dict set jd boxGroup configContent [::json::json2dict $bgConfigContent]
+    if {[dict exists $jd boxGroup configContent]} {
+      set bgConfigContent [dict get $jd boxGroup configContent]
+      if {[string length $bgConfigContent] > 0} {
+        dict set jd boxGroup configContent [::json::json2dict $bgConfigContent]
+      }
     }
 
-    set sfConfigContent [dict get $jd software configContent]
-    if {[string length $sfConfigContent] > 0} {
-      dict set jd software configContent [::json::json2dict $sfConfigContent]
+    if {[dict exists $jd software configContent]} {
+      set sfConfigContent [dict get $jd software configContent]
+      if {[string length $sfConfigContent] > 0} {
+        dict set jd software configContent [::json::json2dict $sfConfigContent]
+      }
     }
     return $jd
   }
