@@ -35,6 +35,15 @@ Describe "Centos7Util" {
         
         $r -match "8081/tcp" | Should Be $True
         Centos7-FileWall -ports "8081" -delete
+
+        Centos7-FileWall -ports "8081,8082"
+        $r = firewall-cmd --list-all | Where-Object {$_ -match "^\s+ports"} | Select-Object -First 1
+        
+        $r -match "8081/tcp" | Should Be $True
+        $r -match "8082/tcp" | Should Be $True
+
+        Centos7-FileWall -ports "8081,8082" -delete
+
     }
     It "should handle user manager" {
         $username = "a" + (Get-Random)

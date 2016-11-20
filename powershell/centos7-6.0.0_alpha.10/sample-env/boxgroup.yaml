@@ -19,7 +19,7 @@ boxes:
     ostype: centos7
     description: a description
     keyFilePath:
-    port: 222
+    port: 22
     sshUser: root
     hostname: a1.host.name
     dnsServer: 192.168.2.60
@@ -31,7 +31,7 @@ boxes:
     ostype: centos7
     description: a description
     keyFilePath:
-    port: 222
+    port: 22
     sshUser: root
     hostname: a2.host.name
     dnsServer:

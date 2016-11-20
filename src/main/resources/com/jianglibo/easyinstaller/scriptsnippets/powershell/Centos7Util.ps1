@@ -46,8 +46,8 @@ function Centos7-IsServiceEnabled {
 
 function Centos7-FileWall {
     Param($ports, [String]$prot="tcp", [switch]$delete=$False)
-    if ($ports -is [Array]) {
-        $ports = $ports -join ","
+    if ($ports -match ',') {
+        $ports = $ports -split ','
     }
     $firewalld = "firewalld"
     if (! (Centos7-IsServiceEnabled -serviceName $firewalld)) {
@@ -62,8 +62,9 @@ function Centos7-FileWall {
     } else {
         $action = "--add-port"
     }
-
-    firewall-cmd --permanent --zone=public $action "$ports/$prot" | Out-Null
+    foreach ($one in $ports) {
+        firewall-cmd --permanent --zone=public $action "$one/$prot" | Out-Null
+    }
     firewall-cmd --reload | Out-Null
 }
 
