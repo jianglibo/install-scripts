@@ -71,15 +71,46 @@ function Decorate-Env {
 
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("hadoop-.*\.tar\.gz"))
+
+    $users = $myenv.software.runas
+
+    if ($users -is "string") {
+        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users
+        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users
+    } else {
+        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users.hdfs
+        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users.yarn
+    }
+
+        # piddir and logdir
+    $envvs = $myenv.software.configContent.asHt("envvs")
+
+    if ($envvs.HADOOP_PID_DIR) {
+        if ($envvs.HADOOP_PID_DIR | Test-AbsolutePath) {
+            $piddir = $envvs.HADOOP_PID_DIR
+        } else {
+            $piddir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_PID_DIR
+        }
+    }
+
+    if ($envvs.HADOOP_LOG_DIR) {
+        if ($envvs.HADOOP_LOG_DIR | Test-AbsolutePath) {
+            $logdir = $envvs.HADOOP_LOG_DIR
+        } else {
+            $logdir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_LOG_DIR
+        }
+    }
+    $myenv | Add-Member -MemberType NoteProperty -Name logdir -Value $logdir
+    $myenv | Add-Member -MemberType NoteProperty -Name piddir -Value $piddir
     $myenv
 }
 
 function Get-HadoopDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+    $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hadoopDir = $h.hadoopDaemon | Split-Path -Parent | Split-Path -Parent
-    $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+    $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hdfsCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hdfs"
     $h.etcHadoop = Join-Path -Path $h.hadoopDir -ChildPath "etc/hadoop"
     $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
@@ -92,8 +123,6 @@ function Get-HadoopDirInfomation {
     }
     $h
 }
-
-
 
 function Install-Hadoop {
     Param($myenv)
@@ -111,12 +140,13 @@ function Write-ConfigFiles {
     Param($myenv)
     $resultHash = @{}
     $resultHash.env = @{}
+    $resultHash.pidfiles = @{}
     $yarnDirs = @()
 
     $DirInfo = Get-HadoopDirInfomation -myenv $myenv
 
     $myenv.software.textfiles | ForEach-Object {
-        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding utf8
+        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
     } | Out-Null
 
     # process core-site.xml
@@ -140,44 +170,26 @@ function Write-ConfigFiles {
 
     # find directory used by hdfs from hdfs-site.xml
     [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
-    $hdfsDirNames = "dfs.namenode.name.dir",
-                    "dfs.datanode.data.dir"
 
-    $hdfsDirs = $hdfsSiteDoc.configuration.property | Where-Object {$_.name -in $hdfsDirNames} | Select-Object -ExpandProperty value | ForEach-Object {$_ -replace ".*///", "/"} | New-Directory
 
-    $users = $myenv.software.runas
-    if ($users -is "string") {
-        $user_hdfs = $users
-        $user_yarn = $users
-    } else {
-        $user_hdfs = $users.hdfs
-        $user_yarn = $users.yarn
+    if ("NameNode" -in $myenv.myRoles) {
+        ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.namenode.name.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    }
+
+    if ("DataNode" -in $myenv.myRoles) {
+        ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.datanode.data.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
     }
 
     # write profile.d
     "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
 
-    # piddir and logdir
-    $envvs = $myenv.software.configContent.asHt("envvs")
 
-    if ($envvs.HADOOP_PID_DIR) {
-        if ($envvs.HADOOP_PID_DIR | Test-AbsolutePath) {
-            $piddir = $envvs.HADOOP_PID_DIR
-        } else {
-            $piddir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_PID_DIR
-        }
-    }
 
-    if ($envvs.HADOOP_LOG_DIR) {
-        if ($envvs.HADOOP_LOG_DIR | Test-AbsolutePath) {
-            $logdir = $envvs.HADOOP_LOG_DIR
-        } else {
-            $logdir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_LOG_DIR
-        }
-    }
+    $myenv.piddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    $myenv.logdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
 
-    $resultHash.env.HADOOP_LOG_DIR = $logdir
-    $resultHash.env.HADOOP_PID_DIR = $piddir
+    $resultHash.env.HADOOP_LOG_DIR = $myenv.logdir
+    $resultHash.env.HADOOP_PID_DIR = $myenv.piddir
     $resultHash.env.HADOOP_PREFIX = $DirInfo.hadoopDir
 
     $envvs.GetEnumerator() | Where-Object {$_.Key -notin "HADOOP_LOG_DIR", "HADOOP_PID_DIR"} | ForEach-Object {
@@ -186,22 +198,18 @@ function Write-ConfigFiles {
 
     $logdir, $piddir | New-Directory | Centos7-Chown -user $user_hdfs
 
-    if ("NameNode" -in $myenv.myRoles) {
-        $hdfsDirs | Centos7-Chown -user $user_hdfs
-    }
-
     if ("ResourceManager" -in $myenv.myRoles) {
-        $yarnDirs | Centos7-Chown -user $user_yarn
-    }
-
-    if ("DataNode" -in $myenv.myRoles) {
-        $hdfsDirs | Centos7-Chown -user $user_hdfs
+        $yarnDirs | Centos7-Chown -user $myenv.yarnuser
     }
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
+
+    if ("NameNode" -in $myenv.myRoles) {
+        Format-Hdfs $myenv $DirInfo
+    }
 }
 
 function Change-Status {
@@ -213,69 +221,88 @@ function Change-Status {
 }
 
 function Format-Hdfs {
-    Param($myenv)
-    $h = Get-HadoopDirInfomation $myenv
+    Param($myenv, $DirInfo)
+    if (!$DirInfo) {
+        $DirInfo = Get-HadoopDirInfomation $myenv
+    }
+    expose-env $myenv
     $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (! $resultJson.dfsFormatted) {
-        $h.hdfsCmd, "namenode", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
-        $resultJson.dfsFormatted = $True
+#        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser
+        $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
         $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
     }
 }
 
 # in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so
 function start-dfs {
-    Param($myenv)
+    Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
+    expose-env $myenv
     $h = Get-HadoopDirInfomation $myenv
     if ("NameNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
 #        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
 #        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
     } elseif ("DataNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs start datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
 #        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
 #        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
     }
 }
 
 function start-yarn {
-    Param($myenv)
+    Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
+    expose-env $myenv
     $h = Get-HadoopDirInfomation $myenv
     if ("ResourceManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
 #        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
 #        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
     } elseif ("NodeManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
 #        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
 #        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
     }
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
-
-# expose all environment variables.
-if (Test-Path $myenv.resultFile -PathType Leaf) {
+function expose-env {
+    Param($myenv)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     Add-AsHtScriptMethod $rh
-
-    $rh.asHt("env").GetEnumerator() | ForEach-Object {
+    $envhash =  $rh.asHt("env")
+    $envhash.GetEnumerator() | ForEach-Object {
         Set-Content -Path "env:$($_.Key)" -Value $_.Value
     }
+
+    if (!$envhash.javahome) {
+        Set-Content -Path "env:JAVA_HOME" -Value (Get-JavaHome)
+    }
 }
+
+$myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
     "install" {
         Install-Hadoop $myenv
     }
     "start-dfs" {
-
+        start-dfs $myenv start
     }
     "start-yarn" {
-
+        start-yarn $myenv start
+    }
+    "stop-dfs" {
+        start-dfs $myenv stop
+    }
+    "stop-yarn" {
+        start-yarn $myenv stop
+    }
+    "t" {
+        # do nothing
     }
     default {
-        Change-Status -myenv $myenv -action $action
+        Write-Error -Message ("Unknown action {0}"  -f $action)
     }
 }
 

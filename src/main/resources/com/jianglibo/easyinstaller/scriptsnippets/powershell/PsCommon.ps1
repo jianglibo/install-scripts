@@ -486,3 +486,17 @@ function Print-Success {
         "@@success@@"
     }
 }
+
+function Get-CmdTarget {
+    Param([parameter(ValueFromPipeline=$True)][string]$command)
+    $src = $command | Get-Command | Select-Object -ExpandProperty Source | Get-Item
+    if ($src.LinkType -eq "SymbolicLink") {
+        $src.Target
+    } else {
+        $src
+    }
+}
+
+function Get-JavaHome {
+    Get-CmdTarget -command "java" | Split-Path -Parent | Split-Path -Parent
+}
