@@ -22,7 +22,7 @@
       be subdirectories of this.
    </description>
     <name>yarn.nodemanager.local-dirs</name>
-    <value>${hadoop.tmp.dir}/nm-local-dir</value>
+    <value>file:///opt/hadoop-usage/yarn/nm-local-dir</value>
   </property>
 
   <property>

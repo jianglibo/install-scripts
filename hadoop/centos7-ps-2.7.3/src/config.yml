@@ -3,8 +3,9 @@ dfsClusterName: mydfscluster
 envvs:
   ABC: uvw
   # If is relative path, It relate to installDir
-  HADOOP_PID_DIR: piddir
-  HADOOP_LOG_DIR: logdir
+  HADOOP_PID_DIR: dfspids
+  HADOOP_LOG_DIR: dfslogs
+  YARN_LOG_DIR: yarnlogs
 ports:
   namenode:
     api: 8020
