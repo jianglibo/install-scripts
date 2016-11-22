@@ -3,9 +3,18 @@ dfsClusterName: mydfscluster
 envvs:
   ABC: uvw
   # If is relative path, It relate to installDir
-  HADOOP_PID_DIR: dfspids
-  HADOOP_LOG_DIR: dfslogs
-  YARN_LOG_DIR: yarnlogs
+  HADOOP_PID_DIR: dfspiddir
+  HADOOP_LOG_DIR: dfslogdir
+  YARN_LOG_DIR: yarnlogdir
+  YARN_PID_DIR: yarnpiddir
+# YARN_CONF_DIR  Alternate conf dir. Default is ${HADOOP_YARN_HOME}/conf.
+# YARN_MASTER    host:path where hadoop code should be rsync'd from
+# YARN_IDENT_STRING   A string representing this instance of hadoop. $USER by default
+# YARN_NICENESS The scheduling priority for daemons. Defaults to 0.
+firewall:
+  NameNode: 8020,50070,50470,50090,50091
+  DataNode: 50010,50075,50020,50475
+  ResourceManager: 8032,8033,8042,8030,8031
 ports:
   namenode:
     api: 8020

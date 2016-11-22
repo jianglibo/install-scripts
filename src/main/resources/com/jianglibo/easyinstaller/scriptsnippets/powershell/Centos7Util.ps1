@@ -94,8 +94,18 @@ function Centos7-UserManager {
 # runuser -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 
-function Centos7-Run-User {
+function Centos7-Run-User-String {
     Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user)
+    $user = $user | Trim-All
+    if (! $user) {
+        $user = $env:USER
+    }
+    Centos7-UserManager -username $user -action add
+    'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user
+}
+
+function Centos7-Run-User {
+    Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user, [switch]$background)
     $user = $user | Trim-All
     if (! $user) {
         $user = $env:USER
@@ -103,7 +113,12 @@ function Centos7-Run-User {
     Centos7-UserManager -username $user -action add
 #    chown $user $scriptfile | Out-Null
 #    chmod u+x $scriptfile | Out-Null
-    'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
+    if ($background) {
+        'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
+    } else {
+        'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
+    }
+    
 }
 
 function Centos7-Chown {

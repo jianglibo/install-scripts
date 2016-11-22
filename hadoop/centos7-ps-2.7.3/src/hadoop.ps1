@@ -87,21 +87,40 @@ function Decorate-Env {
 
     if ($envvs.HADOOP_PID_DIR) {
         if ($envvs.HADOOP_PID_DIR | Test-AbsolutePath) {
-            $piddir = $envvs.HADOOP_PID_DIR
+            $dfspiddir = $envvs.HADOOP_PID_DIR
         } else {
-            $piddir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_PID_DIR
+            $dfspiddir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_PID_DIR
         }
     }
 
     if ($envvs.HADOOP_LOG_DIR) {
         if ($envvs.HADOOP_LOG_DIR | Test-AbsolutePath) {
-            $logdir = $envvs.HADOOP_LOG_DIR
+            $dfslogdir = $envvs.HADOOP_LOG_DIR
         } else {
-            $logdir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_LOG_DIR
+            $dfslogdir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_LOG_DIR
         }
     }
-    $myenv | Add-Member -MemberType NoteProperty -Name logdir -Value $logdir
-    $myenv | Add-Member -MemberType NoteProperty -Name piddir -Value $piddir
+
+    if ($envvs.YARN_LOG_DIR) {
+        if ($envvs.YARN_LOG_DIR | Test-AbsolutePath) {
+            $yarnlogdir = $envvs.YARN_LOG_DIR
+        } else {
+            $yarnlogdir = $myenv.installDir | Join-Path -ChildPath $envvs.YARN_LOG_DIR
+        }
+    }
+
+    if ($envvs.YARN_PID_DIR) {
+        if ($envvs.YARN_PID_DIR | Test-AbsolutePath) {
+            $yarnpiddir = $envvs.YARN_PID_DIR
+        } else {
+            $yarnpiddir = $myenv.installDir | Join-Path -ChildPath $envvs.YARN_PID_DIR
+        }
+    }
+
+    $myenv | Add-Member -MemberType NoteProperty -Name dfslogdir -Value $dfslogdir
+    $myenv | Add-Member -MemberType NoteProperty -Name dfspiddir -Value $dfspiddir
+    $myenv | Add-Member -MemberType NoteProperty -Name yarnlogdir -Value $yarnlogdir
+    $myenv | Add-Member -MemberType NoteProperty -Name yarnpiddir -Value $yarnpiddir
     $myenv
 }
 
@@ -136,11 +155,12 @@ function Install-Hadoop {
     Write-ConfigFiles -myenv $myenv | Out-Null
 }
 
+
 function Write-ConfigFiles {
     Param($myenv)
     $resultHash = @{}
     $resultHash.env = @{}
-    $resultHash.pidfiles = @{}
+    $resultHash.info = @{}
     $yarnDirs = @()
 
     $DirInfo = Get-HadoopDirInfomation -myenv $myenv
@@ -166,6 +186,24 @@ function Write-ConfigFiles {
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.webapp.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.webapp)
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.hostname" -value $myenv.resourceManagerHostName
 
+    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.nodemanager.log-dirs" -value $myenv.yarnlogdir
+    $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
+
+    if ("ResourceManager" -in $myenv.myRoles -or "NodeManager" -in $myenv.myRoles) {
+        $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
+        $myenv.yarnpiddir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
+        ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
+    }
+
+    if("ResourceManager" -in $myenv.myRoles) {
+        Centos7-FileWall -ports $myenv.software.configContent.firewall.ResourceManager
+    }
+
+    if("NodeManager" -in $myenv.myRoles) {
+        Centos7-FileWall -ports $myenv.software.configContent.firewall.NodeManager
+    }
+
+
     Save-Xml -doc $yarnSiteDoc -FilePath $DirInfo.yarnSite -encoding ascii
 
     # find directory used by hdfs from hdfs-site.xml
@@ -173,11 +211,15 @@ function Write-ConfigFiles {
 
 
     if ("NameNode" -in $myenv.myRoles) {
-        ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.namenode.name.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+        $namenodeDir = ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.namenode.name.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/"
+        $namenodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+        $resultHash.info.namenodeDir = $namenodeDir
+        Centos7-FileWall -ports $myenv.software.configContent.firewall.NameNode
     }
 
     if ("DataNode" -in $myenv.myRoles) {
         ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.datanode.data.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+        Centos7-FileWall -ports $myenv.software.configContent.firewall.DataNode
     }
 
     # write profile.d
@@ -185,21 +227,18 @@ function Write-ConfigFiles {
 
 
 
-    $myenv.piddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
-    $myenv.logdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    $myenv.dfspiddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    $myenv.dfslogdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
 
-    $resultHash.env.HADOOP_LOG_DIR = $myenv.logdir
-    $resultHash.env.HADOOP_PID_DIR = $myenv.piddir
+    $resultHash.env.HADOOP_LOG_DIR = $myenv.dfslogdir
+    $resultHash.env.HADOOP_PID_DIR = $myenv.dfspiddir
+    $resultHash.env.YARN_LOG_DIR = $myenv.yarnlogdir
+    $resultHash.env.YARN_PID_DIR = $myenv.yarnpiddir
+
     $resultHash.env.HADOOP_PREFIX = $DirInfo.hadoopDir
 
-    $envvs.GetEnumerator() | Where-Object {$_.Key -notin "HADOOP_LOG_DIR", "HADOOP_PID_DIR"} | ForEach-Object {
+    $myenv.software.configContent.asHt("envvs").GetEnumerator() | Where-Object {$_.Key -notin "HADOOP_LOG_DIR", "HADOOP_PID_DIR", "YARN_LOG_DIR", "YARN_PID_DIR"} | ForEach-Object {
         $resultHash.env[$_.Key] = $_.Value
-    }
-
-    $logdir, $piddir | New-Directory | Centos7-Chown -user $user_hdfs
-
-    if ("ResourceManager" -in $myenv.myRoles) {
-        $yarnDirs | Centos7-Chown -user $myenv.yarnuser
     }
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
@@ -208,15 +247,9 @@ function Write-ConfigFiles {
     chmod u+x $myenv.appFile
 
     if ("NameNode" -in $myenv.myRoles) {
-        Format-Hdfs $myenv $DirInfo
-    }
-}
-
-function Change-Status {
-    Param($myenv, [String]$action)
-    if (Test-Path $myenv.resultFile) {
-        $result = Get-Content $myenv.resultFile | ConvertFrom-Json
-        $result.executable, $action -join " " | Invoke-Expression
+        if(($resultHash.info.namenodeDir | Get-ChildItem -Recurse).Count -lt 3) {
+            Format-Hdfs $myenv $DirInfo
+        } 
     }
 }
 
@@ -226,7 +259,6 @@ function Format-Hdfs {
         $DirInfo = Get-HadoopDirInfomation $myenv
     }
     expose-env $myenv
-    $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (! $resultJson.dfsFormatted) {
 #        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser
@@ -297,6 +329,9 @@ switch ($action) {
     }
     "stop-yarn" {
         start-yarn $myenv stop
+    }
+    "kill-alljava" {
+        Get-Process | ? Name -EQ java | Stop-Process -Force
     }
     "t" {
         # do nothing

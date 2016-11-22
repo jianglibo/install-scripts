@@ -94,12 +94,12 @@ Describe "code" {
             }
         }
 
-        $piddir | Should Be "/opt/hadoop/piddir"
-        $logdir | Should Be "/opt/hadoop/logdir"
+        $piddir | Should Be "/opt/hadoop/dfspiddir"
+        $logdir | Should Be "/opt/hadoop/dfslogdir"
 
         $myenv.InstallDir | Should Be "/opt/hadoop"
 
-        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 3
+#        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 5
 
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/hadoop-2.7.3.tar.gz"
 
@@ -119,7 +119,7 @@ Describe "code" {
 
         $resultJson.getType() | Should Be "System.Management.Automation.PSCustomObject"
 
-        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "pidfiles"
+        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
 
         $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
 
@@ -130,7 +130,7 @@ Describe "code" {
         Install-Hadoop $myenv
 
         $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
-        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "pidfiles"
+        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
 
         $di = Get-HadoopDirInfomation $myenv
         $coreSite =  Get-Item $di.coreSite
@@ -144,20 +144,25 @@ Describe "code" {
 
         $pnames | Should Be "fs.defaultFS", "io.file.buffer.size", "ha.zookeeper.quorum", "ha.zookeeper.session-timeout.ms"
 
-        if ($myenv.piddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path) {
+        if ($myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path) {
+            start-yarn $myenv stop
+        }
+
+        if ($myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path) {
             start-dfs $myenv stop
         }
 
         start-dfs $myenv start
-
         start-yarn $myenv start
 
-        $myenv.piddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $True
+        $myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $True
+        $myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path | Should Be $True
+
+        start-yarn $myenv stop
+        $myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path | Should Be $False
 
         start-dfs $myenv stop
-
-        $myenv.piddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $False
-
+        $myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $False
         Get-Content -Path "env:ABC" | Should Be "uvw"
     }
 
@@ -180,9 +185,5 @@ Describe "code" {
 
         $user_hdfs | Should Be "hdfs"
         $user_yarn | Should Be "yarn"
-    }
-
-    It "should has no bom" {
-        
     }
 }

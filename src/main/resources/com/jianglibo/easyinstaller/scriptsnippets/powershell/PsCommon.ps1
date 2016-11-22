@@ -38,9 +38,7 @@ function Run-String {
 
     $content | Out-File -FilePath $tf -Encoding ascii
 
-    # chmod u+x $tf *>1 | Out-Null
-
-    (($execute,$tf) + $others) -join " " | Invoke-Expression
+    $execute,$tf + $others -join " " | Invoke-Expression
 
     Remove-Item -Path $tf
 }

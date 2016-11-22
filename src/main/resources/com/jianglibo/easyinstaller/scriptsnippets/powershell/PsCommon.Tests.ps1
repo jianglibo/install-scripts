@@ -18,6 +18,14 @@ Describe "PsCommon" {
         }
         $oo.appp("abaac") | Should Be "abaac"
     }
+    It "should run string" {
+        Run-String -execute tclsh -content 'puts "abc"' | Should Be "abc"
+        $c = @'
+        set n [expr 1 + 1]
+        puts $n
+'@
+    Run-String -execute tclsh -content $c | Should Be "2"
+    }
     It "should addKv commentKv work" {
         $kvf = New-SectionKvFile -FilePath (Join-Path $here -ChildPath "fixtures\NetworkManager.conf")
         $ht = [HashTable]$kvf.blockHt;
@@ -45,8 +53,6 @@ Describe "PsCommon" {
         $kvf.blockHt["[main]"] -contains "#a=1" | Should Be $False
         $kvf.blockHt["[main]"] -contains "a=2" | Should Be $True
         $kvf.blockHt["[main]"].Count | Should Be 3
-
-
     }
     It "should write to file work" {
         $kvf = New-SectionKvFile -FilePath (Join-Path $here -ChildPath "fixtures\NetworkManager.conf")
