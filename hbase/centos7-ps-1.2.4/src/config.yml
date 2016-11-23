@@ -10,4 +10,5 @@ envvs:
   HBASE_LOG_DIR: hbaselogdir
   HBASE_PID_DIR: hbasepiddir
 firewall:
-  ports: 16000,16010,16020,16030
+  master: 16000,16010
+  regionserver: 16020,16030

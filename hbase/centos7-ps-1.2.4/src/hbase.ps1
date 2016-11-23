@@ -66,64 +66,55 @@ function Decorate-Env {
     $masterBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "Master"} | Select-Object -First 1
     $regionServerBoxes = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "RegionServer"}
 
+    $myenv | Add-Member -MemberType NoteProperty -Name masterBox -Value $masterBox
+    $myenv | Add-Member -MemberType NoteProperty -Name regionServerBoxes -Value $regionServerBoxes
+
+
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("hbase-.*\.tar\.gz"))
 
-    $users = $myenv.software.runas
-
-    if ($users -is "string") {
-        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users
-        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users
-    } else {
-        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users.hdfs
-        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users.yarn
-    }
-
-    # piddir and logdir
+         # piddir and logdir
     $envvs = $myenv.software.configContent.asHt("envvs")
 
-    if ($envvs.HADOOP_PID_DIR) {
-        if ($envvs.HADOOP_PID_DIR | Test-AbsolutePath) {
-            $piddir = $envvs.HADOOP_PID_DIR
+    $myenv | Add-Member -MemberType NoteProperty -Name user -Value (Choose-FirstTrueValue $myenv.software.runas hbase)
+
+    if ($envvs.HBASE_PID_DIR) {
+        if ($envvs.HBASE_PID_DIR | Test-AbsolutePath) {
+            $piddir = $envvs.HBASE_PID_DIR
         } else {
-            $piddir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_PID_DIR
+            $piddir = $myenv.installDir | Join-Path -ChildPath $envvs.HBASE_PID_DIR
         }
     }
 
-    if ($envvs.HADOOP_LOG_DIR) {
-        if ($envvs.HADOOP_LOG_DIR | Test-AbsolutePath) {
-            $logdir = $envvs.HADOOP_LOG_DIR
+    if ($envvs.HBASE_LOG_DIR) {
+        if ($envvs.HBASE_LOG_DIR | Test-AbsolutePath) {
+            $logdir = $envvs.HBASE_LOG_DIR
         } else {
-            $logdir = $myenv.installDir | Join-Path -ChildPath $envvs.HADOOP_LOG_DIR
+            $logdir = $myenv.installDir | Join-Path -ChildPath $envvs.HBASE_LOG_DIR
         }
     }
+
     $myenv | Add-Member -MemberType NoteProperty -Name logdir -Value $logdir
     $myenv | Add-Member -MemberType NoteProperty -Name piddir -Value $piddir
     $myenv
 }
 
-function Get-HadoopDirInfomation {
+function Get-HbaseDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
-    $h.hadoopDir = $h.hadoopDaemon | Split-Path -Parent | Split-Path -Parent
-    $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
-    $h.hdfsCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hdfs"
-    $h.etcHadoop = Join-Path -Path $h.hadoopDir -ChildPath "etc/hadoop"
-    $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
-    $h.hdfsSite = Join-Path $h.etcHadoop -ChildPath "hdfs-site.xml"
-    $h.yarnSite = Join-Path $h.etcHadoop -ChildPath "yarn-site.xml"
-    $h.mapredSite = Join-Path $h.etcHadoop -ChildPath "mapred-site.xml"
+    $h.hbaseDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/hbase-daemon.sh$"} | Select-Object -First 1 -ExpandProperty FullName
+    $h.hbasebin = $h.hbaseDaemon | Split-Path -Parent | Join-Path -ChildPath hbase
 
-    if (! (Test-Path $h.mapredSite)) {
-        Join-Path $h.etcHadoop -ChildPath "mapred-site.xml.template" | Copy-Item -Destination $h.mapredSite | Out-Null
-    }
+    $h.hbaseDir = $h.hbaseDaemon | Split-Path -Parent | Split-Path -Parent
+    $h.hbaseConfDir = $h.hbaseDir | Join-Path -ChildPath conf
+    $h.regionserversFile = $h.hbaseConfDir | Join-Path  -ChildPath regionservers
+    $h.hbaseSite = $h.hbaseConfDir | Join-Path  -ChildPath hbase-site.xml
     $h
 }
 
-function Install-Hadoop {
+function Install-Hbase {
     Param($myenv)
-    $myenv.InstallDir | New-Directory
+    $myenv.InstallDir | New-Directory | Out-Null
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -133,133 +124,64 @@ function Install-Hadoop {
     Write-ConfigFiles -myenv $myenv | Out-Null
 }
 
+
 function Write-ConfigFiles {
     Param($myenv)
     $resultHash = @{}
     $resultHash.env = @{}
-    $resultHash.pidfiles = @{}
-    $yarnDirs = @()
+    $resultHash.info = @{}
 
-    $DirInfo = Get-HadoopDirInfomation -myenv $myenv
+    $DirInfo = Get-HbaseDirInfomation -myenv $myenv
 
     $myenv.software.textfiles | ForEach-Object {
-        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
+        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hbaseDir | Join-Path -ChildPath $_.name) -Encoding ascii
     } | Out-Null
 
-    # process core-site.xml
-    [xml]$coreSiteDoc = Get-Content $DirInfo.coreSite
+    # process regionservers
+    $myenv.regionServerBoxes | Select-Object -ExpandProperty hostname | Out-File -FilePath $DirInfo.regionserversFile -Encoding ascii
 
-    Set-HadoopProperty -doc $coreSiteDoc -name "fs.defaultFS" -value $myenv.defaultFS
+    $myenv.logdir,$myenv.piddir | New-Directory | Centos7-Chown -user $myenv.user
 
-    Save-Xml -doc $coreSiteDoc -FilePath $DirInfo.coreSite -encoding ascii
-
-    # process yarn-site.xml, because resourceManagerHostName is determined at runtime. it must write this way.
-    [xml]$yarnSiteDoc = Get-Content $DirInfo.yarnSite
-
-    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.api)
-    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.scheduler.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.scheduler)
-    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.resource-tracker.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.resourceTracker)
-    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.admin.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.admin)
-    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.webapp.address" -value ("{0}:{1}" -f $myenv.resourceManagerHostName, $myenv.software.configContent.ports.resourcemanager.webapp)
-    Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.hostname" -value $myenv.resourceManagerHostName
-
-    Save-Xml -doc $yarnSiteDoc -FilePath $DirInfo.yarnSite -encoding ascii
-
-    # find directory used by hdfs from hdfs-site.xml
-    [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
-
-
-    if ("NameNode" -in $myenv.myRoles) {
-        ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.namenode.name.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    if("Master" -in $myenv.myRoles) {
+        Centos7-FileWall -ports $myenv.software.configContent.firewall.Master
     }
 
-    if ("DataNode" -in $myenv.myRoles) {
-        ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.datanode.data.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    if("RegionServer" -in $myenv.myRoles) {
+        Centos7-FileWall -ports $myenv.software.configContent.firewall.RegionServer
     }
 
-    # write profile.d
-    "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
+    $resultHash.env.HBASE_LOG_DIR = $myenv.logdir
+    $resultHash.env.HBASE_PID_DIR = $myenv.piddir
 
-
-
-    $myenv.piddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
-    $myenv.logdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
-
-    $resultHash.env.HADOOP_LOG_DIR = $myenv.logdir
-    $resultHash.env.HADOOP_PID_DIR = $myenv.piddir
-    $resultHash.env.HADOOP_PREFIX = $DirInfo.hadoopDir
-
-    $envvs.GetEnumerator() | Where-Object {$_.Key -notin "HADOOP_LOG_DIR", "HADOOP_PID_DIR"} | ForEach-Object {
+    $myenv.software.configContent.asHt("envvs").GetEnumerator() | Where-Object {$_.Key -notin "HBASE_LOG_DIR", "HBASE_PID_DIR"} | ForEach-Object {
         $resultHash.env[$_.Key] = $_.Value
-    }
-
-    $logdir, $piddir | New-Directory | Centos7-Chown -user $user_hdfs
-
-    if ("ResourceManager" -in $myenv.myRoles) {
-        $yarnDirs | Centos7-Chown -user $myenv.yarnuser
     }
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
-    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
+    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.user -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
-
-    if ("NameNode" -in $myenv.myRoles) {
-        Format-Hdfs $myenv $DirInfo
-    }
 }
 
-function Change-Status {
-    Param($myenv, [String]$action)
-    if (Test-Path $myenv.resultFile) {
-        $result = Get-Content $myenv.resultFile | ConvertFrom-Json
-        $result.executable, $action -join " " | Invoke-Expression
-    }
-}
-
-function Format-Hdfs {
-    Param($myenv, $DirInfo)
-    if (!$DirInfo) {
-        $DirInfo = Get-HadoopDirInfomation $myenv
-    }
+function start-hbase {
+    Param($myenv)
     expose-env $myenv
-    $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
-    if (! $resultJson.dfsFormatted) {
-#        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser
-        $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
-        $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
+    $h = Get-HbaseDirInfomation $myenv
+    if ("Master" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user
+    } elseif ("RegionServer" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user
     }
 }
 
-# in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so
-function start-dfs {
-    Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
+function stop-hbase {
+    Param($myenv)
     expose-env $myenv
-    $h = Get-HadoopDirInfomation $myenv
-    if ("NameNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
-#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
-#        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
-    } elseif ("DataNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
-#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
-#        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
-    }
-}
-
-function start-yarn {
-    Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
-    expose-env $myenv
-    $h = Get-HadoopDirInfomation $myenv
-    if ("ResourceManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
-#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
-#        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
-    } elseif ("NodeManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
-#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
-#        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
+    $h = Get-HbaseDirInfomation $myenv
+    if ("Master" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user
+    } elseif ("RegionServer" -in $myenv.myRoles) {
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user
     }
 }
 
@@ -283,17 +205,11 @@ switch ($action) {
     "install" {
         Install-Hadoop $myenv
     }
-    "start-dfs" {
-        start-dfs $myenv start
+    "start-hbase" {
+        start-hbase $myenv
     }
-    "start-yarn" {
-        start-yarn $myenv start
-    }
-    "stop-dfs" {
-        start-dfs $myenv stop
-    }
-    "stop-yarn" {
-        start-yarn $myenv stop
+    "stop-hbase" {
+        stop-hbase $myenv
     }
     "t" {
         # do nothing
