@@ -1,0 +1,13 @@
+installDir: /opt/hbase
+envvs:
+#   HBASE_CONF_DIR   Alternate hbase conf dir. Default is ${HBASE_HOME}/conf.
+#   HBASE_LOG_DIR    Where log files are stored.  PWD by default.
+#   HBASE_PID_DIR    The pid files are stored. /tmp by default.
+#   HBASE_IDENT_STRING   A string representing this instance of hadoop. $USER by default
+#   HBASE_NICENESS The scheduling priority for daemons. Defaults to 0.
+#   HBASE_STOP_TIMEOUT  Time, in seconds, after which we kill -9 the server if it has not stopped.
+#                        Default 1200 seconds.
+  HBASE_LOG_DIR: hbaselogdir
+  HBASE_PID_DIR: hbasepiddir
+firewall:
+  ports: 16000,16010,16020,16030
