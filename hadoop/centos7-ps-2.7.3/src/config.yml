@@ -1,7 +1,6 @@
 installDir: /opt/hadoop
 dfsClusterName: mydfscluster
 envvs:
-  ABC: uvw
   # If is relative path, It relate to installDir
   HADOOP_PID_DIR: dfspiddir
   HADOOP_LOG_DIR: dfslogdir

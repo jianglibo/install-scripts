@@ -63,6 +63,20 @@ Describe "Centos7Util" {
 
         Centos7-UserManager -username "xxxxxxxxxxu" -action exists | Should Be $False
     }
+
+    It "should persist export" {
+        $f = "/etc/profile.d/easyinstaller.sh"
+        if ($f | Test-Path) {
+            Remove-Item $f
+        }
+        $f | Test-Path | Should Be $False
+        Centos7-PersistExport -key "JAVA_HOME" -value "/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.111-1.b15.el7_2.x86_64/jre"
+        $f | Test-Path | Should Be $True
+        
+        Get-Content $f | ? {$_ -match "^JAVA_HOME"} | Select-Object -First 1 | Should Be "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.111-1.b15.el7_2.x86_64/jre"
+        Get-Content $f | ? {$_ -match "^export JAVA_HOME"} | Select-Object -First 1 | Should Be "export JAVA_HOME"
+        # Remove-Item $f
+    }
 }
 
 # remember

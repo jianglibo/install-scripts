@@ -17,7 +17,7 @@ $resutl = . "$here\$sut" -envfile $envfile -action t
 Describe "code" {
     It  "should install hbase" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
-
+        $myenv.user | Should Be "hbase"
         $envvs = $myenv.software.configContent.asHt("envvs")
 
         if ($envvs.HBASE_PID_DIR) {
@@ -64,15 +64,20 @@ Describe "code" {
 
         $di = Get-HbaseDirInfomation $myenv
 
-        if ($myenv.piddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path) {
+        $hbasepid = "hbase-hbase-master.pid"
+
+        if ($myenv.piddir | Join-Path  -ChildPath $hbasepid | Test-Path) {
             stop-hbase $myenv
+            Start-Sleep 30
         }
 
         start-hbase $myenv
+        Start-Sleep 30
 
-        $myenv.piddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $True
+        $myenv.piddir | Join-Path  -ChildPath $hbasepid | Test-Path | Should Be $True
 
         stop-hbase $myenv stop
-        $myenv.piddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $False
+        Start-Sleep 30
+        $myenv.piddir | Join-Path  -ChildPath $hbasepid | Test-Path | Should Be $False
     }
 }

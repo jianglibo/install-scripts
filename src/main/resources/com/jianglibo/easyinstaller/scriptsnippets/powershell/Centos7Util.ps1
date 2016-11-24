@@ -46,26 +46,34 @@ function Centos7-IsServiceEnabled {
 
 function Centos7-FileWall {
     Param($ports, [String]$prot="tcp", [switch]$delete=$False)
-    if ($ports -match ',') {
-        $ports = $ports -split ','
-    }
-    $firewalld = "firewalld"
-    if (! (Centos7-IsServiceEnabled -serviceName $firewalld)) {
-        systemctl enable $firewalld *>1 | Out-Null
-    }
+    process {
+        if ($ports -match ',') {
+            $ports = $ports -split ','
+        }
+        $firewalld = "firewalld"
+        if (! (Centos7-IsServiceEnabled -serviceName $firewalld)) {
+            systemctl enable $firewalld *>1 | Out-Null
+        }
 
-    if (! (Centos7-IsServiceRunning -serviceName $firewalld)) {
-        systemctl start $firewalld *>1 | Out-Null
+        if (! (Centos7-IsServiceRunning -serviceName $firewalld)) {
+            systemctl start $firewalld *>1 | Out-Null
+        }
+        if ($delete) {
+            $action = "--remove-port"
+        } else {
+            $action = "--add-port"
+        }
+        foreach ($one in $ports) {
+            firewall-cmd --permanent --zone=public $action "$one/$prot" | Out-Null
+        }
     }
-    if ($delete) {
-        $action = "--remove-port"
-    } else {
-        $action = "--add-port"
+    end {
+        firewall-cmd --reload | Out-Null
     }
-    foreach ($one in $ports) {
-        firewall-cmd --permanent --zone=public $action "$one/$prot" | Out-Null
-    }
-    firewall-cmd --reload | Out-Null
+}
+
+function Centos7-GetOpenPorts {
+    (firewall-cmd --list-all | Where-Object {$_ -match "^\s*ports:"} | Select-Object -First 1) -split "\s+" | ? {$_.length -gt 0} | Select-Object -Skip 1
 }
 
 function Centos7-UserManager {
@@ -133,4 +141,13 @@ function Centos7-Chown {
         }
         chown -R "${user}:${group}" $Path | Out-Null
     }
+}
+
+function Centos7-PersistExport {
+    Param([parameter(Mandatory=$True)][string]$key, [parameter(Mandatory=$True)][string]$value)
+    $f = "/etc/profile.d/easyinstaller.sh" 
+    if ( $f | Test-Path) {
+        $lines = Get-Content $f
+    }
+    "$key=$value","export $key" + $lines | Out-File $f -Encoding ascii
 }

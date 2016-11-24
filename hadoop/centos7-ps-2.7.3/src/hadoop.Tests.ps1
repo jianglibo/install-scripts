@@ -163,7 +163,6 @@ Describe "code" {
 
         start-dfs $myenv stop
         $myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $False
-        Get-Content -Path "env:ABC" | Should Be "uvw"
     }
 
     It "should get right user" {

@@ -76,7 +76,7 @@ function Decorate-Env {
          # piddir and logdir
     $envvs = $myenv.software.configContent.asHt("envvs")
 
-    $myenv | Add-Member -MemberType NoteProperty -Name user -Value (Choose-FirstTrueValue $myenv.software.runas hbase)
+    $myenv | Add-Member -MemberType NoteProperty -Name user -Value $myenv.software.runas
 
     if ($envvs.HBASE_PID_DIR) {
         if ($envvs.HBASE_PID_DIR | Test-AbsolutePath) {

@@ -62,16 +62,21 @@ Describe "code" {
         Test-Path $decorated.envvs.ZOOCFGDIR -PathType Container | Should Be $True
         Join-Path -Path $decorated.envvs.ZOOCFGDIR -ChildPath $decorated.envvs.ZOOCFG | Test-Path -PathType Leaf| Should Be $True
 
+        
+        $allports = Centos7-GetOpenPorts
+
+        "2888/tcp","3888/tcp","2181/tcp" | ? {$_ -notin $allports} | Should Be $null
+
         $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
         (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
 
         $r = Change-Status -myenv $decorated -action start | Out-String
-        Start-Sleep -Seconds 5
+        Start-Sleep -Seconds 10
         if ($r -match "already running as") {
             Change-Status -myenv $decorated -action stop
         }
         $r = Change-Status -myenv $decorated -action start | Out-String
-        Start-Sleep -Seconds 5
+        Start-Sleep -Seconds 10
         $r -match "already running as" | Should Be $False
         
         Change-Status -myenv $decorated -action stop

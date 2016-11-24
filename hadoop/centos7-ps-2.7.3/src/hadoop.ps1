@@ -1,6 +1,8 @@
 ﻿# how to run this script. powershell -File /path/to/this/file.
 # ParamTest.ps1 - Show some parameter features
 # Param statement must be first non-comment, non-blank line in the script
+# runuser -s /bin/bash -c "/opt/hadoop/hadoop-2.7.3/bin/hdfs dfs -mkdir -p /user/hbase" hdfs
+# runuser -s /bin/bash -c "/opt/hadoop/hadoop-2.7.3/bin/hdfs dfs -chown hbase /user/hbase" hdfs
 
 Param(
     [parameter(Mandatory=$true)]

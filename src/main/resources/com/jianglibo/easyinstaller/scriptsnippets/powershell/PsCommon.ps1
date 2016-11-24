@@ -458,6 +458,8 @@ function New-Directory {
     process {
         if (!(Test-Path -PathType Container -Path $Path)) {
             New-Item -Path $Path -ItemType Directory -Force
+        } else {
+            $Path
         }
     }
 }

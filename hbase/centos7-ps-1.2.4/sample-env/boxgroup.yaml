@@ -3,7 +3,7 @@ boxes:
   - ip: 192.168.33.110
     name: box1
 # this a so called master node
-    roles: Master
+    roles: NameNode,ResourceManager,Master
     ostype: centos7
     description:
     keyFilePath:
@@ -15,7 +15,7 @@ boxes:
     ports:
   - ip: 192.168.33.111
     name: box2
-    roles: RegionServer
+    roles: DataNode,NodeManager,RegionServer
     ostype: centos7
     description: a description
     keyFilePath:
@@ -27,7 +27,7 @@ boxes:
     ports: 80,8080
   - ip: 192.168.33.112
     name: box3
-    roles: RegionServer
+    roles: DataNode,NodeManager,RegionServer
     ostype: centos7
     description: a description
     keyFilePath:

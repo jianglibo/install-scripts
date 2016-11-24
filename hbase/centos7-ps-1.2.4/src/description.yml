@@ -7,7 +7,7 @@ codeToExecute: hbase.ps1
 configContent: config.yml # content of this file will insert into software configContent field.
 codeFileExt: .ps1
 codeLineSeperator: LF
-runas:
+runas: hbase
 actions: install,start-hbase,stop-hbase
 filesToUpload:
   - http://mirror.bit.edu.cn/apache/hbase/stable/hbase-1.2.4-bin.tar.gz

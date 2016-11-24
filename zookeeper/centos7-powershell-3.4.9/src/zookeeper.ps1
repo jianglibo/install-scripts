@@ -108,7 +108,7 @@ function Write-ConfigFiles {
         Centos7-SetHostName -hostname $myenv.box.hostname
     }
     # open firewall
-    Centos7-FileWall -ports $myenv.software.configContent.zkports
+    Centos7-FileWall -ports $myenv.software.configContent.zkports,$myenv.software.configContent.zkconfig.clientPort
 
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
