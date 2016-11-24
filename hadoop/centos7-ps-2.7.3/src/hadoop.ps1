@@ -197,6 +197,16 @@ function Write-ConfigFiles {
         ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
     }
 
+    # write hostname to hosts.
+    $hf = New-HostsFile
+    $myenv.boxGroup.boxes | Where-Object {$_.ip -ne $_.hostname} | ForEach-Object {$hf.addHost($_.ip, $_.hostname)}
+    $hf.writeToFile()
+
+    #change hostname
+    if ($myenv.box.ip -ne $myenv.box.hostname) {
+        Centos7-SetHostName -hostname $myenv.box.hostname
+    }
+
     if("ResourceManager" -in $myenv.myRoles) {
         Centos7-FileWall -ports $myenv.software.configContent.firewall.ResourceManager
     }
@@ -343,4 +353,4 @@ switch ($action) {
     }
 }
 
-"@@success@@"
+Print-Success

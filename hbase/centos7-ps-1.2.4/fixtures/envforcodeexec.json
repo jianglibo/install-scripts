@@ -3,7 +3,7 @@
   "box": {
     "ip": "192.168.33.110",
     "name": "box1",
-    "hostname": "192.168.33.110",
+    "hostname": "a0.host.name",
     "roles": "NameNode,ResourceManager,Master",
     "dnsServer": "",
     "ips": "",
@@ -16,7 +16,7 @@
       {
         "ip": "192.168.33.110",
         "name": "box1",
-        "hostname": "192.168.33.110",
+        "hostname": "a0.host.name",
         "roles": "NameNode,ResourceManager,Master",
         "dnsServer": "192.168.2.60",
         "ips": "",

@@ -480,7 +480,7 @@ function Choose-OnCondition {
 }
 
 function Print-Success {
-    if ($Error.Count > 0) {
+    if ($Error.Count -gt 0) {
         $Error | ForEach-Object {$_.ToString(),$_.ScriptStackTrace}
     } else {
         "@@success@@"

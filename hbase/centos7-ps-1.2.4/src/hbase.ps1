@@ -1,6 +1,7 @@
 ﻿# how to run this script. powershell -File /path/to/this/file.
 # ParamTest.ps1 - Show some parameter features
 # Param statement must be first non-comment, non-blank line in the script
+# server must has a hostname
 
 Param(
     [parameter(Mandatory=$true)]
@@ -62,6 +63,10 @@ function Set-HadoopProperty {
 
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
+
+    if (($myenv.box.hostname -eq $myenv.box.ip) -and ("Master" -in $myenv.myRoles)) {
+        Write-Error "Hbase Master must has a hostname"
+    }
 
     $masterBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "Master"} | Select-Object -First 1
     $regionServerBoxes = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "RegionServer"}
@@ -142,6 +147,16 @@ function Write-ConfigFiles {
 
     $myenv.logdir,$myenv.piddir | New-Directory | Centos7-Chown -user $myenv.user
 
+    # write hostname to hosts.
+    $hf = New-HostsFile
+    $myenv.boxGroup.boxes | Where-Object {$_.ip -ne $_.hostname} | ForEach-Object {$hf.addHost($_.ip, $_.hostname)}
+    $hf.writeToFile()
+
+    #change hostname
+    if ($myenv.box.ip -ne $myenv.box.hostname) {
+        Centos7-SetHostName -hostname $myenv.box.hostname
+    }
+
     if("Master" -in $myenv.myRoles) {
         Centos7-FileWall -ports $myenv.software.configContent.firewall.Master
     }
@@ -203,7 +218,7 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
     "install" {
-        Install-Hadoop $myenv
+        Install-Hbase $myenv
     }
     "start-hbase" {
         start-hbase $myenv
@@ -219,4 +234,4 @@ switch ($action) {
     }
 }
 
-"@@success@@"
+Print-Success
