@@ -3,8 +3,8 @@
   "box": {
     "ip": "192.168.33.110",
     "name": "box1",
-    "hostname": "192.168.33.110",
-    "roles": "r1,r2,r3",
+    "hostname": "a0.host.com",
+    "roles": "ZOOKEEPER",
     "dnsServer": "",
     "ips": "",
     "ports": ""
@@ -16,8 +16,8 @@
       {
         "ip": "192.168.33.110",
         "name": "box1",
-        "hostname": "192.168.33.110",
-        "roles": "r1,r2,r3",
+        "hostname": "a0.host.com",
+        "roles": "ZOOKEEPER",
         "dnsServer": "192.168.2.60",
         "ips": "",
         "ports": ""
@@ -26,7 +26,7 @@
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
-        "roles": "r1,r2,r3",
+        "roles": "ZOOKEEPER",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.12,192.168.2.13",
         "ports": "80,8080"
@@ -35,7 +35,7 @@
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
-        "roles": "r1,r2,r3",
+        "roles": "ZOOKEEPER",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.15,192.168.2.16",
         "ports": "80,8080"
@@ -47,7 +47,9 @@
     "sversion": "powershell-3.4.9",
     "ostype": "CentOs7",
     "runas": "zookeeper",
+    "timeouts": {},
     "runner": "powershell -File {code} -envfile {envfile} -action {action}",
+    "possibleRoles": "ZOOKEEPER",
     "textfiles": [
       {
         "name": "zoo.cfg",

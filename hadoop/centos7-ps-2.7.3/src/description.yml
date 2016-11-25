@@ -2,6 +2,7 @@ name: hadoop
 ostype: CentOs7
 sversion: ps-2.7.3
 runner: powershell -File {code} -envfile {envfile} -action {action}
+possibleRoles: NameNode,ResourceManager,DataNode,NodeManager
 preferredFormat: JSON
 codeToExecute: hadoop.ps1
 configContent: config.yml # content of this file will insert into software configContent field.

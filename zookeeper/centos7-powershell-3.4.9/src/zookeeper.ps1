@@ -134,6 +134,11 @@ function Change-Status {
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
 
+if ($myenv.boxGroup.boxes.Count -lt 3) {
+    Write-Error "There must at least 3 servers to install zookeeper".
+    return
+}
+
 if (! $action) {
     return
 }

@@ -2,6 +2,7 @@ name: zookeeper
 ostype: CentOs7
 sversion: powershell-3.4.9
 runner: powershell -File {code} -envfile {envfile} -action {action}
+possibleRoles: zookeeper
 preferredFormat: JSON
 codeToExecute: zookeeper.ps1
 configContent: config.yml # content of this file will insert into software configContent field.

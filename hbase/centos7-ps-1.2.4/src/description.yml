@@ -2,6 +2,7 @@ name: hbase
 ostype: CentOs7
 sversion: ps-1.2.4
 runner: powershell -File {code} -envfile {envfile} -action {action}
+possibleRoles: Master,RegionServer
 preferredFormat: JSON
 codeToExecute: hbase.ps1
 configContent: config.yml # content of this file will insert into software configContent field.

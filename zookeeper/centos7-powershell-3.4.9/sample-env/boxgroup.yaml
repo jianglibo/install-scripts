@@ -2,19 +2,19 @@ name: boxgroup1
 boxes:
   - ip: 192.168.33.110
     name: box1
-    roles: r1,r2,r3
+    roles: zookeeper
     ostype: centos7
     description:
     keyFilePath:
     port:
     sshUser:
-    hostname:
+    hostname: a0.host.com
     dnsServer:
     ips:
     ports:
   - ip: 192.168.33.111
     name: box2
-    roles: r1,r2,r3
+    roles: zookeeper
     ostype: centos7
     description: a description
     keyFilePath:
@@ -26,7 +26,7 @@ boxes:
     ports: 80,8080
   - ip: 192.168.33.112
     name: box3
-    roles: r1,r2,r3
+    roles: zookeeper
     ostype: centos7
     description: a description
     keyFilePath:
