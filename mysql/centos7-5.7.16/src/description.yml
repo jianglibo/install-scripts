@@ -1,0 +1,16 @@
+name: mysql
+ostype: CentOs7
+sversion: ps-5.7.16
+runner:  powershell -File {code} -envfile {envfile} -action {action}
+preferredFormat: JSON
+codeToExecute: mysql.ps1
+configContent: config.yml
+codeFileExt:
+codeLineSeperator: LF
+runas:
+actions: install
+filesToUpload:
+  - mysql-community-client-5.7.16-1.el7.x86_64.rpm
+  - mysql-community-common-5.7.16-1.el7.x86_64.rpm
+  - mysql-community-server-5.7.16-1.el7.x86_64.rpm
+  - mysql-community-libs-5.7.16-1.el7.x86_64.rpm

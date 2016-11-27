@@ -2,7 +2,7 @@ name: yumsource
 ostype: CentOs7
 sversion: 0.1.0
 runner: bash
-preferredFormat: JSON
+preferredFormat: YAML
 codeToExecute: code.sh
 configContent: config.yml
 codeFileExt:
@@ -10,4 +10,5 @@ codeLineSeperator: LF
 runas:
 actions: changeYumSource,restoreYumSource
 filesToUpload:
-  - http://mirrors.163.com/.help/CentOS7-Base-163.repo
+  - http://mirrors.aliyun.com/repo/Centos-7.repo
+  - http://mirrors.aliyun.com/repo/epel-7.repo

@@ -1,6 +1,6 @@
 name: powershell
 ostype: CentOs7
-sversion: 6.0.0_alpha.10
+sversion: tcl-6.0.0_alpha.10
 runner: bash
 preferredFormat: JSON
 codeToExecute: code.tcl

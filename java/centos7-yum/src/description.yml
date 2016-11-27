@@ -1,0 +1,12 @@
+name: java
+ostype: CentOs7
+sversion: yum
+runner: bash
+preferredFormat: JSON
+codeToExecute: code.sh
+configContent: config.yml
+codeFileExt:
+codeLineSeperator: LF
+runas:
+actions: install
+filesToUpload: []

@@ -6,9 +6,26 @@ package require yaml
 
 # insert-common-script-here:tcl/shared.tcl
 
-EnvDictNs::initialize [lindex $argv 1]
+# tcl json util cannot handle complex struct.
+set envfile [lindex $argv 1]
+if {[catch {EnvDictNs::initialize $envfile} msg]} {
+  puts $msg
+  set data [EnvDictNs::readWholeFile $envfile]
+  if {[regexp {"filesToUpload":\s*\[\s*"([^"]+)"} $data discard urlname]} {
+    if {[regexp {.*/([^/]+)$} $urlname discard rpmFile]} {
+      puts "found file $rpmFile"
+    } else {
+      set rpmFile $urlname
+    }
+  } else {
+    puts "no file found"
+    exit 1
+  }
+} else {
+  set rpmFile [EnvDictNs::getUpload *rpm*]
+}
 
-set rpmFile [EnvDictNs::getUpload *rpm*]
+set rpmFile "/easy-installer/$rpmFile"
 
 if { [string length $rpmFile] == 0} {
   puts "cannot found rmp file in filesToUpload."

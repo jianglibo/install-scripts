@@ -1,0 +1,5 @@
+# installDir: is from rpm
+envvs: []
+firewall:
+  Master:
+  Replica:

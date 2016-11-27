@@ -1,40 +1,48 @@
-bakname="/etc/yum.repos.d/CentOS-Base.repo.backup"
-oriname="/etc/yum.repos.d/CentOS-Base.repo"
+baseOriname="/etc/yum.repos.d/CentOS-Base.repo"
+epelOriname="/etc/yum.repos.d/epel.repo"
+epelTestOriName="/etc/yum.repos.d/epel-testing.repo"
 
-extractUploads() {
-  fullNameRegex='filesToUpload.*?\[\"(.*?)\"\]'
-  nameRegex='[^/]+$'
-  if [[ $1 =~ $fullNameRegex ]]
-  then
-    fullname="${BASH_REMATCH[1]}"
-    if [[ $fullname =~ $nameRegex ]]
-    then
-      echo "${BASH_REMATCH[0]}"
-    fi
-  fi
-}
+# insert-common-script-here:bash/common.sh
+. "../../src/main/resources/com/jianglibo/easyinstaller/scriptsnippets/bash/common.sh"
 
-if [[ ! -f $bakname ]]
-then
-  cp $oriname $bakname
+if [[ ! -f "${baseOriname}.bakcup" ]];then
+  cp $baseOriname "${baseOriname}.backup" 2>/dev/null
+fi
+
+if [[ ! -f "${epelOriname}.bakcup" ]];then
+  cp $epelOriname "${epelOriname}.backup" 2>/dev/null
 fi
 
 case "$4" in
   changeYumSource)
-    fc=`cat $2`
-    name=$(extractUploads "$fc")
-    if [[ $name ]]
-    then
-      cp -f "/easy-installer/$name" $oriname
-      yum clean all
-      yum makecache
-      echo "@@success@@"
+    basefn=$(getUploads "$2" "^CentOS-7.repo$")
+    epelfn=$(getUploads "$2" "^epel-7.repo$")
+
+    if [[ $basefn ]];then
+      cp -f "/easy-installer/$basefn" $baseOriname
     fi
+    if [[ $epelfn ]];then
+      cp -f "/easy-installer/$epelfn" $epelOriname
+      if [[ ! -f "${epelTestOriName}.backup" ]];then
+        cp -f $epelTestOriName "${epelTestOriName}.backup"
+      fi
+      if [[ -f $epelTestOriName ]] && [[ -f "${epelTestOriName}.backup" ]];then
+        rm -f $epelTestOriName
+      fi
+    fi
+    yum clean all
+    yum makecache
+    echo "@@success@@"
   ;;
   restoreYumSource)
-    if [[ -f $bakname ]]
-    then
-      cp -f $bakname $oriname
+    if [[ -f "${baseOriname}.backup" ]];then
+      cp -f "${baseOriname}.backup" $baseOriname
+    fi
+    if [[ -f "${epelOriname}.backup" ]];then
+      cp -f "${epelOriname}.backup" $epelOriname
+    fi
+    if [[ ! -f $epelTestOriName ]] && [[ -f "${epelTestOriName}.backup" ]];then
+      mv "${epelTestOriName}.backup" $epelTestOriName
     fi
     echo "@@success@@"
   ;;
