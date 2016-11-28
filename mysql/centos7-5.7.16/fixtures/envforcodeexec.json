@@ -4,7 +4,7 @@
     "ip": "192.168.33.110",
     "name": "box1",
     "hostname": "a0.host.name",
-    "roles": "MASTER,NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
+    "roles": "MASTER,NAMENODE,MYSQL_MASTER,RESOURCEMANAGER",
     "dnsServer": "",
     "ips": "",
     "ports": ""
@@ -18,7 +18,7 @@
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.name",
-        "roles": "MASTER,NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
+        "roles": "MASTER,NAMENODE,MYSQL_MASTER,RESOURCEMANAGER",
         "dnsServer": "192.168.2.60",
         "ips": "",
         "ports": ""
@@ -27,7 +27,7 @@
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
-        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,ZOOKEEPER,MYSQL_REPLICA",
+        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,MYSQL_REPLICA",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.12,192.168.2.13",
         "ports": "80,8080"
@@ -36,7 +36,7 @@
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
-        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,ZOOKEEPER,MYSQL_REPLICA",
+        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,MYSQL_REPLICA",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.15,192.168.2.16",
         "ports": "80,8080"
@@ -54,7 +54,7 @@
     "textfiles": [
       {
         "name": "change-init-pass.tcl",
-        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [lindex $argv 1]\n\nset resetpass 0\nspawn -noecho mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\r\"\n    exp_continue\n  }\n  \"You must reset your password\" {\n    set resetpass 1\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\r\"\n    exp_continue\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\r\"\n  }\n  eof {}\n  timeout {}\n}",
+        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [lindex $argv 1]\n\nset result {}\nspawn mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"Welcome to the MySQL monitor\" {\n    exp_send \"select 1;\\n\"\n    exp_continue\n  }\n  -re \"You must reset your password.*$\" {\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\n\"\n    exp_continue\n  }\n  \"Your password does not satisfy the current policy\" {\n    set result notsatisfy\n    exp_send \"exit\\n\"\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\n\"\n  }\n  eof {}\n  timeout {}\n}\n# -re cause buffer to change.\n# $expect_out(buffer)\n\nif ([string equal $result notsatisfy]) {\n  puts $result\n  exit 1\n}",
         "codeLineSeperator": "LF"
       },
       {
@@ -70,7 +70,7 @@
       "mysql-community-client-5.7.16-1.el7.x86_64.rpm"
     ],
     "configContent": "{\"envvs\":[],\"firewall\":{\"Master\":\"\",\"Replica\":\"\"}}",
-    "actions": "install",
+    "actions": "install,changePassword",
     "preferredFormat": "JSON"
   }
 }

@@ -5,10 +5,10 @@ runner:  powershell -File {code} -envfile {envfile} -action {action}
 preferredFormat: JSON
 codeToExecute: mysql.ps1
 configContent: config.yml
-codeFileExt:
+codeFileExt: ps1
 codeLineSeperator: LF
 runas:
-actions: install
+actions: install,changePassword
 filesToUpload:
   - mysql-community-client-5.7.16-1.el7.x86_64.rpm
   - mysql-community-common-5.7.16-1.el7.x86_64.rpm

@@ -5,12 +5,10 @@
 # runuser -s /bin/bash -c "/opt/hadoop/hadoop-2.7.3/bin/hdfs dfs -chown hbase /user/hbase" hdfs
 
 Param(
-    [parameter(Mandatory=$true)]
-    $envfile,
-    [parameter(Mandatory=$true)]
-    $action,
-    [string]
-    $codefile
+    [parameter(Mandatory=$true)]$envfile,
+    [parameter(Mandatory=$true)]$action,
+    [string]$codefile,
+    [parameter(ValueFromRemainingArguments)]$remainingArguments
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
@@ -29,6 +27,20 @@ function Decorate-Env {
 
 function Install-Mysql {
     Param($myenv)
+
+    if (Centos7-IsServiceRunning mysqld) {
+        "mysql are running...., skip installation."
+        return
+    }
+    $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
+
+    if ($mariadblibs) {
+        $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
+    }
+    Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
+    # start mysqld
+    systemctl enable mysqld | Out-Null
+    systemctl start mysqld | Out-Null
     Write-ConfigFiles -myenv $myenv
 }
 
@@ -40,39 +52,31 @@ function Get-MysqlRpms {
     Get-UploadFiles -myenv $myenv | ? {$_ -match "-server-\d+.*rpm$"}
 }
 
+function Set-NewMysqlPassword {
+    Param($myenv, $newpassword)
+    $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
+    $initpassword = (Get-Content $mycnf.getValue("[mysqld]", "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*:\s*(.*?)\s*$",'$1'
+    Run-String -execute tclsh -content $ef -quotaParameter "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "$fromTcl"
+    }
+}
+
 function Write-ConfigFiles {
-    Param($myenv)
+    Param($myenv, $newpassword)
     $resultHash = @{}
     $resultHash.env = @{}
     $resultHash.info = @{}
 
+    if (! $newpassword) {
+        return
+    }
+
 #    $myenv.software.textfiles | ForEach-Object {
 #        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
 #    } | Out-Null
-
-    $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
-
-    if ($mariadblibs) {
-        $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
-    }
-
-    Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
     
-    # start mysqld
-    systemctl enable mysqld | Out-Null
-    systemctl start mysqld | Out-Null
-
-    $ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
-
-    $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
-    
-    $initpassword = (Get-Content $mycnf.getValue("[mysqld]", "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*:\s*(.*?)\s*$",'$1'
-
-    $randp = Get-RandomPassword -len 12
-
-    "--------------****-------------", "generate a random password for you: $randp", "--------------****-------------" | Write-Output
-
-    Run-String -execute tclsh -content $ef "$initpassword" "$randp"
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
@@ -94,16 +98,17 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
     "install" {
-        Install-Hadoop $myenv
+        Install-Mysql $myenv
     }
-    "start" {
-        start-dfs $myenv start
+    "changePassword" {
+        Set-NewMysqlPassword $myenv @remainingArguments
     }
     "stop" {
         start-yarn $myenv start
     }
     "t" {
-        # do nothing
+        $remainingArguments
+        return
     }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)

@@ -11,7 +11,7 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 
-$resutl = . "$here\$sut" -envfile $envfile -action t
+$result = . "$here\$sut" -envfile $envfile -action t codefile param0 param1 param2
 
 
 function get-mysqlcnfValue {
@@ -28,6 +28,35 @@ function get-mysqlcnfValue {
 }
 
 Describe "code" {
+    It "should return right result" {
+        $result -join "," | Should Be "param0,param1,param2"
+
+    }
+    It "should handle remaining parameters" {
+        function t-t {
+            Param([parameter(ValueFromRemainingArguments)]$remainingArguments)
+            $remainingArguments | Select-Object -First 1
+        }
+        function t {
+            Param([parameter(ValueFromRemainingArguments)]$remainingArguments)
+            t-t @remainingArguments
+        }
+
+        function tt {
+            Param([parameter(ValueFromRemainingArguments)]$remainingArguments)
+            $remainingArguments
+        }
+
+        function ttt {
+            Param([parameter(ValueFromRemainingArguments)]$remainingArguments)
+            $remainingArguments.getType()
+        }
+        t a b c | Should Be "a" 
+
+        tt | Should Be $null
+
+        ttt a | Should Be System.Collections.Generic.List[System.Object]
+    }
     It "should parse my.cnf" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
         get-mysqlcnfValue $myenv  "log-error"  | Should Be "/var/log/mysqld.log"
@@ -51,5 +80,9 @@ Describe "code" {
 #        get-mysqlcnfValue $myenv "datadir" | Remove-Item -Recurse -Force
 
         Install-Mysql $myenv
+
+        Set-NewMysqlPassword $myenv "123445" | Write-Host
+        $LASTEXITCODE | Write-Host
+        # | Should Be "Enter password: " 
     }
 }
