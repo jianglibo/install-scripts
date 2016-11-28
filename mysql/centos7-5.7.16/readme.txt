@@ -38,3 +38,9 @@ Miscellaneous support files (for example, error messages, and character set file
 
 
 yum install mysql-community-{server,client,common,libs}-*
+http://dev.mysql.com/doc/refman/5.7/en/postinstallation.html
+
+mkdir mysql-files
+chmod 750 mysql-files
+
+Any long option that may be given on the command line when running a MySQL program can be given in an option file as well. To get the list of available options for a program, run it with the --help option. (For mysqld, use --verbose and --help.)

@@ -121,14 +121,13 @@ function New-KvFile {
                 }
             }
         }
-
         if (!$done) {
             $lines += "$k=$v"
         }
         $this.lines = $lines
     }
 
-    $kvf = $kvf | Add-Member -MemberType ScriptMethod -Name addKv -Value $addKv -PassThru
+    $kvf | Add-Member -MemberType ScriptMethod -Name addKv -Value $addKv
 
      $commentKv = {
         param([String]$k)
@@ -150,7 +149,7 @@ function New-KvFile {
         }
     }
 
-    $kvf = $kvf | Add-Member -MemberType ScriptMethod -Name commentKv -Value $commentKv -PassThru
+    $kvf | Add-Member -MemberType ScriptMethod -Name commentKv -Value $commentKv
 
     $writeToFile = {
         param([parameter(Position=0,Mandatory=$False)][String]$fileToWrite)
@@ -160,9 +159,7 @@ function New-KvFile {
         Set-Content -Path $fileToWrite -Value $this.lines
     }
 
-    $kvf = $kvf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value $writeToFile -PassThru
-
-    return $kvf
+    $kvf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value $writeToFile -PassThru
 }
 # add asHt method to object, allow this object has the ability to covert one of decendant object to a hashtable, So program can iterate over it.
 # for example, $a.asHt("x.y.z") will convert $a.x.y.z to a hashtable.
@@ -183,6 +180,20 @@ function Add-AsHtScriptMethod {
             $tob
         }
     } -PassThru
+}
+
+function Get-RandomPassword {
+    Param([int]$minLength=8,[int]$maxLength=32, [int]$len)
+    if ($len -gt 0) {
+        $num = $len
+    } else {
+        $num = Get-Random -Minimum $minLength -Maximum $maxLength
+    }
+    $tmp= foreach ($i in 1..$num) {
+        $g = ('abcdefghijkmnpqrstuvwxyzABCEFGHJKLMNPQRSTUVWXYZ23456789!"#%&','abcdefghijkmnpqrstuvwxyz', 'ABCEFGHJKLMNPQRSTUVWXYZ', '23456789', '!"#%&+')[(Get-Random 5)]
+        $g[(Get-Random $g.Length)]
+    }
+    $tmp -join ""
 }
 
 function New-EnvForExec {
@@ -241,6 +252,18 @@ function New-EnvForExec {
     } -PassThru
 }
 
+function Get-UploadFiles {
+    Param([parameter(Mandatory=$True)]$myenv,[string]$ptn, [switch]$OnlyName)
+    $allfns = $myenv.software.filesToUpload
+    if ($allfns) {
+        if($ptn) {
+            $fullfns = $allfns | Where-Object {$_ -match $ptn}
+        } else {
+            $fullfns = $allfns
+        }
+        $fullfns | % {$_ -split '/' | Select-Object -Last 1} | % {if($OnlyName) {$_} else {$myenv.remoteFolder | Join-Path -ChildPath $_}}
+    }
+}
 
 function New-HostsFile {
  Param
@@ -283,10 +306,12 @@ function New-HostsFile {
     $hf
 }
 
+<#
 function New-RandomPassword {
     Param([parameter(ValueFromPipeline=$True)][int]$Count=8)
     (0x20..0x7e | ForEach-Object {[char]$_} | Get-Random -Count $Count) -join ""
 }
+#>
 
 function New-SectionKvFile {
  Param
@@ -350,7 +375,7 @@ function New-SectionKvFile {
         $this.blockHt[$section] = $blockLines
     }
 
-    $skf = $skf | Add-Member -MemberType ScriptMethod -Name addKv -Value $addKv -PassThru
+    $skf | Add-Member -MemberType ScriptMethod -Name addKv -Value $addKv
 
      $commentKv = {
         param([String]$k, [String]$section)
@@ -372,7 +397,17 @@ function New-SectionKvFile {
         }
     }
 
-    $skf = $skf | Add-Member -MemberType ScriptMethod -Name commentKv -Value $commentKv -PassThru
+    $skf | Add-Member -MemberType ScriptMethod -Name commentKv -Value $commentKv
+
+    $getValue = {
+        param([String]$section, [String]$k)
+        $kv = $this.blockHt[$section] | ? {$_ -match "^$k="}
+        if ($kv) {
+            $kv -split "=" | Select-Object -Index 1
+        }
+    }
+
+    $skf | Add-Member -MemberType ScriptMethod -Name getValue -Value $getValue
 
     $writeToFile = {
         param([parameter(Position=0,Mandatory=$False)][String]$fileToWrite)
@@ -387,9 +422,7 @@ function New-SectionKvFile {
         Set-Content -Path $fileToWrite -Value $lines
     }
 
-    $skf = $skf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value $writeToFile -PassThru
-
-    return $skf
+    $skf | Add-Member -MemberType ScriptMethod -Name writeToFile -Value $writeToFile -PassThru
 }
 
 # string utils

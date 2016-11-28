@@ -25,7 +25,9 @@ if {[catch {EnvDictNs::initialize $envfile} msg]} {
   set rpmFile [EnvDictNs::getUpload *rpm*]
 }
 
-set rpmFile "/easy-installer/$rpmFile"
+if {[string first "/easy-installer" $rpmFile] == -1} {
+  set rpmFile "/easy-installer/$rpmFile"
+}
 
 if { [string length $rpmFile] == 0} {
   puts "cannot found rmp file in filesToUpload."

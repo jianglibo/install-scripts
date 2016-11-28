@@ -1,10 +1,10 @@
 {
-  "remoteFolder": "/opt/easyinstaller",
+  "remoteFolder": "/easy-installer/",
   "box": {
     "ip": "192.168.33.110",
     "name": "box1",
     "hostname": "a0.host.com",
-    "roles": "ZOOKEEPER",
+    "roles": "NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
     "dnsServer": "",
     "ips": "",
     "ports": ""
@@ -12,12 +12,13 @@
   "boxGroup": {
     "name": "boxgroup1",
     "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"binDir\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\"}}",
+    "installResults": null,
     "boxes": [
       {
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.com",
-        "roles": "ZOOKEEPER",
+        "roles": "NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
         "dnsServer": "192.168.2.60",
         "ips": "",
         "ports": ""
@@ -26,7 +27,7 @@
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
-        "roles": "ZOOKEEPER",
+        "roles": "NODEMANAGER,DATANODE,ZOOKEEPER,MYSQL_REPLICA",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.12,192.168.2.13",
         "ports": "80,8080"
@@ -35,7 +36,7 @@
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
-        "roles": "ZOOKEEPER",
+        "roles": "NODEMANAGER,DATANODE,ZOOKEEPER,MYSQL_REPLICA",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.15,192.168.2.16",
         "ports": "80,8080"
@@ -50,13 +51,7 @@
     "timeouts": {},
     "runner": "powershell -File {code} -envfile {envfile} -action {action}",
     "possibleRoles": "ZOOKEEPER",
-    "textfiles": [
-      {
-        "name": "zoo.cfg",
-        "content": "tickTime=2000\r\ndataDir=/var/lib/zookeeper/\r\nclientPort=2181\r\ninitLimit=5\r\nsyncLimit=2\r\n",
-        "codeLineSeperator": "LF"
-      }
-    ],
+    "textfiles": [],
     "filesToUpload": [
       "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz"
     ],

@@ -29,9 +29,16 @@ function Decorate-Env {
 
 function Install-Mysql {
     Param($myenv)
-    Write-ConfigFiles -myenv $myenv | Out-Null
+    Write-ConfigFiles -myenv $myenv
 }
 
+function Get-MysqlRpms {
+    Param($myenv)
+    Get-UploadFiles -myenv $myenv | ? {$_ -match "-common-\d+.*rpm$"}
+    Get-UploadFiles -myenv $myenv | ? {$_ -match "-libs-\d+.*rpm$"}
+    Get-UploadFiles -myenv $myenv | ? {$_ -match "-client-\d+.*rpm$"}
+    Get-UploadFiles -myenv $myenv | ? {$_ -match "-server-\d+.*rpm$"}
+}
 
 function Write-ConfigFiles {
     Param($myenv)
@@ -39,9 +46,33 @@ function Write-ConfigFiles {
     $resultHash.env = @{}
     $resultHash.info = @{}
 
-    $myenv.software.textfiles | ForEach-Object {
-        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
-    } | Out-Null
+#    $myenv.software.textfiles | ForEach-Object {
+#        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
+#    } | Out-Null
+
+    $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
+
+    if ($mariadblibs) {
+        $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
+    }
+
+    Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
+    
+    # start mysqld
+    systemctl enable mysqld | Out-Null
+    systemctl start mysqld | Out-Null
+
+    $ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
+
+    $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    
+    $initpassword = (Get-Content $mycnf.getValue("[mysqld]", "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*:\s*(.*?)\s*$",'$1'
+
+    $randp = Get-RandomPassword -len 12
+
+    "--------------****-------------", "generate a random password for you: $randp", "--------------****-------------" | Write-Output
+
+    Run-String -execute tclsh -content $ef "$initpassword" "$randp"
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
