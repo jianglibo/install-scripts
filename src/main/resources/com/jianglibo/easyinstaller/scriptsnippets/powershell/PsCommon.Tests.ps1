@@ -3,6 +3,12 @@ $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 . "$here\$sut"
 
 Describe "PsCommon" {
+    It "should parse parameter" {
+        [hashtable]$h = Parse-Parameters "key:{value},,,key1:{value1}"
+        $h.Count | Should Be 2
+        $h.key | Should Be "value"
+        $h.key1 | Should Be "value1"
+    }
     It "does something useful" {
         $true | Should Be $true
     }

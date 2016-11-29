@@ -8,7 +8,7 @@ Param(
     [parameter(Mandatory=$true)]$envfile,
     [parameter(Mandatory=$true)]$action,
     [string]$codefile,
-    [parameter(ValueFromRemainingArguments)]$remainingArguments
+    [string]$remainingArguments
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
@@ -60,6 +60,10 @@ function Set-NewMysqlPassword {
     if ($LASTEXITCODE -ne 0) {
         Write-Error "$fromTcl"
     }
+}
+
+function New-MysqlUser {
+    Param($myenv, $rootpassword)
 }
 
 function Write-ConfigFiles {

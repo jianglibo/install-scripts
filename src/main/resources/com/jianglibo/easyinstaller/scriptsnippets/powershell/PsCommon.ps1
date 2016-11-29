@@ -35,6 +35,20 @@ function Run-Tar {
     if ($r.Count -gt 0) {$false} else {$True}
 }
 
+# parameter string format: key:{value},,,key1:{value1}
+function Parse-Parameters {
+    Param($parastr)
+    $h = @{}
+    if (Trim-All $parastr) {
+        $parastr -split ',,,' | % {
+            if ($_ -match "^(.*?):{(.*)}$") {
+                $h[$Matches[1]] = $Matches[2]
+            }
+        } | Out-Null
+    }
+    $h
+}
+
 function Run-String {
     Param([string]$execute, [parameter(ValueFromPipeline=$True)][string]$content,[switch]$quotaParameter, [parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
