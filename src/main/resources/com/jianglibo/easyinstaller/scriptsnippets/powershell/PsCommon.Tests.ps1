@@ -227,20 +227,6 @@ Describe "PsCommon" {
        1,2 | Get-PipelineBeginEnd | Write-Output -NoEnumerate | Should Be @("Begin: The input is ","End:   The input is 1 2")
     }
 
-    It "is a random password gen" {
-        $r = New-RandomPassword
-        $r.length | Should Be 8
-
-        $r = New-RandomPassword 12
-        $r.length | Should Be 12
-
-        $r = New-RandomPassword -Count 13
-        $r.length | Should Be 13
-
-        $r = 15 | New-RandomPassword
-        $r.length | Should Be 15
-    }
-
     It "should handle remain args" {
         function t-t {
             Param([int]$i, [string]$s, [parameter(ValueFromRemainingArguments)]$others)

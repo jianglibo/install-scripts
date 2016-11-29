@@ -3,7 +3,7 @@ epelOriname="/etc/yum.repos.d/epel.repo"
 epelTestOriName="/etc/yum.repos.d/epel-testing.repo"
 
 # insert-common-script-here:bash/common.sh
-. "../../src/main/resources/com/jianglibo/easyinstaller/scriptsnippets/bash/common.sh"
+catch {source "../../src/main/resources/com/jianglibo/easyinstaller/scriptsnippets/bash/common.sh"} msg
 
 if [[ ! -f "${baseOriname}.bakcup" ]];then
   cp $baseOriname "${baseOriname}.backup" 2>/dev/null
@@ -15,11 +15,14 @@ fi
 
 case "$4" in
   changeYumSource)
-    basefn=$(getUploads "$2" "^CentOS-7.repo$")
+    basefn=$(getUploads "$2" "^Centos-7.repo$")
     epelfn=$(getUploads "$2" "^epel-7.repo$")
 
     if [[ $basefn ]];then
       cp -f "/easy-installer/$basefn" $baseOriname
+    else
+      echo "$basefn can't found. Please take care of character case."
+      exit 1
     fi
     if [[ $epelfn ]];then
       cp -f "/easy-installer/$epelfn" $epelOriname
@@ -29,6 +32,8 @@ case "$4" in
       if [[ -f $epelTestOriName ]] && [[ -f "${epelTestOriName}.backup" ]];then
         rm -f $epelTestOriName
       fi
+    else
+      echo "$epelfn can't found. Please take care of character case."
     fi
     yum clean all
     yum makecache

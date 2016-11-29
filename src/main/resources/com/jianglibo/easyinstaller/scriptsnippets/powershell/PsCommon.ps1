@@ -11,6 +11,9 @@ zookeeper-3.4.9/zookeeper-3.4.9.jar.md5
 
 https://blogs.technet.microsoft.com/heyscriptingguy/2014/03/30/understanding-streams-redirection-and-write-host-in-powershell/
 #>
+
+$ErrorActionPreference = "Stop"
+
 function Run-Tar {
  Param
      (
@@ -43,6 +46,12 @@ function Run-String {
     $execute,$tf + $others -join " " | Invoke-Expression
 
     Remove-Item -Path $tf
+}
+
+function Detect-RunningYum {
+    if (Get-Process | ? Name -EQ yum) {
+        Write-Error "Another yum are running, Please wait for it's completion"
+    }
 }
 
 function Save-Xml {
@@ -200,7 +209,6 @@ function Get-RandomPassword {
 
 function New-EnvForExec {
     Param([parameter(Mandatory=$True)][String]$envfile)
-
     $efe = Get-Content $envfile | ConvertFrom-Json
 
     $efe.software.configContent = $efe.software.configContent | ConvertFrom-Json

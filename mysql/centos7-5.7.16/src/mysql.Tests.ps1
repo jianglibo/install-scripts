@@ -14,7 +14,7 @@ $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/
 $result = . "$here\$sut" -envfile $envfile -action t codefile param0 param1 param2
 
 
-function get-mysqlcnfValue {
+function Get-MysqlcnfValue {
     Param($myenv, $key)
         $tmpfile = New-TemporaryFile
 
@@ -74,14 +74,19 @@ Describe "code" {
         $rpms | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
 
         #(yum list installed | ? {$_ -match "mariadb-libs"}) -split "\s+" | Select-Object -First 1 | Should Be "mariadb-libs.x86_64"
-#        $revRpms = Get-MysqlRpms $myenv | % {$_ -replace ".*/(.*)-[^-]+$", '$1'}
-#        [array]::reverse(($revRpms))
-#        $revRpms | % {yum -y remove $_}
-#        get-mysqlcnfValue $myenv "datadir" | Remove-Item -Recurse -Force
 
+<#
+        if (Centos7-IsServiceRunning "mysqld") {
+            systemctl stop "mysqld"
+        } 
+        $revRpms = Get-MysqlRpms $myenv | % {$_ -replace ".*/(.*)-[^-]+$", '$1'}
+        [array]::reverse(($revRpms))
+        $revRpms | % {yum -y remove $_}
+        get-mysqlcnfValue $myenv "datadir" | Remove-Item -Recurse -Force
+        get-mysqlcnfValue $myenv "log-error" | Remove-Item -Force
         Install-Mysql $myenv
-
-        Set-NewMysqlPassword $myenv "123445" | Write-Host
+#>
+        Set-NewMysqlPassword $myenv "aks23A%soid" | Write-Host
         $LASTEXITCODE | Write-Host
         # | Should Be "Enter password: " 
     }

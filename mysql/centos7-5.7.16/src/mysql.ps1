@@ -14,6 +14,8 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+Detect-RunningYum
+
 if (! $codefile) {
     $codefile = $MyInvocation.MyCommand.Path
 }
@@ -29,8 +31,7 @@ function Install-Mysql {
     Param($myenv)
 
     if (Centos7-IsServiceRunning mysqld) {
-        "mysql are running...., skip installation."
-        return
+        Write-Error "mysql are running...., skip installation."
     }
     $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
 
@@ -38,9 +39,6 @@ function Install-Mysql {
         $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
     }
     Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
-    # start mysqld
-    systemctl enable mysqld | Out-Null
-    systemctl start mysqld | Out-Null
     Write-ConfigFiles -myenv $myenv
 }
 
@@ -51,6 +49,7 @@ function Get-MysqlRpms {
     Get-UploadFiles -myenv $myenv | ? {$_ -match "-client-\d+.*rpm$"}
     Get-UploadFiles -myenv $myenv | ? {$_ -match "-server-\d+.*rpm$"}
 }
+
 
 function Set-NewMysqlPassword {
     Param($myenv, $newpassword)
@@ -73,10 +72,23 @@ function Write-ConfigFiles {
         return
     }
 
-#    $myenv.software.textfiles | ForEach-Object {
-#        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
-#    } | Out-Null
-    
+    #write my.cnf
+    $myenv.software.textfiles | ? {$_.name -eq "my.cnf"} | Select-Object -First 1 -ExpandProperty content | Out-File -FilePath "/etc/my.cnf" -Encoding ascii
+
+    $sf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $logError = $sf.getValue("[mysqld]", "log-error")
+    $datadir = $sf.getValue("[mysqld]", "datadir")
+    $pidFile = $sf.getValue("[mysqld]", "pid-file")
+    $socket =  $sf.getValue("[mysqld]", "socket")
+
+    if ($logError) {
+        Remove-Item -Path $logError
+    }
+
+    # start mysqld£¬ when mysql first start, It will create directory and user to run mysql.
+    # so just change my.cnf, that's all.
+    systemctl enable mysqld | Out-Null
+    systemctl start mysqld | Out-Null
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
@@ -104,7 +116,7 @@ switch ($action) {
         Set-NewMysqlPassword $myenv @remainingArguments
     }
     "stop" {
-        start-yarn $myenv start
+        systemctl stop mysqld
     }
     "t" {
         $remainingArguments
