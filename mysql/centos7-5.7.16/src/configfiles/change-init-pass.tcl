@@ -3,7 +3,6 @@ package require Expect
 set password [lindex $argv 0]
 set newpass [lindex $argv 1]
 
-set result {}
 spawn mysql -uroot -p
 
 expect {
@@ -11,17 +10,17 @@ expect {
     exp_send "$password\n"
     exp_continue
   }
-  "Welcome to the MySQL monitor" {
+  "Welcome to the MySQL monitor.*mysql> $" {
     exp_send "select 1;\n"
     exp_continue
   }
-  -re "You must reset your password.*$" {
+  -re "You must reset your password.*mysql> $" {
     exp_send "SET PASSWORD = PASSWORD('${newpass}');\n"
     exp_continue
   }
-  "Your password does not satisfy the current policy" {
-    set result notsatisfy
-    exp_send "exit\n"
+  "Your password does not satisfy the current policy.*mysql> $" {
+    puts $expect_out(0,string)
+    exit 1
   }
   "mysql> $" {
       exp_send "exit\n"
@@ -31,8 +30,3 @@ expect {
 }
 # -re cause buffer to change.
 # $expect_out(buffer)
-
-if ([string equal $result notsatisfy]) {
-  puts $result
-  exit 1
-}

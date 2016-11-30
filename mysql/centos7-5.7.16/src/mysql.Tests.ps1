@@ -92,10 +92,36 @@ Describe "code" {
         if (get-mysqlcnfValue $myenv "log-error" | Test-Path) {
             get-mysqlcnfValue $myenv "log-error" | Remove-Item -Force
         }
-        
-
         Install-Mysql $myenv
-        Set-NewMysqlPassword $myenv "aks23A%soid" | Write-Host
+        Set-NewMysqlPassword $myenv "aks23A%soid"
+
+        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+        $mysqlds = "[mysqld]"
+
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin" | Should Be $null
+
+        Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+
+        $lb = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin" 
+
+        $lb | Should Be "mysql-bin"
+
+        Comment-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+
+        $mycnf.writeToFile()
+
+        $datadir = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "datadir"
+        Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$" | Should Be $null
+
+        Enable-LogBin $myenv
+
+        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"  | Should Be "mysql-bin"
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"  | Should Be "1"
+
+        (Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$").Count -gt 0 | Should Be $True
+
         $LASTEXITCODE | Write-Host
         # | Should Be "Enter password: " 
     }

@@ -1,18 +1,4 @@
-﻿<#
-tar (child): ./zookeeper-3.4.9.tar.gz1: Cannot open: No such file or directory
-tar (child): Error is not recoverable: exiting now
-/usr/bin/tar: Child returned status 2
-/usr/bin/tar: Error is not recoverable: exiting now
-
-zookeeper-3.4.9/zookeeper-3.4.9.jar.md5
-/usr/bin/tar: zookeeper-3.4.9/zookeeper-3.4.9.jar.md5: Cannot open: File exists
-/usr/bin/tar: zookeeper-3.4.9: Cannot utime: Operation not permitted
-/usr/bin/tar: Exiting with failure status due to previous errors
-
-https://blogs.technet.microsoft.com/heyscriptingguy/2014/03/30/understanding-streams-redirection-and-write-host-in-powershell/
-#>
-
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 function Run-Tar {
  Param
@@ -50,8 +36,11 @@ function Parse-Parameters {
 }
 
 function Alter-ResultFile {
-    Param([parameter(ValueFromPipeline=$True)][string]$resultFile,$value, [parameter(ValueFromPipeline=$True)][array]$keys)
-    $rh = Get-Content $resultFile | ConvertTo-Json
+    Param([parameter(Mandatory=$True)][string]$resultFile,[parameter(Mandatory=$True)][array]$keys, $value)
+    $rh = Get-Content $resultFile | ConvertFrom-Json
+    if (!$rh) {
+        $rh = New-Object -TypeName psobject
+    }
     $parent = $rh
     $leaf = $null
 

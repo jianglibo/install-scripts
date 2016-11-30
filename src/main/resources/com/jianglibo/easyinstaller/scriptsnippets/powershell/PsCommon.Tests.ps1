@@ -38,6 +38,7 @@ Describe "PsCommon" {
         Alter-ResultFile -resultFile $tmp -keys a,b,c -value 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a.b.c | Should Be 55
+        $rh.value | Should Be $null
 
         "{}" | Out-File -FilePath $tmp -Encoding ascii
         Alter-ResultFile -resultFile $tmp -keys a 55
@@ -58,7 +59,7 @@ Describe "PsCommon" {
         Alter-ResultFile -resultFile $tmp -keys a 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a | Should Be 55
-
+        $rh.value | Should Be $null
         Remove-Item $tmp -Force
     }
     It "should addKv commentKv work" {

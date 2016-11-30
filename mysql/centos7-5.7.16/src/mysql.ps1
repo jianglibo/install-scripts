@@ -56,16 +56,25 @@ function Set-NewMysqlPassword {
     Param($myenv, $newpassword)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
 
-    if ($fh.info -and $rh.info.initPasswordReseted) {
+    if ($rh.info -and $rh.info.initPasswordReseted) {
         Write-Error "Initial Password already rested, skipping..."
     }
+
+    if (!($rh.info -and $rh.info.firstRunned)) {
+        Write-Error "Mysqld hadn't ran once, skipping..."
+    }
+
     $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
-    $initpassword =   ( Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error" | Get-Content | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*:\s*(.*?)\s*$",'$1'
+
+    $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*:\s*(.*?)\s*$",'$1'
+
     Run-String -execute tclsh -content $ef -quotaParameter "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl
     if ($LASTEXITCODE -ne 0) {
         Write-Error "change-init-pass.tcl exit with none zero. $fromTcl"
     }
+
+    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","initPasswordReseted" -value $True
 }
 
 function New-MysqlUser {
@@ -74,13 +83,23 @@ function New-MysqlUser {
 
 function Enable-LogBin {
     Param($myenv)
-    $sf = New-SectionKvFile -FilePath "/etc/my.cnf"
-    $mysqlds = "[mysqld]"
-    $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
+    if (! ("MYSQL_MASTER" -in $myenv.myRoles)) {
+        "not a master server, skip enable logbin"
+        return
+    }
+    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+    if (!$rh.info -or !$rh.info.initPasswordReseted) {
+        Write-Error "Please reset mysqld init password first."
+    }
 
-    if ($serverId) {
+    if ($rh.info -and $rh.info.logBinEnabled) {
         Write-Error "logbin already enabled. skipping....."
     }
+
+    $sf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $mysqlds = "[mysqld]"
+
+    $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
 
     if (! $serverId) {
         Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id"
@@ -88,20 +107,9 @@ function Enable-LogBin {
     }
 
     if (! $serverId) {
-        Write-Error "There must exists an item with server-id=xxx format in my.cnf"
+        Write-Error "There must exists an item with server-id=xxx format in my.cnf, that server-id is for mysqld master, slave will get random server-id."
     }
-<#
-    $serverIdInCfg = Get-BoxRoleConfig "mysqld" "server-id"
-    if ($serverIdInCfg) {
-        Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id" -value $serverIdInCfg
-    } else {
-        if (("MYSQL_MASTER" -in $myenv.myRoles) -and $serverId) {
-            Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id" -value $serverId
-        } else {
-            Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id" -value (Get-Random)
-        }
-    }
-#>
+    Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-bin"
     $sf.writeToFile()
     systemctl restart mysqld | Out-Null
 }
@@ -151,7 +159,9 @@ function Write-ConfigFiles {
     systemctl enable mysqld | Out-Null
     systemctl start mysqld | Out-Null
 
-    $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
+    $resultHash.info.firstRunned = $True
+
+    $resultHash | ConvertTo-Json | Out-File -FilePath  $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
@@ -180,8 +190,8 @@ switch ($action) {
         Set-NewMysqlPassword $myenv @remainingArguments
     }
     "start" {
-        if (Centos7-IsServiceRunning "mysqld") {
-            systemctl stop mysqld
+        if (!(Centos7-IsServiceRunning "mysqld")) {
+            systemctl start mysqld
         }
     }
     "stop" {

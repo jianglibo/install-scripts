@@ -1,7 +1,7 @@
 {
   "remoteFolder": "/easy-installer/",
   "box": {
-    "id": 1703941,
+    "id": 688128,
     "ip": "192.168.33.110",
     "name": "box1",
     "hostname": "a0.host.name",
@@ -12,13 +12,13 @@
     "boxRoleConfig": ""
   },
   "boxGroup": {
-    "id": 1736705,
+    "id": 851968,
     "name": "boxgroup1",
     "configContent": "# place holder\r\n",
     "installResults": null,
     "boxes": [
       {
-        "id": 1703941,
+        "id": 688128,
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.name",
@@ -29,7 +29,7 @@
         "boxRoleConfig": null
       },
       {
-        "id": 1703940,
+        "id": 688129,
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
@@ -40,7 +40,7 @@
         "boxRoleConfig": null
       },
       {
-        "id": 1703939,
+        "id": 688130,
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
@@ -63,7 +63,7 @@
     "textfiles": [
       {
         "name": "my.cnf",
-        "content": "# For advice on how to change settings please see\n# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html\n\n[mysqld]\n#\n# Remove leading # and set to the amount of RAM for the most important data\n# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.\n# innodb_buffer_pool_size = 128M\n#\n# Remove leading # to turn on a very important data integrity option: logging\n# changes to the binary log between backups.\nlog-bin=mysql-bin\n#\n# Remove leading # to set options mainly useful for reporting servers.\n# The server defaults are faster for transactions and fast SELECTs.\n# Adjust sizes as needed, experiment to find the optimal values.\n# join_buffer_size = 128M\n# sort_buffer_size = 2M\n# read_rnd_buffer_size = 2M\ndatadir=/opt/mysqld-usage/datadir\nsocket=/var/lib/mysql/mysql.sock\n\n# Disabling symbolic-links is recommended to prevent assorted security risks\nsymbolic-links=0\n\nlog-error=/opt/mysqld-usage/mysqld.log\npid-file=/var/run/mysqld/mysqld.pid",
+        "content": "# For advice on how to change settings please see\n# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html\n\n[mysqld]\n#\n# Remove leading # and set to the amount of RAM for the most important data\n# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.\n# innodb_buffer_pool_size = 128M\n#\n# Remove leading # to turn on a very important data integrity option: logging\n# changes to the binary log between backups.\nlog-bin=mysql-bin\n\n# this server-id is for master, slave server-id is random generated.\nserver-id=1\n#\n# Remove leading # to set options mainly useful for reporting servers.\n# The server defaults are faster for transactions and fast SELECTs.\n# Adjust sizes as needed, experiment to find the optimal values.\n# join_buffer_size = 128M\n# sort_buffer_size = 2M\n# read_rnd_buffer_size = 2M\ndatadir=/opt/mysqld-usage/datadir\nsocket=/var/lib/mysql/mysql.sock\n\n# Disabling symbolic-links is recommended to prevent assorted security risks\nsymbolic-links=0\n\nlog-error=/opt/mysqld-usage/mysqld.log\npid-file=/var/run/mysqld/mysqld.pid",
         "codeLineSeperator": "LF"
       },
       {
@@ -79,7 +79,7 @@
       "mysql-community-client-5.7.16-1.el7.x86_64.rpm"
     ],
     "configContent": "{\"envvs\":[],\"firewall\":{\"Master\":\"\",\"Replica\":\"\"}}",
-    "actions": "install,changePassword,createUser",
+    "actions": "install,changePassword,enableLogBin,createUser",
     "preferredFormat": "JSON"
   }
 }
