@@ -49,6 +49,42 @@ function Parse-Parameters {
     $h
 }
 
+function Alter-ResultFile {
+    Param([parameter(ValueFromPipeline=$True)][string]$resultFile,$value, [parameter(ValueFromPipeline=$True)][array]$keys)
+    $rh = Get-Content $resultFile | ConvertTo-Json
+    $parent = $rh
+    $leaf = $null
+
+    $keysNoLast = $keys | Select-Object -SkipLast 1
+    $lastKey = $keys | Select-Object -Last 1
+    
+    if ($keysNoLast) {
+        foreach ($k in $keysNoLast) {
+            $leaf = $parent.$k
+            if ($leaf) {
+                if ($leaf -isnot [psobject]) {
+                    Write-Error "leaf item is not a psobject: $keys"
+                }
+            } else {
+                $o = New-Object -TypeName psobject
+                $parent = $parent | Add-Member -MemberType NoteProperty -Name $k -Value $o -PassThru
+                $leaf = $parent.$k
+            }
+            $parent = $leaf
+        }
+    }
+    if (!$leaf) {
+        $leaf = $rh
+    }
+    if ($leaf | Get-Member | ? Name -EQ $lastKey) {
+        $leaf.$lastKey = $value
+    } else {
+        $leaf | Add-Member -MemberType NoteProperty -Name $lastKey -Value $value
+    }
+
+    $rh | ConvertTo-Json | Out-File $resultFile -Force -Encoding ascii
+}
+
 function Run-String {
     Param([string]$execute, [parameter(ValueFromPipeline=$True)][string]$content,[switch]$quotaParameter, [parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
@@ -221,6 +257,20 @@ function Get-RandomPassword {
     $tmp -join ""
 }
 
+function Get-BoxRoleConfig {
+    Param([parameter(Mandatory=$True)]$myenv,[parameter(ValueFromRemainingArguments)]$remainingArguments)
+    $o = $null
+    if ($remainingArguments -and ($remainingArguments.Count -gt 0) -and $myenv.box.boxRoleConfig) {
+        foreach ($p in $remainingArguments) {
+            $o = $myenv.box.boxRoleConfig.$p
+            if (! $o) {
+                break
+            }
+        }
+    }
+    $o
+}
+
 function New-EnvForExec {
     Param([parameter(Mandatory=$True)][String]$envfile)
     $efe = Get-Content $envfile | ConvertFrom-Json
@@ -336,6 +386,66 @@ function New-RandomPassword {
     (0x20..0x7e | ForEach-Object {[char]$_} | Get-Random -Count $Count) -join ""
 }
 #>
+
+function Add-SectionKv {
+    Param([parameter(Mandatory=$True)]$parsedSectionFile,[parameter(Mandatory=$True)][string]$section, [parameter(Mandatory=$True)][string]$key, $value)
+    $done = $False
+    $blockLines = $parsedSectionFile.blockHt[$section] | ForEach-Object {
+        if ($done) {
+            $_
+        } else {
+            if ($_ -match "${key}=") {
+                $done = $True
+                if ($value) {
+                    "${key}=$value"
+                } else {
+                    $m = $_ -match "^\s*#+\s*(.*)\s*$"
+                    if ($m) {
+                        $Matches[1]
+                    } else {
+                        $_
+                    }
+                }
+            } else {
+                $_
+            }
+        }
+    }
+
+    if (!$done) {
+        if ($value) {
+            $blockLines += "${key}=$value"
+        }
+    }
+    $parsedSectionFile.blockHt[$section] = $blockLines
+}
+
+function Comment-SectionKv {
+    Param([parameter(Mandatory=$True)]$parsedSectionFile,[parameter(Mandatory=$True)][string]$section, [parameter(Mandatory=$True)][string]$key)
+    $done = $False
+    $blockLines = $parsedSectionFile.blockHt[$section] | ForEach-Object {
+        if ($done) {
+            $_
+        } else {
+            if ($_ -match "^\s*${key}=") {
+                $done = $True
+                "#$_"
+            } else {
+                $_
+            }
+        }
+    }
+    $parsedSectionFile.blockHt[$section] = $blockLines
+}
+
+function Get-SectionValueByKey {
+    Param([parameter(Mandatory=$True)]$parsedSectionFile,[parameter(Mandatory=$True)][string]$section, [parameter(Mandatory=$True)][string]$key)
+    $kv = $parsedSectionFile.blockHt[$section] | ? {$_ -match "^${key}\s*=\s*(.*?)\s*$"} | Select-Object -First 1
+    if ($kv) {
+        $Matches[1]
+    }
+    
+}
 
 function New-SectionKvFile {
  Param

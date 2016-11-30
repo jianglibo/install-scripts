@@ -32,33 +32,78 @@ Describe "PsCommon" {
 '@
     Run-String -execute tclsh -content $c | Should Be "2"
     }
+    It "should alter resultFile" {
+        $tmp = New-TemporaryFile
+        "{}" | Out-File -FilePath $tmp -Encoding ascii
+        Alter-ResultFile -resultFile $tmp -keys a,b,c -value 55
+        $rh = Get-Content $tmp | ConvertFrom-Json
+        $rh.a.b.c | Should Be 55
+
+        "{}" | Out-File -FilePath $tmp -Encoding ascii
+        Alter-ResultFile -resultFile $tmp -keys a 55
+        $rh = Get-Content $tmp | ConvertFrom-Json
+        $rh.a | Should Be 55
+
+        "{}" | Out-File -FilePath $tmp -Encoding ascii
+        Alter-ResultFile -resultFile $tmp -keys a 55
+        $rh = Get-Content $tmp | ConvertFrom-Json
+        $rh.a | Should Be 55
+
+        "" | Out-File -FilePath $tmp -Encoding ascii
+        Alter-ResultFile -resultFile $tmp -keys a 55
+        $rh = Get-Content $tmp | ConvertFrom-Json
+        $rh.a | Should Be 55
+
+        "" | Out-File -FilePath notexistsfile -Encoding ascii
+        Alter-ResultFile -resultFile $tmp -keys a 55
+        $rh = Get-Content $tmp | ConvertFrom-Json
+        $rh.a | Should Be 55
+
+        Remove-Item $tmp -Force
+    }
     It "should addKv commentKv work" {
         $kvf = New-SectionKvFile -FilePath (Join-Path $here -ChildPath "fixtures\NetworkManager.conf")
         $ht = [HashTable]$kvf.blockHt;
 
         $kvf.blockHt.Count | Should Be 2
 
-        $kvf.blockHt["[main]"] -contains "plugins=ifcfg-rh" | Should Be $True
+        $mains = "[main]";
 
-        $kvf.addKv("a", 1, "[main]")
-        $kvf.blockHt["[main]"] -contains "a=1" | Should Be $True
+        $kvf.blockHt[$mains] -contains "plugins=ifcfg-rh" | Should Be $True
 
-        $kvf.blockHt["[main]"].Count | Should Be 3
-        $kvf.addKv("a", 1, "[main]")
-        $kvf.blockHt["[main]"].Count | Should Be 3
+        $kvf.addKv("a", 1, $mains)
+        $kvf.blockHt[$mains] -contains "a=1" | Should Be $True
 
-        $kvf.commentKv("x", "[main]")
-        $kvf.blockHt["[main]"].Count | Should Be 3
+        $kvf.blockHt[$mains].Count | Should Be 3
+        $kvf.addKv("a", 1, $mains)
+        $kvf.blockHt[$mains].Count | Should Be 3
 
-        $kvf.commentKv("a", "[main]")
-        $kvf.blockHt["[main]"] -contains "a=1" | Should Be $False
-        $kvf.blockHt["[main]"] -contains "#a=1" | Should Be $True
+        $kvf.commentKv("x", $mains)
+        $kvf.blockHt[$mains].Count | Should Be 3
 
-        $kvf.addKv("a", 2, "[main]")
-        $kvf.blockHt["[main]"] -contains "a=1" | Should Be $False
-        $kvf.blockHt["[main]"] -contains "#a=1" | Should Be $False
-        $kvf.blockHt["[main]"] -contains "a=2" | Should Be $True
-        $kvf.blockHt["[main]"].Count | Should Be 3
+        $kvf.commentKv("a", $mains)
+        $kvf.blockHt[$mains] -contains "a=1" | Should Be $False
+        $kvf.blockHt[$mains] -contains "#a=1" | Should Be $True
+
+        $kvf.addKv("a", 2, $mains)
+        $kvf.blockHt[$mains] -contains "a=1" | Should Be $False
+        $kvf.blockHt[$mains] -contains "#a=1" | Should Be $False
+        $kvf.blockHt[$mains] -contains "a=2" | Should Be $True
+        $kvf.blockHt[$mains].Count | Should Be 3
+
+        Add-SectionKv -parsedSectionFile $kvf -section $mains -key "uuu" -value "xxx"
+
+        $kvf.blockHt[$mains].Count | Should Be 4
+        Comment-SectionKv -parsedSectionFile $kvf -section $mains -key "uuu"
+        $kvf.blockHt[$mains].Count | Should Be 4
+        Get-SectionValueByKey -parsedSectionFile $kvf -section $mains -key "uuu" | Should Be $null
+
+        Add-SectionKv -parsedSectionFile $kvf -section $mains -key "uuu"
+        $kvf.blockHt[$mains].Count | Should Be 4
+        Get-SectionValueByKey -parsedSectionFile $kvf -section $mains -key "uuu" | Should Be "xxx"
+
+        Comment-SectionKv -parsedSectionFile $kvf -section $mains -key "notexists"
+        $kvf.blockHt[$mains].Count | Should Be 4
     }
     It "should write to file work" {
         $kvf = New-SectionKvFile -FilePath (Join-Path $here -ChildPath "fixtures\NetworkManager.conf")

@@ -9,16 +9,23 @@ stop NetworkManager, disable NetworkManager service,
 function Centos7-NetworkManager {
     Param([ValidateSet("enable", "disable")][parameter(Mandatory=$True)][string]$action)
     $nm = "NetworkManager"
-    switch ($action) {
-        "enable" {
-            systemctl enable $nm *>1 | Out-Null
-            systemctl start $nm *>1 | Out-Null
+
+        switch ($action) {
+            "enable" {
+                systemctl enable $nm *>1 | Out-Null
+                systemctl start $nm *>1 | Out-Null
+            }
+            "disable" {
+                systemctl stop $nm *>1 | Out-Null
+                systemctl disable $nm *>1 | Out-Null
+            }
         }
-        "disable" {
-            systemctl stop $nm *>1 | Out-Null
-            systemctl disable $nm *>1 | Out-Null
+    
+
+        if ($LASTEXITCODE -gt 0) {
+            yum reinstall -y dbus-python pygobject3-base python-decorator python-slip-dbus python-decorator python-pyudev | Out-Null
         }
-    }
+
 }
 
 function Centos7-SetHostName {
@@ -35,7 +42,13 @@ function Centos7-InstallNtp {
 
 function Centos7-IsServiceRunning {
     Param([parameter(Mandatory=$True)][String]$serviceName)
-    $r = systemctl status $serviceName | Select-Object -First 4 | Where-Object {$_ -match "\s+Active:.*\(running\)"} | Select-Object -First 1 | measure
+    $r = systemctl status $serviceName | Select-Object -First 6 | Where-Object {$_ -match "\s+Loaded:.*\(running\)"} | Select-Object -First 1 | measure
+    $r.Count -eq 1
+}
+
+function Centos7-IsServiceExists {
+    Param([parameter(Mandatory=$True)][String]$serviceName)
+    $r = systemctl status $serviceName| Select-Object -First 6 | Where-Object {$_ -match "\s+Active:\s*not-found"} | Select-Object -First 1 | measure
     $r.Count -eq 1
 }
 

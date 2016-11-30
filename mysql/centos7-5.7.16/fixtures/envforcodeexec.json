@@ -1,45 +1,54 @@
 {
   "remoteFolder": "/easy-installer/",
   "box": {
+    "id": 1703941,
     "ip": "192.168.33.110",
     "name": "box1",
     "hostname": "a0.host.name",
-    "roles": "MASTER,NAMENODE,MYSQL_MASTER,RESOURCEMANAGER",
+    "roles": "NAMENODE,MYSQL_MASTER,RESOURCEMANAGER",
     "dnsServer": "",
     "ips": "",
-    "ports": ""
+    "ports": "",
+    "boxRoleConfig": ""
   },
   "boxGroup": {
+    "id": 1736705,
     "name": "boxgroup1",
     "configContent": "# place holder\r\n",
     "installResults": null,
     "boxes": [
       {
+        "id": 1703941,
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.name",
-        "roles": "MASTER,NAMENODE,MYSQL_MASTER,RESOURCEMANAGER",
+        "roles": "NAMENODE,MYSQL_MASTER,RESOURCEMANAGER",
         "dnsServer": "192.168.2.60",
         "ips": "",
-        "ports": ""
+        "ports": "",
+        "boxRoleConfig": null
       },
       {
+        "id": 1703940,
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
-        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,MYSQL_REPLICA",
+        "roles": "NODEMANAGER,DATANODE,MYSQL_REPLICA",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.12,192.168.2.13",
-        "ports": "80,8080"
+        "ports": "80,8080",
+        "boxRoleConfig": null
       },
       {
+        "id": 1703939,
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
-        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,MYSQL_REPLICA",
+        "roles": "NODEMANAGER,DATANODE,MYSQL_REPLICA",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.15,192.168.2.16",
-        "ports": "80,8080"
+        "ports": "80,8080",
+        "boxRoleConfig": null
       }
     ]
   },
@@ -48,18 +57,18 @@
     "sversion": "ps-5.7.16",
     "ostype": "CentOs7",
     "runas": "",
-    "timeouts": {},
+    "timeouts": null,
     "runner": "powershell -File {code} -envfile {envfile} -action {action}",
     "possibleRoles": null,
     "textfiles": [
       {
-        "name": "change-init-pass.tcl",
-        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [lindex $argv 1]\n\nset result {}\nspawn mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"Welcome to the MySQL monitor\" {\n    exp_send \"select 1;\\n\"\n    exp_continue\n  }\n  -re \"You must reset your password.*$\" {\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\n\"\n    exp_continue\n  }\n  \"Your password does not satisfy the current policy\" {\n    set result notsatisfy\n    exp_send \"exit\\n\"\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\n\"\n  }\n  eof {}\n  timeout {}\n}\n# -re cause buffer to change.\n# $expect_out(buffer)\n\nif ([string equal $result notsatisfy]) {\n  puts $result\n  exit 1\n}",
+        "name": "my.cnf",
+        "content": "# For advice on how to change settings please see\n# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html\n\n[mysqld]\n#\n# Remove leading # and set to the amount of RAM for the most important data\n# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.\n# innodb_buffer_pool_size = 128M\n#\n# Remove leading # to turn on a very important data integrity option: logging\n# changes to the binary log between backups.\nlog-bin=mysql-bin\n#\n# Remove leading # to set options mainly useful for reporting servers.\n# The server defaults are faster for transactions and fast SELECTs.\n# Adjust sizes as needed, experiment to find the optimal values.\n# join_buffer_size = 128M\n# sort_buffer_size = 2M\n# read_rnd_buffer_size = 2M\ndatadir=/opt/mysqld-usage/datadir\nsocket=/var/lib/mysql/mysql.sock\n\n# Disabling symbolic-links is recommended to prevent assorted security risks\nsymbolic-links=0\n\nlog-error=/opt/mysqld-usage/mysqld.log\npid-file=/var/run/mysqld/mysqld.pid",
         "codeLineSeperator": "LF"
       },
       {
-        "name": "my.cnf",
-        "content": "# For advice on how to change settings please see\n# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html\n\n[mysqld]\n#\n# Remove leading # and set to the amount of RAM for the most important data\n# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.\n# innodb_buffer_pool_size = 128M\n#\n# Remove leading # to turn on a very important data integrity option: logging\n# changes to the binary log between backups.\n# log_bin\n#\n# Remove leading # to set options mainly useful for reporting servers.\n# The server defaults are faster for transactions and fast SELECTs.\n# Adjust sizes as needed, experiment to find the optimal values.\n# join_buffer_size = 128M\n# sort_buffer_size = 2M\n# read_rnd_buffer_size = 2M\ndatadir=/var/lib/mysql\nsocket=/var/lib/mysql/mysql.sock\n\n# Disabling symbolic-links is recommended to prevent assorted security risks\nsymbolic-links=0\n\nlog-error=/var/log/mysqld.log\npid-file=/var/run/mysqld/mysqld.pid",
+        "name": "change-init-pass.tcl",
+        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [lindex $argv 1]\n\nset result {}\nspawn mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"Welcome to the MySQL monitor\" {\n    exp_send \"select 1;\\n\"\n    exp_continue\n  }\n  -re \"You must reset your password.*$\" {\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\n\"\n    exp_continue\n  }\n  \"Your password does not satisfy the current policy\" {\n    set result notsatisfy\n    exp_send \"exit\\n\"\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\n\"\n  }\n  eof {}\n  timeout {}\n}\n# -re cause buffer to change.\n# $expect_out(buffer)\n\nif ([string equal $result notsatisfy]) {\n  puts $result\n  exit 1\n}",
         "codeLineSeperator": "LF"
       }
     ],
@@ -70,7 +79,7 @@
       "mysql-community-client-5.7.16-1.el7.x86_64.rpm"
     ],
     "configContent": "{\"envvs\":[],\"firewall\":{\"Master\":\"\",\"Replica\":\"\"}}",
-    "actions": "install,changePassword",
+    "actions": "install,changePassword,createUser",
     "preferredFormat": "JSON"
   }
 }

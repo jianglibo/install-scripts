@@ -13,6 +13,7 @@ boxes:
     dnsServer:
     ips:
     ports:
+    boxRoleConfig:
   - ip: 192.168.33.111
     name: box2
     roles: MYSQL_REPLICA
@@ -20,6 +21,7 @@ boxes:
     description: a description
     keyFilePath:
     port: 22
+    boxRoleConfig:
     sshUser: root
     hostname: a1.host.name
     dnsServer: 192.168.2.60
