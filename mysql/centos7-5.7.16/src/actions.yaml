@@ -1,1 +1,4 @@
 createUser: rootpassword:{password},,,sql:{CREATE USER 'jeffrey'@'localhost' IDENTIFIED BY 'new_password';} #PASSWORD EXPIRE
+install-master: newpass:{nps},,,replicauser:{repl},,,replicapass:{replicapass}
+install-masterreplica: newpass:{nps},,,replicauser:{repl},,,replicapass:{replicapass}
+install-replica: newpass:{nps}

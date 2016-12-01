@@ -1,11 +1,8 @@
 package require Expect
 
 set password [lindex $argv 0]
-set sql [lindex $argv 1]
-
-if {! [string equal ";" [string index $sql end]]} {
-  set sql "${sql};"
-}
+set sqls [lrange $argv 1 end]
+set i 0
 
 spawn -noecho mysql -uroot -p
 
@@ -15,16 +12,22 @@ expect {
     exp_send "$password\n"
     exp_continue
   }
-  "Welcome to the MySQL monitor.*mysql> $" {
-    exp_send "${sql}\n"
-    exp_continue
-  }
   "You have an error in your SQL syntax.*mysql> $" {
     puts  $expect_out(0,string)
     exit 1
   }
   "mysql> $" {
-      exp_send "exit\n"
+        set sql [lindex $sqls $i]
+        if {[string length $sql] > 0} {
+          if {! [string equal ";" [string index $sql end]]} {
+            set sql "${sql};"
+          }
+          incr i
+          exp_send "$sql\n"
+          exp_continue
+        } else {
+          exp_send "exit\n"
+        }
   }
   eof {}
   timeout {}

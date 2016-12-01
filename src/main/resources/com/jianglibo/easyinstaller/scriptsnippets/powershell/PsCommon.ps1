@@ -1,5 +1,8 @@
 ﻿$ErrorActionPreference = "Stop"
 
+$R_T_C_B = "------RETURN_TO_CLIENT_BEGIN------"
+$R_T_C_E = "------RETURN_TO_CLIENT_END------"
+
 function Run-Tar {
  Param
      (

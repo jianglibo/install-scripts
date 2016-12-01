@@ -1,3 +1,8 @@
+install difference for roles:
+MYSQL_MASTER
+MYSQL_MASTER,MYSQL_REPLICA
+MYSQL_REPLICA
+
 mysql-community-server	Database server and related tools
 mysql-community-client	MySQL client applications and tools
 mysql-community-common	Common files for server and client libraries

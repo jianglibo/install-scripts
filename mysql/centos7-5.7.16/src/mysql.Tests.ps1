@@ -22,9 +22,26 @@ function Get-MysqlcnfValue {
 
         $sf = New-SectionKvFile -FilePath $tmpfile
 
-        $sf.getValue("[mysqld]", $key)
-
+        Get-SectionValueByKey -parsedSectionFile $sf -section "[mysqld]" -key $key
         Remove-Item -Path $tmpfile -Force
+}
+
+function remove-mysql {
+    Param($myenv)
+    if (Centos7-IsServiceRunning "mysqld") {
+        systemctl stop "mysqld"
+    }
+
+    $revRpms = Get-MysqlRpms $myenv | % {$_ -replace ".*/(.*)-[^-]+$", '$1'}
+    [array]::reverse(($revRpms))
+    $revRpms | % {yum -y remove $_} | Out-Null
+
+    if (get-mysqlcnfValue $myenv "datadir" | Test-Path) {
+        get-mysqlcnfValue $myenv "datadir" | Remove-Item -Recurse -Force
+    }
+    if (get-mysqlcnfValue $myenv "log-error" | Test-Path) {
+        get-mysqlcnfValue $myenv "log-error" | Remove-Item -Force
+    }
 }
 
 Describe "code" {
@@ -52,7 +69,7 @@ Describe "code" {
             $remainingArguments.getType()
         }
 
-        t a b c | Should Be "a" 
+        t a b c | Should Be "a"
 
         tt | Should Be $null
 
@@ -64,7 +81,27 @@ Describe "code" {
     }
     It "should install mysql" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
-        
+
+        ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
+
+        # bugs?
+        $boxes = @()
+        foreach ($box in $myenv.boxGroup.boxes) {
+            if (($box.roles -match $MYSQL_MASTER) -and ($box.roles -notmatch $MYSQL_REPLICA)) {
+                $boxes += $box
+            }
+        }
+        $boxes.Count | Should Be 1
+
+        # ($myenv.boxGroup.boxes | ? {(($_ | Select-Object -ExpandProperty roles) -match $MYSQL_MASTER) -and (($_ | Select-Object -ExpandProperty roles) -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
+
+        $myenv.boxGroup.boxes | % {$_.roles} | ? {$_ -match $MYSQL_REPLICA} | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
+
+        $boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
+
+
+
+
         if ( ! ( Get-UploadFiles $myenv | Select-Object -First 1 | Test-Path)) {
             Get-UploadFiles -myenv $myenv -OnlyName | Select-Object @{n="Path"; e={Join-Path $testTgzFolder -ChildPath $_}}, @{n="Destination";e={Join-Path $myenv.remoteFolder -ChildPath $_}} | Copy-Item
         }
@@ -73,26 +110,17 @@ Describe "code" {
         $myenv.remoteFolder | Should Be "/easy-installer/"
         $rpms = (Get-UploadFiles -myenv $myenv | ? {$_ -match "(-server-\d+|-client-\d+|-common-\d+|-libs-\d+).*rpm$"} | Sort-Object) -join ' '
         $rpms | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
-        
+
         # (Get-MysqlRpms $myenv) -join " " | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
 
         #(yum list installed | ? {$_ -match "mariadb-libs"}) -split "\s+" | Select-Object -First 1 | Should Be "mariadb-libs.x86_64"
 
+        remove-mysql $myenv
 
-        if (Centos7-IsServiceRunning "mysqld") {
-            systemctl stop "mysqld"
-        }
-        $revRpms = Get-MysqlRpms $myenv | % {$_ -replace ".*/(.*)-[^-]+$", '$1'}
-        [array]::reverse(($revRpms))
-        $revRpms | % {yum -y remove $_} | Out-Null
-
-        if (get-mysqlcnfValue $myenv "datadir" | Test-Path) {
-            get-mysqlcnfValue $myenv "datadir" | Remove-Item -Recurse -Force
-        }
-        if (get-mysqlcnfValue $myenv "log-error" | Test-Path) {
-            get-mysqlcnfValue $myenv "log-error" | Remove-Item -Force
-        }
         Install-Mysql $myenv
+
+        #@{newpass="aks23A%soid"}
+
         Set-NewMysqlPassword $myenv "aks23A%soid"
 
         $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
@@ -102,7 +130,7 @@ Describe "code" {
 
         Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
 
-        $lb = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin" 
+        $lb = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
 
         $lb | Should Be "mysql-bin"
 
@@ -113,16 +141,27 @@ Describe "code" {
         $datadir = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "datadir"
         Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$" | Should Be $null
 
-        Enable-LogBin $myenv
+        Enable-LogBinAndRecordStatus $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"} (Get-MysqlRoleSum $myenv)
 
         $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
 
         Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"  | Should Be "mysql-bin"
-        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"  | Should Be "1"
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"  | Should Be $True
 
         (Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$").Count -gt 0 | Should Be $True
 
+        remove-mysql $myenv
+
+        install-master $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"}
+
+        $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
+        Run-String -execute tclsh -content $ef -quotaParameter "aks23A%soid" "use mysql;select host,user from user;" | Write-Output -OutVariable fromTcl
+
+        $fromTcl | Write-Host
+
+        ($fromTcl | ? {$_ -match "repl"}).Count -gt 0 | Should Be $True
+
         $LASTEXITCODE | Write-Host
-        # | Should Be "Enter password: " 
+        # | Should Be "Enter password: "
     }
 }

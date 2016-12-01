@@ -15,7 +15,8 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
-Detect-RunningYum
+$MYSQL_MASTER = "MYSQL_MASTER"
+$MYSQL_REPLICA = "MYSQL_REPLICA"
 
 if (! $codefile) {
     $codefile = $MyInvocation.MyCommand.Path
@@ -28,19 +29,102 @@ function Decorate-Env {
     $myenv
 }
 
-function Install-Mysql {
+<#
+mysql> CHANGE MASTER TO
+    ->     MASTER_HOST='master_host_name',
+    ->     MASTER_USER='replication_user_name',
+    ->     MASTER_PASSWORD='replication_password',
+    ->     MASTER_LOG_FILE='recorded_log_file_name',
+    ->     MASTER_LOG_POS=recorded_log_position;
+#>
+
+function Get-MysqlRoleSum {
     Param($myenv)
+    $rh = @{}
 
-    if (Centos7-IsServiceRunning mysqld) {
-        Write-Error "mysql are running...., skip installation."
+    $mrnumber = ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -match $MYSQL_REPLICA)}).Count
+    if ($mrnumber -gt 1) {
+        Write-Error "There can only be one server with both MYSQL_MASTER and MYSQL_REPLICA roles."
     }
-    $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
 
-    if ($mariadblibs) {
-        $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
+    $mnumber = ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count
+    if ($mnumber -ne 1) {
+        Write-Error "There can only be one server with MYSQL_MASTER roles, but $mnumber"
     }
-    Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
-    Write-ConfigFiles -myenv $myenv
+
+    if ($mrnumber -eq 1) {
+        $rh.type = "chained"
+    } else {
+        $rh.type = "notchained"
+    }
+
+    if (($myenv.myRoles -contains $MYSQL_REPLICA) -and ($myenv.myRoles -contains $MYSQL_REPLICA)) {
+        $rh.mine = "mr"
+    } elseif ($myenv.myRoles -contains $MYSQL_MASTER) {
+        $rh.mine = "m"
+    } elseif ($myenv.myRoles -contains $MYSQL_REPLICA){
+        $rh.mine = "r"
+    } else {
+        Write-Error "server roles must be in MYSQL_MASTER,MYSQL_REPLICA"
+    }
+    $rh
+}
+
+function install-master {
+   Param($myenv, $paramsHash)
+   $rsum = Get-MysqlRoleSum -myenv $myenv
+
+   if ($rsum.mine -ne "m") {
+       "this server not configurated as master...., skip installation."
+        return
+   }
+   if (!$paramsHash.newpass -or !$paramsHash.replicauser -or !$paramsHash.replicapass) {
+      Write-Error "For install action, newpass,replicauser,replicapass are mandontory."
+   }
+
+   if (Centos7-IsServiceExists mysqld) {
+        "mysql is already installed...., skip installation."
+        return
+   }
+   Install-Mysql $myenv
+   Set-NewMysqlPassword $myenv $paramsHash.newpass
+   # before enable log-bin, create replica users first, prevent it from copy to other servers.
+   $boxes = @()
+   if ($rsum.type -eq "chained") { # master only need create one replica user.
+      foreach ($box in $myenv.boxGroup.boxes) {
+         if (($box.roles -match $MYSQL_MASTER) -and ($box.roles -notmatch $MYSQL_REPLICA)) {
+            $boxes += $box
+          }
+      }
+   } else { # create replica users for all slaves.
+         foreach ($box in $myenv.boxGroup.boxes) {
+         if ($box.roles -notmatch $MYSQL_REPLICA) {
+            $boxes += $box
+          }
+      }
+   }
+   
+   $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, $paramsHash.replicapass,$_.hostname}) -join ";"
+   $sqls | write-host
+   $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
+   Run-String -execute tclsh -content $ef -quotaParameter $paramsHash.newpass $sqls | Write-Output -OutVariable fromTcl
+   Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
+}
+
+
+function Install-MysqlWhole {
+   Param($myenv, $paramsHash)
+
+   # all roles are same action.
+   Install-Mysql $myenv
+   Set-NewMysqlPassword $myenv $paramsHash.newpass
+
+   Enable-LogBinAndRecordStatus $myenv $paramsHash
+   # Add-ReplicaUsers $myenv $paramsHash
+   # return show master status value.
+   # CREATE USER 'repl'@'%.mydomain.com' IDENTIFIED BY 'slavepass';
+   # GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%.mydomain.com';
+
 }
 
 function Get-MysqlRpms {
@@ -76,17 +160,8 @@ function Set-NewMysqlPassword {
 
     Alter-ResultFile -resultFile $myenv.resultFile -keys "info","initPasswordReseted" -value $True
 }
-
-function New-MysqlUser {
-    Param($myenv, $rootpassword)
-}
-
-function Enable-LogBin {
-    Param($myenv)
-    if (! ("MYSQL_MASTER" -in $myenv.myRoles)) {
-        "not a master server, skip enable logbin"
-        return
-    }
+function Enable-LogBinAndRecordStatus {
+    Param($myenv, $paramsHash, $rsum)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (!$rh.info -or !$rh.info.initPasswordReseted) {
         Write-Error "Please reset mysqld init password first."
@@ -102,45 +177,79 @@ function Enable-LogBin {
     $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
 
     if (! $serverId) {
-        Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id"
+        Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id" -value (Get-Random)
         $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
     }
 
-    if (! $serverId) {
-        Write-Error "There must exists an item with server-id=xxx format in my.cnf, that server-id is for mysqld master, slave will get random server-id."
-    }
     Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+
+    if ($rsum.mine -eq "mr") {
+        Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-slave-updates" -value "on"
+    }
+
+    $logbin = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+
     $sf.writeToFile()
     systemctl restart mysqld | Out-Null
+
+    $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
+    Run-String -execute tclsh -content $ef -quotaParameter $paramsHash.newpass "show master status;" | Write-Output -OutVariable fromTcl
+
+    $fromTcl | ? {$_ -match "(${logbin}\.\d+)\s*\|\s*(\d+)\s*\|"} | Select-Object -First 1 | Write-Output -OutVariable matchedLine
+
+    if (!$matchedLine -or ($LASTEXITCODE -ne 0)) {
+        Write-Error "show master status doesn't work properly.. $fromTcl"
+    }
+
+    $returnToClient = @{}
+
+    if ($rsum.mine -eq "m") {
+        $returnToClient.master = @{}
+        $returnToClient.master.logname = $Matches[1]
+        $returnToClient.master.position = $Matches[2]
+    }
+    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
+    
+    $R_T_C_B
+    $returnToClient | ConvertTo-Json
+    $R_T_C_E
+
 }
 
-function Write-ConfigFiles {
-    Param($myenv)
+function Install-Mysql {
+    Param($myenv, $paramsHash)
     $resultHash = @{}
     $resultHash.env = @{}
     $resultHash.info = @{}
+    Detect-RunningYum
+    $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
+
+    if ($mariadblibs) {
+        $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
+    }
+    Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
+
+    $rsum = Get-MysqlRoleSum $myenv
 
     #write my.cnf
     $myenv.software.textfiles | ? {$_.name -eq "my.cnf"} | Select-Object -First 1 -ExpandProperty content | Out-File -FilePath "/etc/my.cnf" -Encoding ascii
 
     $sf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $mysqlds = "[mysqld]"
+
     $logError = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-error"
     $datadir = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "datadir"
     $pidFile = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "pid-file"
     $socket = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "socket"
-    $binLog = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-bin"
-    # we cannot use this server-id value, because all box are same.
-    $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
 
-    # if bin-log init enabled.
-    if ($binLog) {
-        Comment-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-bin"
-        if ($serverId) {
-            Comment-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id"
-        }
-        $sf.writeToFile()
-    }
+    # first comment out log-bin and server-id item.
+    Comment-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+    Comment-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id"
+    $sf.writeToFile()
+
+    #$binLog = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+    # we cannot use this server-id value, because all box are same.
+    #$serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
 
     if (! (Split-Path -Parent $datadir | Test-Path)) {
         Split-Path -Parent $datadir | New-Directory | Out-Null
@@ -180,20 +289,20 @@ function expose-env {
 $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
-    "install" {
-        Install-Mysql $myenv
+    "install-master" {
+        Install-master $myenv (Parse-Parameters $remainingArguments)
     }
-    "enableLogBin" {
-        enable-logbin $myenv
-    }
-    "changePassword" {
-        Set-NewMysqlPassword $myenv @remainingArguments
-    }
-    "start" {
-        if (!(Centos7-IsServiceRunning "mysqld")) {
-            systemctl start mysqld
-        }
-    }
+#    "enableLogBin" {
+#        Enable-LogBinAndRecordStatus $myenv
+#    }
+#    "changePassword" {
+#        Set-NewMysqlPassword $myenv @remainingArguments
+#    }
+#    "start" {
+#        if (!(Centos7-IsServiceRunning "mysqld")) {
+#            systemctl start mysqld
+#        }
+#    }
     "stop" {
         if (Centos7-IsServiceRunning mysqld) {
             systemctl stop mysqld
