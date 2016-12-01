@@ -8,8 +8,8 @@
 Param(
     [parameter(Mandatory=$true)]$envfile,
     [parameter(Mandatory=$true)]$action,
-    [string]$codefile,
-    [string]$remainingArguments
+    [string]$remainingArguments,
+    [string]$codefile
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
@@ -17,6 +17,8 @@ Param(
 
 $MYSQL_MASTER = "MYSQL_MASTER"
 $MYSQL_REPLICA = "MYSQL_REPLICA"
+
+$remainingArguments | Write-Output
 
 if (! $codefile) {
     $codefile = $MyInvocation.MyCommand.Path
@@ -111,22 +113,6 @@ function install-master {
    Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
 }
 
-
-function Install-MysqlWhole {
-   Param($myenv, $paramsHash)
-
-   # all roles are same action.
-   Install-Mysql $myenv
-   Set-NewMysqlPassword $myenv $paramsHash.newpass
-
-   Enable-LogBinAndRecordStatus $myenv $paramsHash
-   # Add-ReplicaUsers $myenv $paramsHash
-   # return show master status value.
-   # CREATE USER 'repl'@'%.mydomain.com' IDENTIFIED BY 'slavepass';
-   # GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%.mydomain.com';
-
-}
-
 function Get-MysqlRpms {
     Param($myenv)
     Get-UploadFiles $myenv | ? {$_ -match "-common-\d+.*rpm$"}
@@ -151,9 +137,10 @@ function Set-NewMysqlPassword {
     $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
 
-    $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*:\s*(.*?)\s*$",'$1'
+    $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1'
 
     Run-String -execute tclsh -content $ef -quotaParameter "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl
+
     if ($LASTEXITCODE -ne 0) {
         Write-Error "change-init-pass.tcl exit with none zero. $fromTcl"
     }
@@ -207,9 +194,8 @@ function Enable-LogBinAndRecordStatus {
         $returnToClient.master = @{}
         $returnToClient.master.logname = $Matches[1]
         $returnToClient.master.position = $Matches[2]
+        Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
     }
-    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
-    
     $R_T_C_B
     $returnToClient | ConvertTo-Json
     $R_T_C_E
@@ -290,7 +276,9 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
     "install-master" {
-        Install-master $myenv (Parse-Parameters $remainingArguments)
+        $ph = Parse-Parameters $remainingArguments
+        $ph | Write-Output
+        Install-master $myenv $ph
     }
 #    "enableLogBin" {
 #        Enable-LogBinAndRecordStatus $myenv

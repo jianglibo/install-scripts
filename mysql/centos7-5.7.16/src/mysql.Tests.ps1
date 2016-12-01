@@ -11,7 +11,7 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 
-$result = . "$here\$sut" -envfile $envfile -action t codefile "param0 param1 param2"
+$result = . "$here\$sut" -envfile $envfile -action t "param0 param1 param2"
 
 
 function Get-MysqlcnfValue {
@@ -47,7 +47,6 @@ function remove-mysql {
 Describe "code" {
     It "should return right result" {
         $result | Should Be "param0 param1 param2"
-
     }
     It "should handle remaining parameters" {
         function t-t {
@@ -81,7 +80,8 @@ Describe "code" {
     }
     It "should install mysql" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
-
+#        remove-mysql -myenv $myenv
+#        return
         ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
 
         # bugs?
@@ -92,6 +92,8 @@ Describe "code" {
             }
         }
         $boxes.Count | Should Be 1
+
+        ("2016-12-01T11:02:30.947935Z 1 [Note] A temporary password is generated for root@localhost: q&kefv.7emJM" | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1' | Should Be "q&kefv.7emJM"
 
         # ($myenv.boxGroup.boxes | ? {(($_ | Select-Object -ExpandProperty roles) -match $MYSQL_MASTER) -and (($_ | Select-Object -ExpandProperty roles) -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
 
@@ -152,14 +154,43 @@ Describe "code" {
 
         remove-mysql $myenv
 
-        install-master $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"}
+        install-master $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"} | Write-Output -OutVariable fromTcl | Out-Null
+
+        $fromTcl -match $R_T_C_B | Should Be $True
+        $fromTcl -match $R_T_C_E | Should Be $True
+
+        $startFlag = $False
+        $lines = @()
+
+        foreach ($line in $fromTcl) {
+            if ($line -match $R_T_C_E) {
+                break
+            }
+
+            if ($startFlag) {
+                $lines += $line
+            }
+            if ($line -match $R_T_C_B) {
+                $startFlag = $True
+            }
+        }
+
+        "***********************" | Write-Host
+        $lines | Write-Host
+        "***********************" | Write-Host
+
+        $returnToClient = $lines | ConvertFrom-Json
+
+        $returnToClient.master.logname -match ((Get-MysqlcnfValue -myenv $myenv -key "log-bin") + "\.\d+") | Should Be $True
+        $returnToClient.master.position -match "\d+" | Should Be $True
 
         $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
         Run-String -execute tclsh -content $ef -quotaParameter "aks23A%soid" "use mysql;select host,user from user;" | Write-Output -OutVariable fromTcl
 
-        $fromTcl | Write-Host
-
-        ($fromTcl | ? {$_ -match "repl"}).Count -gt 0 | Should Be $True
+        Run-String -execute tclsh -content $ef -quotaParameter "aks23A%soid" "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
+        
+        $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
+        $Matches[1] | Should Be "1"
 
         $LASTEXITCODE | Write-Host
         # | Should Be "Enter password: "
