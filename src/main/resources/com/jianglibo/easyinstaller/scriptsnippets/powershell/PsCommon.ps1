@@ -77,11 +77,20 @@ function Alter-ResultFile {
     $rh | ConvertTo-Json | Out-File $resultFile -Force -Encoding ascii
 }
 
-function Run-String {
-    Param([string]$execute, [parameter(ValueFromPipeline=$True)][string]$content,[string]$quotaChar,[switch]$quotaInnerQuota, [parameter(ValueFromRemainingArguments=$True)]$others)
-    $tf = (New-TemporaryFile).FullName
+function Encode-Base64 {
+    Param([string]$str)
+    $bytes = [System.Text.Encoding]::ASCII.GetBytes($str)
+    [System.Convert]::ToBase64String($bytes)
+}
 
-    $content | Out-File -FilePath $tf -Encoding ascii
+function Decode-Base64 {
+    Param([string]$base64Str)
+    $bytes = [System.Convert]::FromBase64String($base64Str)
+    [System.Text.Encoding]::ASCII.GetString($bytes)
+}
+
+function Quota-Quota {
+    Param([string]$quotaChar, [switch]$quotaInnerQuota,[parameter(ValueFromRemainingArguments=$True)]$others)
     if ($quotaChar -eq "'") {
         if ($quotaInnerQuota) {
             $others = $others | % {"'" + ($_ -replace "'","'`"'`"'") + "'"}
@@ -95,8 +104,28 @@ function Run-String {
             $others = $others | % {'"' + $_ + '"'}
         }
     }
-    $execute,$tf + $others -join " " | Write-Host
-    $execute,$tf + $others -join " " | Invoke-Expression
+    $others
+}
+
+function Run-Tcl {
+    Param([parameter(ValueFromPipeline=$True)]$content,[parameter(ValueFromRemainingArguments=$True)]$others)
+    $tf = (New-TemporaryFile).FullName
+
+    $content | Out-File -FilePath $tf -Encoding ascii
+    $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
+    ("tclsh",$tf + $others) -join " " | Write-Host
+    ("tclsh",$tf + $others) -join " " | Invoke-Expression
+    Remove-Item -Path $tf
+}
+
+function Run-String {
+    Param([string]$execute, [parameter(ValueFromPipeline=$True)]$content,[string]$quotaChar,[switch]$quotaInnerQuota, [parameter(ValueFromRemainingArguments=$True)]$others)
+    $tf = (New-TemporaryFile).FullName
+
+    $content | Out-File -FilePath $tf -Encoding ascii
+    $others = Quota-Quota -quotaChar $quotaChar -quotaInnerQuota $quotaInnerQuota @others
+    ($execute,$tf + $others) -join " " | Write-Host
+    ($execute,$tf + $others) -join " " | Invoke-Expression
     Remove-Item -Path $tf
 }
 

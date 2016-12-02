@@ -1,7 +1,13 @@
 package require Expect
+package require base64
 
 set password [lindex $argv 0]
-set newpass [regsub -all {'} [lindex $argv 1] {\'}]
+set newpass [lindex $argv 1]
+
+set password [::base64::decode $password]
+set newpass [::base64::decode $newpass]
+
+set newpass [regsub {'} $newpass {\'}]
 
 spawn mysql -uroot -p
 
@@ -10,9 +16,16 @@ expect {
     exp_send "$password\n"
     exp_continue
   }
-  "Welcome to the MySQL monitor.*mysql> $" {
+  -re "Welcome to the MySQL monitor.*mysql> $" {
     exp_send "select 1;\n"
     exp_continue
+  }
+  -re "You have an error in your SQL syntax.*mysql> $" {
+    puts "*************************"
+    puts "syntax Error."
+    puts "SET PASSWORD = PASSWORD('${newpass}');"
+    puts "*************************"
+    exit 1
   }
   -re "You must reset your password.*mysql> $" {
     exp_send "SET PASSWORD = PASSWORD('${newpass}');\n"

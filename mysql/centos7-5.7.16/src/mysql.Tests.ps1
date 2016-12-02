@@ -11,8 +11,9 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 
-$result = . "$here\$sut" -envfile $envfile -action t "param0 param1 param2"
+$result = . "$here\$sut" -envfile $envfile -action t (Encode-Base64 "param0 param1 param2")
 
+$there = Join-Path -Path $here -ChildPath "abc"
 
 function Get-MysqlcnfValue {
     Param($myenv, $key)
@@ -49,6 +50,11 @@ function remove-mysql {
 }
 
 Describe "code" {
+    It "should get-tclcontent" {
+        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $there | Should Be $True
+        Get-TclContent -myenv $myenv -codefile $there -filename "get-sqlresult.tcl" -loadLocal | Should Be $True
+    }
     It "should return right result" {
         $result | Should Be "param0 param1 param2"
     }
@@ -118,7 +124,7 @@ Describe "code" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
         remove-mysql $myenv
         $newpass = "aks&A2:93'7`""
-        install-master $myenv @{newpass="$newpass";replicauser="repl";replicapass="A2938^%'ccy"} | Write-Output -OutVariable fromTcl | Out-Null
+        install-master $myenv @{newpass="$newpass";replicauser="repl";replicapass="A2938^%'`"ccy"} | Write-Output -OutVariable fromTcl | Out-Null
 
         $fromTcl -match $R_T_C_B | Should Be $True
         $fromTcl -match $R_T_C_E | Should Be $True
@@ -155,7 +161,7 @@ Describe "code" {
 
         $fromTcl | Write-Host
         $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
-        $Matches[1] | Should Be "1"
+        $Matches[1] | Should Be "2"
 
         $LASTEXITCODE | Write-Host
     }

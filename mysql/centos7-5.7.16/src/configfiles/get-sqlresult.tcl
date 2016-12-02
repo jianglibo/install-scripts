@@ -1,8 +1,17 @@
 package require Expect
+package require base64
 
 set password [lindex $argv 0]
 set sqls [lrange $argv 1 end]
 set i 0
+
+set newsqls {}
+set password [::base64::decode $password]
+foreach sql $sqls {
+  lappend newsqls [::base64::decode $sql]
+}
+
+set sqls $newsqls
 
 spawn -noecho mysql -uroot -p
 

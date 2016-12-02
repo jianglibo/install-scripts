@@ -20,7 +20,9 @@ Param(
 $MYSQL_MASTER = "MYSQL_MASTER"
 $MYSQL_REPLICA = "MYSQL_REPLICA"
 
-$remainingArguments | Write-Output
+$remainingArguments | Write-Host
+$remainingArguments = Decode-Base64 $remainingArguments
+$remainingArguments | Write-Host
 
 if (! $codefile) {
     $codefile = $MyInvocation.MyCommand.Path
@@ -42,9 +44,10 @@ mysql> CHANGE MASTER TO
     ->     MASTER_LOG_POS=recorded_log_position;
 #>
 function Run-SQL {
-    Param($env, $pass, $sqls)
-    $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
-    Run-String -execute tclsh -content $ef -quotaInnerQuota -quotaChar '"' $pass $sqls
+    Param($myenv, $pass, $sqls)
+    $code = Get-TclContent -myenv $myenv -codefile $codefile -filename "get-sqlresult.tcl"
+    # -loadLocal
+    Run-Tcl -content $code $pass $sqls
 }
 
 function Get-MysqlRoleSum {
@@ -107,13 +110,14 @@ function install-master {
    Set-NewMysqlPassword $myenv $paramsHash.newpass
    # before enable log-bin, create replica users first, prevent it from copy to other servers.
    if ($rsum.type -eq "chained") { # master only need create one replica user.
-      $box = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
+      $boxes = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
    } else { # create replica users for all slaves.
-      $box = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
-   }   
-   $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, $paramsHash.replicapass,$_.hostname}) -join ";"
-
+      $boxes = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
+   }
+   $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, ($paramsHash.replicapass -replace "'","\'"),$_.hostname}) -join ";"
    Run-SQL -env $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
+
+   $fromTcl | Write-Host
 
    if ($LASTEXITCODE -ne 0) {
       Write-Error "execute 'get-sqlresult.tcl' failed. $fromTcl"
@@ -155,7 +159,7 @@ function install-masterreplica {
    # before enable log-bin, create replica users first, prevent it from copy to replica servers.
    [array]$boxes = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
    # because this is a master-replica, all replica account create here, except itself.
-   $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, $paramsHash.replicapass,$_.hostname}) -join ";"
+   $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, ($paramsHash.replicapass -replace "'","\'"), $_.hostname}) -join ";"
    Run-SQL -env $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
    if ($LASTEXITCODE -ne 0) {
       Write-Error "$fromTcl"
@@ -181,18 +185,11 @@ function Set-NewMysqlPassword {
     if ($resultHash.info.installation.initPasswordReseted) {
        return
     }
-
     $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1'
-
-    [string]$ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
-
-    $localTcl = $codefile | Split-Path -Parent | Join-Path -ChildPath configfiles | Join-Path -ChildPath "change-init-pass.tcl"
-    if (Test-Path $localTcl) {
-        [string]$ef = (Get-Content $localTcl) -join "`n"
-    }
-    Run-String -execute tclsh -content $ef -quotaInnerQuota -quotaChar "'" "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl | Out-Null
-
+    $code = Get-TclContent -myenv $myenv -codefile $codefile -filename "change-init-pass.tcl"
+    # -loadLocal
+    Run-Tcl -content $code "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl | Out-Null
     $fromTcl | Write-Host
 
     if ($LASTEXITCODE -ne 0) {
@@ -233,6 +230,8 @@ function Enable-LogBinAndRecordStatus {
 
     Run-SQL -env $myenv -pass $paramsHash.newpass -sqls "show master status;" | Write-Output -OutVariable fromTcl | Out-Null
 
+    $fromTcl | Write-Host
+
     $fromTcl | ? {$_ -match "(${logbin}\.\d+)\s*\|\s*(\d+)\s*\|"} | Select-Object -First 1 | Write-Output -OutVariable matchedLine
 
     if (!$matchedLine -or ($LASTEXITCODE -ne 0)) {
@@ -258,6 +257,18 @@ function Enable-LogBinAndRecordStatus {
     $returnToClient | ConvertTo-Json
     $R_T_C_E
     Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation", "logBinEnabled" -value $True
+}
+
+function Get-TclContent {
+    Param($myenv,$codefile, $filename,[switch]$loadLocal)
+    [string]$ef = $myenv.software.textfiles | Where-Object Name -EQ $filename | Select-Object -First 1 -ExpandProperty content
+    if ($loadLocal) {
+        $localTcl = $codefile | Split-Path -Parent | Join-Path -ChildPath configfiles | Join-Path -ChildPath $filename
+        if (Test-Path $localTcl) {
+            [string]$ef = (Get-Content $localTcl) -join "`n"
+        }
+    }
+    "$ef"
 }
 
 function Install-Mysql {
