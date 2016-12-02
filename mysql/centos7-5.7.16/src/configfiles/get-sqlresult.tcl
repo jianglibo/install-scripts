@@ -13,6 +13,9 @@ expect {
     exp_continue
   }
   "You have an error in your SQL syntax.*mysql> $" {
+    if {[info exists sql]} {
+      puts "*******got sql syntax error: $sql ******"
+    }
     puts  $expect_out(0,string)
     exit 1
   }

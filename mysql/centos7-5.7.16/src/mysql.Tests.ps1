@@ -32,6 +32,10 @@ function remove-mysql {
         systemctl stop "mysqld"
     }
 
+    if (Test-Path $myenv.resultFile) {
+        Remove-Item -Path $myenv.resultFile -Force
+    }
+
     $revRpms = Get-MysqlRpms $myenv | % {$_ -replace ".*/(.*)-[^-]+$", '$1'}
     [array]::reverse(($revRpms))
     $revRpms | % {yum -y remove $_} | Out-Null
@@ -78,13 +82,11 @@ Describe "code" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
         Get-mysqlcnfValue $myenv  "log-error"  | Should Be "/opt/mysqld-usage/mysqld.log"
     }
-    It "should install mysql" {
+    It "should handle misc" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
-#        remove-mysql -myenv $myenv
-#        return
-        ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
 
-        # bugs?
+        ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
+        ([array]($myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)})).Count | Should Be 1
         $boxes = @()
         foreach ($box in $myenv.boxGroup.boxes) {
             if (($box.roles -match $MYSQL_MASTER) -and ($box.roles -notmatch $MYSQL_REPLICA)) {
@@ -94,15 +96,9 @@ Describe "code" {
         $boxes.Count | Should Be 1
 
         ("2016-12-01T11:02:30.947935Z 1 [Note] A temporary password is generated for root@localhost: q&kefv.7emJM" | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1' | Should Be "q&kefv.7emJM"
-
-        # ($myenv.boxGroup.boxes | ? {(($_ | Select-Object -ExpandProperty roles) -match $MYSQL_MASTER) -and (($_ | Select-Object -ExpandProperty roles) -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
-
         $myenv.boxGroup.boxes | % {$_.roles} | ? {$_ -match $MYSQL_REPLICA} | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
 
         $boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
-
-
-
 
         if ( ! ( Get-UploadFiles $myenv | Select-Object -First 1 | Test-Path)) {
             Get-UploadFiles -myenv $myenv -OnlyName | Select-Object @{n="Path"; e={Join-Path $testTgzFolder -ChildPath $_}}, @{n="Destination";e={Join-Path $myenv.remoteFolder -ChildPath $_}} | Copy-Item
@@ -112,49 +108,17 @@ Describe "code" {
         $myenv.remoteFolder | Should Be "/easy-installer/"
         $rpms = (Get-UploadFiles -myenv $myenv | ? {$_ -match "(-server-\d+|-client-\d+|-common-\d+|-libs-\d+).*rpm$"} | Sort-Object) -join ' '
         $rpms | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
-
-        # (Get-MysqlRpms $myenv) -join " " | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
-
-        #(yum list installed | ? {$_ -match "mariadb-libs"}) -split "\s+" | Select-Object -First 1 | Should Be "mariadb-libs.x86_64"
-
+    }
+    It "should install-masterreplica" {
+        $myenv = New-EnvForExec $envfile | Decorate-Env
+        return
         remove-mysql $myenv
-
-        Install-Mysql $myenv
-
-        #@{newpass="aks23A%soid"}
-
-        Set-NewMysqlPassword $myenv "aks23A%soid"
-
-        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
-        $mysqlds = "[mysqld]"
-
-        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin" | Should Be $null
-
-        Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
-
-        $lb = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
-
-        $lb | Should Be "mysql-bin"
-
-        Comment-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
-
-        $mycnf.writeToFile()
-
-        $datadir = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "datadir"
-        Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$" | Should Be $null
-
-        Enable-LogBinAndRecordStatus $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"} (Get-MysqlRoleSum $myenv)
-
-        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
-
-        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"  | Should Be "mysql-bin"
-        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"  | Should Be $True
-
-        (Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$").Count -gt 0 | Should Be $True
-
+    }
+    It "should install-master" {
+        $myenv = New-EnvForExec $envfile | Decorate-Env
         remove-mysql $myenv
-
-        install-master $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"} | Write-Output -OutVariable fromTcl | Out-Null
+        $newpass = "aks&A2:93'7`""
+        install-master $myenv @{newpass="$newpass";replicauser="repl";replicapass="A2938^%'ccy"} | Write-Output -OutVariable fromTcl | Out-Null
 
         $fromTcl -match $R_T_C_B | Should Be $True
         $fromTcl -match $R_T_C_E | Should Be $True
@@ -185,14 +149,40 @@ Describe "code" {
         $returnToClient.master.position -match "\d+" | Should Be $True
 
         $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
-        Run-String -execute tclsh -content $ef -quotaParameter "aks23A%soid" "use mysql;select host,user from user;" | Write-Output -OutVariable fromTcl
 
-        Run-String -execute tclsh -content $ef -quotaParameter "aks23A%soid" "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
-        
+        Run-SQL -env $myenv -pass $newpass -sqls "use mysql;select host,user from user;" | Write-Output -OutVariable fromTcl
+        Run-SQL -env $myenv -pass $newpass -sqls  "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
+
+        $fromTcl | Write-Host
         $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
         $Matches[1] | Should Be "1"
 
         $LASTEXITCODE | Write-Host
-        # | Should Be "Enter password: "
+    }
+    It "should install mysql" {
+        $myenv = New-EnvForExec $envfile | Decorate-Env
+        return
+        remove-mysql $myenv
+        Install-Mysql $myenv
+        Set-NewMysqlPassword $myenv "aks23A%soid"
+        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+        $mysqlds = "[mysqld]"
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin" | Should Be $null
+        Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+        $lb = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+        $lb | Should Be "mysql-bin"
+        Comment-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+        $mycnf.writeToFile()
+        $datadir = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "datadir"
+        Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$" | Should Be $null
+
+        Enable-LogBinAndRecordStatus $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"} (Get-MysqlRoleSum $myenv)
+
+        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"  | Should Be "mysql-bin"
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"  | Should Be $True
+
+        (Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$").Count -gt 0 | Should Be $True
     }
 }

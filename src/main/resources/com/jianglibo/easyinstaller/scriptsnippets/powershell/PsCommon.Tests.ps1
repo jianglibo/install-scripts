@@ -3,11 +3,25 @@ $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 . "$here\$sut"
 
 Describe "PsCommon" {
+    It "should filter same" {
+        
+    }
     It "should parse parameter" {
         [hashtable]$h = Parse-Parameters "key:{value},,,key1:{value1}"
         $h.Count | Should Be 2
         $h.key | Should Be "value"
         $h.key1 | Should Be "value1"
+
+        [hashtable]$h = Parse-Parameters 'newpass:{aks&A2:937"},,,replicauser:{repl},,,replicapass:{aks&A2:937"}'
+
+        $h.Count | Should Be 3
+        $h.newpass | Should Be "aks&A2:937`""
+
+        [hashtable]$h = Parse-Parameters 'newpass:{{{aks&A2}:937"}}},,,replicauser:{repl},,,replicapass:{aks&A2:937"}'
+
+        $h.Count | Should Be 3
+        $h.newpass | Should Be '{{aks&A2}:937"}}'
+
     }
     It "does something useful" {
         $true | Should Be $true

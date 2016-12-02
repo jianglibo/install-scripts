@@ -1,7 +1,7 @@
 {
   "remoteFolder": "/easy-installer/",
   "box": {
-    "id": 1736704,
+    "id": 1769473,
     "ip": "192.168.33.110",
     "name": "box1",
     "hostname": "a0.host.name",
@@ -12,13 +12,13 @@
     "boxRoleConfig": ""
   },
   "boxGroup": {
-    "id": 1769472,
+    "id": 1802240,
     "name": "boxgroup1",
     "configContent": "# place holder\r\n",
     "installResults": null,
     "boxes": [
       {
-        "id": 1736704,
+        "id": 1769473,
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.name",
@@ -29,7 +29,7 @@
         "boxRoleConfig": null
       },
       {
-        "id": 1736706,
+        "id": 1769472,
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
@@ -40,7 +40,7 @@
         "boxRoleConfig": null
       },
       {
-        "id": 1736705,
+        "id": 1769474,
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
@@ -63,7 +63,7 @@
     "textfiles": [
       {
         "name": "get-sqlresult.tcl",
-        "content": "package require Expect\n\nset password [lindex $argv 0]\nset sqls [lrange $argv 1 end]\nset i 0\n\nspawn -noecho mysql -uroot -p\n\n# it's important to match whole output, matched string will remove from expect(buffer), so will not match by next loop.\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"You have an error in your SQL syntax.*mysql> $\" {\n    puts  $expect_out(0,string)\n    exit 1\n  }\n  \"mysql> $\" {\n        set sql [lindex $sqls $i]\n        if {[string length $sql] > 0} {\n          if {! [string equal \";\" [string index $sql end]]} {\n            set sql \"${sql};\"\n          }\n          incr i\n          exp_send \"$sql\\n\"\n          exp_continue\n        } else {\n          exp_send \"exit\\n\"\n        }\n  }\n  eof {}\n  timeout {}\n}\n# http://www.tcl.tk/man/expect5.31/expect.1.html\n# -re cause buffer to change.\n# if a process has produced output of \"abcdefgh\\n\"\n# set expect_out(0,string) cd\n# set expect_out(buffer) abcd\n# $expect_out(buffer)",
+        "content": "package require Expect\n\nset password [lindex $argv 0]\nset sqls [lrange $argv 1 end]\nset i 0\n\nspawn -noecho mysql -uroot -p\n\n# it's important to match whole output, matched string will remove from expect(buffer), so will not match by next loop.\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"You have an error in your SQL syntax.*mysql> $\" {\n    if {[info exists sql]} {\n      puts \"*******got sql syntax error: $sql ******\"\n    }\n    puts  $expect_out(0,string)\n    exit 1\n  }\n  \"mysql> $\" {\n        set sql [lindex $sqls $i]\n        if {[string length $sql] > 0} {\n          if {! [string equal \";\" [string index $sql end]]} {\n            set sql \"${sql};\"\n          }\n          incr i\n          exp_send \"$sql\\n\"\n          exp_continue\n        } else {\n          exp_send \"exit\\n\"\n        }\n  }\n  eof {}\n  timeout {}\n}\n# http://www.tcl.tk/man/expect5.31/expect.1.html\n# -re cause buffer to change.\n# if a process has produced output of \"abcdefgh\\n\"\n# set expect_out(0,string) cd\n# set expect_out(buffer) abcd\n# $expect_out(buffer)",
         "codeLineSeperator": "LF"
       },
       {
@@ -73,7 +73,7 @@
       },
       {
         "name": "change-init-pass.tcl",
-        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [lindex $argv 1]\n\nspawn mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"Welcome to the MySQL monitor.*mysql> $\" {\n    exp_send \"select 1;\\n\"\n    exp_continue\n  }\n  -re \"You must reset your password.*mysql> $\" {\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\n\"\n    exp_continue\n  }\n  \"Your password does not satisfy the current policy.*mysql> $\" {\n    puts $expect_out(0,string)\n    exit 1\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\n\"\n  }\n  eof {}\n  timeout {}\n}\n# -re cause buffer to change.\n# $expect_out(buffer)",
+        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [regsub -all {'} [lindex $argv 1] {\\'}]\n\nspawn mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"Welcome to the MySQL monitor.*mysql> $\" {\n    exp_send \"select 1;\\n\"\n    exp_continue\n  }\n  -re \"You must reset your password.*mysql> $\" {\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\n\"\n    exp_continue\n  }\n  \"Your password does not satisfy the current policy.*mysql> $\" {\n    puts \"$expect_out(0,string)\"\n    exit 1\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\n\"\n  }\n  eof {}\n  timeout {}\n}\n# -re cause buffer to change.\n# $expect_out(buffer)",
         "codeLineSeperator": "LF"
       }
     ],

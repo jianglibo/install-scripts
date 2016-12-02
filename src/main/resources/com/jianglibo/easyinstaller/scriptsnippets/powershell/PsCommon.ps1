@@ -78,15 +78,25 @@ function Alter-ResultFile {
 }
 
 function Run-String {
-    Param([string]$execute, [parameter(ValueFromPipeline=$True)][string]$content,[switch]$quotaParameter, [parameter(ValueFromRemainingArguments=$True)]$others)
+    Param([string]$execute, [parameter(ValueFromPipeline=$True)][string]$content,[string]$quotaChar,[switch]$quotaInnerQuota, [parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
 
     $content | Out-File -FilePath $tf -Encoding ascii
-    if ($quotaParameter) {
-        $others = $others | % {'"' + $_ + '"'}
+    if ($quotaChar -eq "'") {
+        if ($quotaInnerQuota) {
+            $others = $others | % {"'" + ($_ -replace "'","'`"'`"'") + "'"}
+        } else {
+            $others = $others | % {"'" + $_ + "'"}
+        }
+    } elseif ($quotaChar -eq '"') {
+        if ($quotaInnerQuota) {
+            $others = $others | % {'"' + ($_ -replace '"',"`"'`"'`"") + '"'}
+        } else {
+            $others = $others | % {'"' + $_ + '"'}
+        }
     }
+    $execute,$tf + $others -join " " | Write-Host
     $execute,$tf + $others -join " " | Invoke-Expression
-
     Remove-Item -Path $tf
 }
 

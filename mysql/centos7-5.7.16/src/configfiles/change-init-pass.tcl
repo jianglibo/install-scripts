@@ -1,7 +1,7 @@
 package require Expect
 
 set password [lindex $argv 0]
-set newpass [lindex $argv 1]
+set newpass [regsub -all {'} [lindex $argv 1] {\'}]
 
 spawn mysql -uroot -p
 
@@ -19,7 +19,7 @@ expect {
     exp_continue
   }
   "Your password does not satisfy the current policy.*mysql> $" {
-    puts $expect_out(0,string)
+    puts "$expect_out(0,string)"
     exit 1
   }
   "mysql> $" {

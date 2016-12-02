@@ -5,6 +5,8 @@
 # ALTER USER USER() IDENTIFIED BY 'mypass'; // change own password.
 # SET PASSWORD FOR 'jeffrey'@'localhost' = PASSWORD('mypass');
 
+# when this file got parameter, bash escape has done. for exampe '"'"' already change to '
+
 Param(
     [parameter(Mandatory=$true)]$envfile,
     [parameter(Mandatory=$true)]$action,
@@ -39,22 +41,29 @@ mysql> CHANGE MASTER TO
     ->     MASTER_LOG_FILE='recorded_log_file_name',
     ->     MASTER_LOG_POS=recorded_log_position;
 #>
+function Run-SQL {
+    Param($env, $pass, $sqls)
+    $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
+    Run-String -execute tclsh -content $ef -quotaInnerQuota -quotaChar '"' $pass $sqls
+}
 
 function Get-MysqlRoleSum {
     Param($myenv)
     $rh = @{}
 
-    $mrnumber = ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -match $MYSQL_REPLICA)}).Count
-    if ($mrnumber -gt 1) {
+    # mater-replica boxes
+    [array]$mrboxes = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
+    if ($mrboxes.Count -gt 1) {
         Write-Error "There can only be one server with both MYSQL_MASTER and MYSQL_REPLICA roles."
     }
 
-    $mnumber = ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count
-    if ($mnumber -ne 1) {
-        Write-Error "There can only be one server with MYSQL_MASTER roles, but $mnumber"
+    # master boxes
+    [array]$mboxes = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)}
+    if ($mboxes.Count -ne 1) {
+        Write-Error "There can only be one server with MYSQL_MASTER roles, but ${mboxes.Count}"
     }
 
-    if ($mrnumber -eq 1) {
+    if ($mrboxes.Count -eq 1) {
         $rh.type = "chained"
     } else {
         $rh.type = "notchained"
@@ -74,6 +83,7 @@ function Get-MysqlRoleSum {
 
 function install-master {
    Param($myenv, $paramsHash)
+
    $rsum = Get-MysqlRoleSum -myenv $myenv
 
    if ($rsum.mine -ne "m") {
@@ -84,33 +94,75 @@ function install-master {
       Write-Error "For install action, newpass,replicauser,replicapass are mandontory."
    }
 
-   if (Centos7-IsServiceExists mysqld) {
-        "mysql is already installed...., skip installation."
+   if (Test-Path $myenv.resultFile) {
+      $resultHash = Get-Content $myenv.resultFile | ConvertFrom-Json
+
+      if ($resultHash.info.installation.completed) {
+        Write-Output "mysqld already installed."
         return
+      }
    }
-   Install-Mysql $myenv
+
+   Install-Mysql $myenv $paramsHash
    Set-NewMysqlPassword $myenv $paramsHash.newpass
    # before enable log-bin, create replica users first, prevent it from copy to other servers.
-   $boxes = @()
    if ($rsum.type -eq "chained") { # master only need create one replica user.
-      foreach ($box in $myenv.boxGroup.boxes) {
-         if (($box.roles -match $MYSQL_MASTER) -and ($box.roles -notmatch $MYSQL_REPLICA)) {
-            $boxes += $box
-          }
-      }
+      $box = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
    } else { # create replica users for all slaves.
-         foreach ($box in $myenv.boxGroup.boxes) {
-         if ($box.roles -notmatch $MYSQL_REPLICA) {
-            $boxes += $box
-          }
+      $box = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
+   }   
+   $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, $paramsHash.replicapass,$_.hostname}) -join ";"
+
+   Run-SQL -env $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
+
+   if ($LASTEXITCODE -ne 0) {
+      Write-Error "execute 'get-sqlresult.tcl' failed. $fromTcl"
+   }
+   Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
+   Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
+}
+
+function install-masterreplica {
+   Param($myenv, $paramsHash)
+
+   $rsum = Get-MysqlRoleSum -myenv $myenv
+
+   if ($rsum.mine -ne "mr") {
+       "this server not configurated as masterreplic...., skip installation."
+        return
+   }
+   if (!$paramsHash.newpass -or !$paramsHash.replicauser -or !$paramsHash.replicapass) {
+      Write-Error "For install action, newpass,replicauser,replicapass are mandontory."
+   }
+
+   # if master hadn't installed skip it.
+   if (!$myenv.boxGroup.installResults.master) {
+        Write-Output "Please install master first!"
+        return
+   }
+
+   if (Test-Path $myenv.resultFile) {
+      $resultHash = Get-Content $myenv.resultFile | ConvertFrom-Json
+
+      if ($resultHash.info.installation.completed) {
+        Write-Output "mysqld already installed."
+        return
       }
    }
-   
+
+   Install-Mysql $myenv $paramsHash
+   Set-NewMysqlPassword $myenv $paramsHash.newpass
+   # before enable log-bin, create replica users first, prevent it from copy to replica servers.
+   [array]$boxes = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
+   # because this is a master-replica, all replica account create here, except itself.
    $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, $paramsHash.replicapass,$_.hostname}) -join ";"
-   $sqls | write-host
-   $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
-   Run-String -execute tclsh -content $ef -quotaParameter $paramsHash.newpass $sqls | Write-Output -OutVariable fromTcl
+   Run-SQL -env $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
+   if ($LASTEXITCODE -ne 0) {
+      Write-Error "$fromTcl"
+   }
    Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
+
+   Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
 
 function Get-MysqlRpms {
@@ -123,38 +175,38 @@ function Get-MysqlRpms {
 
 
 function Set-NewMysqlPassword {
-    Param($myenv, $newpassword)
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+    Param($myenv,$newpassword)
 
-    if ($rh.info -and $rh.info.initPasswordReseted) {
-        Write-Error "Initial Password already rested, skipping..."
-    }
-
-    if (!($rh.info -and $rh.info.firstRunned)) {
-        Write-Error "Mysqld hadn't ran once, skipping..."
+    $resultHash = Get-Content $myenv.resultFile | ConvertFrom-Json
+    if ($resultHash.info.installation.initPasswordReseted) {
+       return
     }
 
     $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
-    $ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
-
     $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1'
 
-    Run-String -execute tclsh -content $ef -quotaParameter "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl
+    [string]$ef = $myenv.software.textfiles | Where-Object Name -EQ "change-init-pass.tcl" | Select-Object -First 1 -ExpandProperty content
+
+    $localTcl = $codefile | Split-Path -Parent | Join-Path -ChildPath configfiles | Join-Path -ChildPath "change-init-pass.tcl"
+    if (Test-Path $localTcl) {
+        [string]$ef = (Get-Content $localTcl) -join "`n"
+    }
+    Run-String -execute tclsh -content $ef -quotaInnerQuota -quotaChar "'" "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl | Out-Null
+
+    $fromTcl | Write-Host
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "change-init-pass.tcl exit with none zero. $fromTcl"
     }
-
-    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","initPasswordReseted" -value $True
+    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","initPasswordReseted" -value $True
 }
+
 function Enable-LogBinAndRecordStatus {
     Param($myenv, $paramsHash, $rsum)
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
-    if (!$rh.info -or !$rh.info.initPasswordReseted) {
-        Write-Error "Please reset mysqld init password first."
-    }
 
-    if ($rh.info -and $rh.info.logBinEnabled) {
+    $resultHash = Get-Content $myenv.resultFile | ConvertFrom-Json
+
+    if ($resultHash.info.installation.logBinEnabled) {
         Write-Error "logbin already enabled. skipping....."
     }
 
@@ -179,8 +231,7 @@ function Enable-LogBinAndRecordStatus {
     $sf.writeToFile()
     systemctl restart mysqld | Out-Null
 
-    $ef = $myenv.software.textfiles | Where-Object Name -EQ "get-sqlresult.tcl" | Select-Object -First 1 -ExpandProperty content
-    Run-String -execute tclsh -content $ef -quotaParameter $paramsHash.newpass "show master status;" | Write-Output -OutVariable fromTcl
+    Run-SQL -env $myenv -pass $paramsHash.newpass -sqls "show master status;" | Write-Output -OutVariable fromTcl | Out-Null
 
     $fromTcl | ? {$_ -match "(${logbin}\.\d+)\s*\|\s*(\d+)\s*\|"} | Select-Object -First 1 | Write-Output -OutVariable matchedLine
 
@@ -196,10 +247,17 @@ function Enable-LogBinAndRecordStatus {
         $returnToClient.master.position = $Matches[2]
         Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
     }
+    if ($rsum.mine -eq "mr") {
+        $returnToClient.masterreplica = @{}
+        $returnToClient.masterreplica.logname = $Matches[1]
+        $returnToClient.masterreplica.position = $Matches[2]
+        Alter-ResultFile -resultFile $myenv.resultFile -keys "info","masterreplica" -value $returnToClient.masterreplica
+        # need execute change master to statement.
+    }
     $R_T_C_B
     $returnToClient | ConvertTo-Json
     $R_T_C_E
-
+    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation", "logBinEnabled" -value $True
 }
 
 function Install-Mysql {
@@ -207,6 +265,13 @@ function Install-Mysql {
     $resultHash = @{}
     $resultHash.env = @{}
     $resultHash.info = @{}
+
+    if (Test-Path $myenv.resultFile) {
+        if ((Get-Content $myenv.resultFile | ConvertFrom-Json).info.installation.installed) {
+            return
+        }
+    }
+
     Detect-RunningYum
     $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
 
@@ -251,15 +316,18 @@ function Install-Mysql {
 
     # start mysqld£¬ when mysql first start, It will create directory and user to run mysql.
     # so just change my.cnf, that's all.
-    systemctl enable mysqld | Out-Null
-    systemctl start mysqld | Out-Null
+    systemctl enable mysqld | Write-Output -OutVariable fromSh | Out-Null
+    systemctl start mysqld | Write-Output -OutVariable fromSh | Out-Null
 
-    $resultHash.info.firstRunned = $True
+    if ($LASTEXITCODE -ne 0 ) {
+        Write-Error "Start Mysqld failed. $fromSh"
+    }
 
     $resultHash | ConvertTo-Json | Out-File -FilePath  $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
+    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","installed" -value $True
 }
 
 function expose-env {
@@ -280,17 +348,17 @@ switch ($action) {
         $ph | Write-Output
         Install-master $myenv $ph
     }
-#    "enableLogBin" {
-#        Enable-LogBinAndRecordStatus $myenv
-#    }
-#    "changePassword" {
-#        Set-NewMysqlPassword $myenv @remainingArguments
-#    }
-#    "start" {
-#        if (!(Centos7-IsServiceRunning "mysqld")) {
-#            systemctl start mysqld
-#        }
-#    }
+    "install-masterreplica" {
+        install-masterreplica $myenv $ph
+    }
+    "install-replica" {
+        install-replica $myenv $ph
+    }
+    "start" {
+        if (!(Centos7-IsServiceRunning "mysqld")) {
+            systemctl start mysqld
+        }
+    }
     "stop" {
         if (Centos7-IsServiceRunning mysqld) {
             systemctl stop mysqld
