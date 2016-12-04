@@ -65,19 +65,28 @@ function Centos7-FileWall {
         }
         $firewalld = "firewalld"
         if (! (Centos7-IsServiceEnabled -serviceName $firewalld)) {
-            systemctl enable $firewalld *>1 | Out-Null
+            systemctl enable $firewalld *>&1 | Write-Output -OutVariable fromBash | Out-Null
         }
 
         if (! (Centos7-IsServiceRunning -serviceName $firewalld)) {
-            systemctl start $firewalld *>1 | Out-Null
+            systemctl start $firewalld *>&1 | Write-Output -OutVariable fromBash | Out-Null
         }
         if ($delete) {
             $action = "--remove-port"
         } else {
             $action = "--add-port"
         }
-        foreach ($one in $ports) {
-            firewall-cmd --permanent --zone=public $action "$one/$prot" | Out-Null
+        try {
+            foreach ($one in $ports) {
+                firewall-cmd --permanent --zone=public $action "$one/$prot" | Out-Null
+            }
+        }
+        catch {
+            if ($fromBash -match "Nothing to do") {
+                $Error.Clear()
+            } else {
+                $fromBash
+            }
         }
     }
     end {

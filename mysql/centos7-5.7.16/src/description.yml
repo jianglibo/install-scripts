@@ -8,7 +8,7 @@ configContent: config.yml
 codeFileExt: ps1
 codeLineSeperator: LF
 runas:
-actions: install-master,install-masterreplica,install-replica,createUser
+actions: install-master,install-masterreplica,install-replica,create-user
 actionDescriptions: actions.yaml
 filesToUpload:
   - mysql-community-client-5.7.16-1.el7.x86_64.rpm

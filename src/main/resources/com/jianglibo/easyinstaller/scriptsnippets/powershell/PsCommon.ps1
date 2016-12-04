@@ -24,18 +24,17 @@ function Run-Tar {
     if ($r.Count -gt 0) {$false} else {$True}
 }
 
-# parameter string format: key:{value},,,key1:{value1}
 function Parse-Parameters {
-    Param($parastr)
-    $h = @{}
-    if (Trim-All $parastr) {
-        $parastr -split ',,,' | % {
-            if ($_ -match "^(.*?):{(.*)}$") {
-                $h[$Matches[1]] = $Matches[2]
-            }
-        } | Out-Null
+    Param([parameter(ValueFromPipeline=$True)]$parastr)
+    $mayBeJsonSting = Decode-Base64 -base64Str $parastr
+    try {
+        $mayBeJsonSting | ConvertFrom-Json -ErrorAction SilentlyContinue -OutVariable mayBeJson | Out-Null
+        $mayBeJson
     }
-    $h
+    catch {
+        $Error.Clear()
+        Write-Output $mayBeJsonSting
+    }
 }
 
 function Alter-ResultFile {
@@ -107,15 +106,36 @@ function Quota-Quota {
     $others
 }
 
+function Write-HostIfInTesting {
+    Param([parameter(ValueFromPipeline=$True)]$messageToWrite)
+    if ($I_AM_IN_TESTING) {
+        $messageToWrite | Write-Host
+    }
+}
+
+function Write-OutputIfTesting {
+    Param([parameter(ValueFromPipeline=$True)]$messageToWrite)
+    if ($I_AM_IN_TESTING) {
+        $messageToWrite
+    }
+}
+
 function Run-Tcl {
     Param([parameter(ValueFromPipeline=$True)]$content,[parameter(ValueFromRemainingArguments=$True)]$others)
-    $tf = (New-TemporaryFile).FullName
-
-    $content | Out-File -FilePath $tf -Encoding ascii
-    $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
-    ("tclsh",$tf + $others) -join " " | Write-Host
-    ("tclsh",$tf + $others) -join " " | Invoke-Expression
-    Remove-Item -Path $tf
+    begin {
+        $lines = @()
+    }
+    process {
+        $lines += $content
+    }
+    end {
+        $tf = (New-TemporaryFile).FullName
+        $lines | Out-File -FilePath $tf -Encoding ascii
+        $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
+        ("tclsh",$tf + $others) -join " " | Write-HostIfInTesting
+        ("tclsh",$tf + $others) -join " " | Invoke-Expression *>&1
+        Remove-Item -Path $tf
+    }
 }
 
 function Run-String {

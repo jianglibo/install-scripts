@@ -1,4 +1,5 @@
-﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿#$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$here = $PSScriptRoot
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 
 $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
@@ -13,7 +14,7 @@ $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/
 
 $result = . "$here\$sut" -envfile $envfile -action t (Encode-Base64 "param0 param1 param2")
 
-$there = Join-Path -Path $here -ChildPath "abc"
+$I_AM_IN_TESTING = $True
 
 function Get-MysqlcnfValue {
     Param($myenv, $key)
@@ -52,11 +53,14 @@ function remove-mysql {
 Describe "code" {
     It "should get-tclcontent" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
-        $there | Should Be $True
-        Get-TclContent -myenv $myenv -codefile $there -filename "get-sqlresult.tcl" -loadLocal | Should Be $True
+        Get-TclContent -myenv $myenv -filename "get-sqlresult.tcl" | Should Be $True
     }
     It "should return right result" {
         $result | Should Be "param0 param1 param2"
+
+        $p = Encode-Base64 '{"a":1, "b": "xx"}' | Parse-Parameters
+        $p.a | Should Be 1
+        $p.b | Should Be "xx"
     }
     It "should handle remaining parameters" {
         function t-t {
@@ -117,14 +121,17 @@ Describe "code" {
     }
     It "should install-masterreplica" {
         $myenv = New-EnvForExec $envfile | Decorate-Env
-        return
         remove-mysql $myenv
+        return
     }
     It "should install-master" {
+    return
         $myenv = New-EnvForExec $envfile | Decorate-Env
         remove-mysql $myenv
-        $newpass = "aks&A2:93'7`""
-        install-master $myenv @{newpass="$newpass";replicauser="repl";replicapass="A2938^%'`"ccy"} | Write-Output -OutVariable fromTcl | Out-Null
+        $newpass = "uvks^27A`"123'"
+        $replicapass = "kls@9s9Y28s"
+
+        install-master $myenv @{newpass="$newpass";replicauser="repl";replicapass=$replicapass} | Write-Output -OutVariable fromTcl | Out-Null
 
         $fromTcl -match $R_T_C_B | Should Be $True
         $fromTcl -match $R_T_C_E | Should Be $True
@@ -166,8 +173,9 @@ Describe "code" {
         $LASTEXITCODE | Write-Host
     }
     It "should install mysql" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
         return
+        remove-mysql $myenv
+        $myenv = New-EnvForExec $envfile | Decorate-Env
         remove-mysql $myenv
         Install-Mysql $myenv
         Set-NewMysqlPassword $myenv "aks23A%soid"

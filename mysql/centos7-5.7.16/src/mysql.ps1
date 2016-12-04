@@ -10,8 +10,7 @@
 Param(
     [parameter(Mandatory=$true)]$envfile,
     [parameter(Mandatory=$true)]$action,
-    [string]$remainingArguments,
-    [string]$codefile
+    [string]$remainingArguments
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
@@ -20,14 +19,6 @@ Param(
 $MYSQL_MASTER = "MYSQL_MASTER"
 $MYSQL_REPLICA = "MYSQL_REPLICA"
 
-$remainingArguments | Write-Host
-$remainingArguments = Decode-Base64 $remainingArguments
-$remainingArguments | Write-Host
-
-if (! $codefile) {
-    $codefile = $MyInvocation.MyCommand.Path
-}
-
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
     # piddir and logdir
@@ -35,19 +26,17 @@ function Decorate-Env {
     $myenv
 }
 
-<#
-mysql> CHANGE MASTER TO
-    ->     MASTER_HOST='master_host_name',
-    ->     MASTER_USER='replication_user_name',
-    ->     MASTER_PASSWORD='replication_password',
-    ->     MASTER_LOG_FILE='recorded_log_file_name',
-    ->     MASTER_LOG_POS=recorded_log_position;
-#>
 function Run-SQL {
     Param($myenv, $pass, $sqls)
-    $code = Get-TclContent -myenv $myenv -codefile $codefile -filename "get-sqlresult.tcl"
-    # -loadLocal
-    Run-Tcl -content $code $pass $sqls
+    $fn = "get-sqlresult.tcl"
+    $code = Get-TclContent -myenv $myenv -filename $fn
+    Run-Tcl -content $code $pass $sqls *>&1 | Write-Output -NoEnumerate -OutVariable fromRunSql
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "execute '$fn' failed. $fromRunSql"
+    }
+    $fromRunSql | Write-HostIfInTesting
+    $fromRunSql | Write-OutputIfTesting
+    $fromRunSql
 }
 
 function Get-MysqlRoleSum {
@@ -115,13 +104,7 @@ function install-master {
       $boxes = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
    }
    $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, ($paramsHash.replicapass -replace "'","\'"),$_.hostname}) -join ";"
-   Run-SQL -env $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
-
-   $fromTcl | Write-Host
-
-   if ($LASTEXITCODE -ne 0) {
-      Write-Error "execute 'get-sqlresult.tcl' failed. $fromTcl"
-   }
+   Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl
    Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
@@ -147,7 +130,6 @@ function install-masterreplica {
 
    if (Test-Path $myenv.resultFile) {
       $resultHash = Get-Content $myenv.resultFile | ConvertFrom-Json
-
       if ($resultHash.info.installation.completed) {
         Write-Output "mysqld already installed."
         return
@@ -157,14 +139,19 @@ function install-masterreplica {
    Install-Mysql $myenv $paramsHash
    Set-NewMysqlPassword $myenv $paramsHash.newpass
    # before enable log-bin, create replica users first, prevent it from copy to replica servers.
-   [array]$boxes = $myenv.boxGroup.boxes | ? {$_.roles -notmatch $MYSQL_MASTER}
+   [array]$boxes = $myenv.boxGroup.boxes | ? {($_.roles -notmatch $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
    # because this is a master-replica, all replica account create here, except itself.
    $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, ($paramsHash.replicapass -replace "'","\'"), $_.hostname}) -join ";"
-   Run-SQL -env $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
-   if ($LASTEXITCODE -ne 0) {
-      Write-Error "$fromTcl"
-   }
+
+   Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
    Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
+
+   # get master host
+   $masterBox = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)} | Select-Object -First 1
+
+   $sqls = "CHANGE MASTER TO MASTER_HOST='{0}', MASTER_USER='{1}', MASTER_PASSWORD='{2}', MASTER_LOG_FILE='{3}', MASTER_LOG_POS={4};" -f $masterBox.hostname, $paramsHash.replicauser, ($paramsHash.replicapass -replace "'", "\'"), $myenv.boxGroup.installResults.master.logname, $myenv.boxGroup.installResults.master.position
+   # $myenv.boxGroup.installResults.master.logname, position
+   Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
 
    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
@@ -187,14 +174,9 @@ function Set-NewMysqlPassword {
     }
     $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1'
-    $code = Get-TclContent -myenv $myenv -codefile $codefile -filename "change-init-pass.tcl"
-    # -loadLocal
+    $code = Get-TclContent -myenv $myenv -filename "change-init-pass.tcl"
     Run-Tcl -content $code "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl | Out-Null
-    $fromTcl | Write-Host
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "change-init-pass.tcl exit with none zero. $fromTcl"
-    }
     Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","initPasswordReseted" -value $True
 }
 
@@ -207,35 +189,33 @@ function Enable-LogBinAndRecordStatus {
         Write-Error "logbin already enabled. skipping....."
     }
 
-    $sf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $myenf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $mysqlds = "[mysqld]"
 
-    $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
+    $serverId = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "server-id"
 
     if (! $serverId) {
-        Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id" -value (Get-Random)
-        $serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
+        Add-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "server-id" -value (Get-Random)
+        $serverId = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "server-id"
     }
 
-    Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+    Add-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
 
     if ($rsum.mine -eq "mr") {
-        Add-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-slave-updates" -value "on"
+        Add-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "log-slave-updates" -value "on"
     }
 
-    $logbin = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+    $myenf.writeToFile()
+    $logbin = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
 
-    $sf.writeToFile()
-    systemctl restart mysqld | Out-Null
+    systemctl restart mysqld
 
-    Run-SQL -env $myenv -pass $paramsHash.newpass -sqls "show master status;" | Write-Output -OutVariable fromTcl | Out-Null
-
-    $fromTcl | Write-Host
+    Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls "show master status;" | Write-Output -OutVariable fromTcl
 
     $fromTcl | ? {$_ -match "(${logbin}\.\d+)\s*\|\s*(\d+)\s*\|"} | Select-Object -First 1 | Write-Output -OutVariable matchedLine
 
     if (!$matchedLine -or ($LASTEXITCODE -ne 0)) {
-        Write-Error "show master status doesn't work properly.. $fromTcl"
+        Write-Error "show master status doesn't work properly.. ${fromTcl}, and matchedLine is: ${matchedLine}, and lastexitcode is: $LASTEXITCODE"
     }
 
     $returnToClient = @{}
@@ -259,16 +239,18 @@ function Enable-LogBinAndRecordStatus {
     Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation", "logBinEnabled" -value $True
 }
 
+$cnt = 0
+
 function Get-TclContent {
-    Param($myenv,$codefile, $filename,[switch]$loadLocal)
-    [string]$ef = $myenv.software.textfiles | Where-Object Name -EQ $filename | Select-Object -First 1 -ExpandProperty content
-    if ($loadLocal) {
-        $localTcl = $codefile | Split-Path -Parent | Join-Path -ChildPath configfiles | Join-Path -ChildPath $filename
+    Param($myenv,$filename)
+    $ef = $myenv.software.textfiles | ? {$_.name -eq $filename} | Select-Object -First 1 -ExpandProperty content
+    if ($I_AM_IN_TESTING) {
+        $localTcl = $PSScriptRoot | Join-Path -ChildPath configfiles | Join-Path -ChildPath $filename
         if (Test-Path $localTcl) {
             [string]$ef = (Get-Content $localTcl) -join "`n"
         }
     }
-    "$ef"
+    $ef
 }
 
 function Install-Mysql {
@@ -296,22 +278,25 @@ function Install-Mysql {
     #write my.cnf
     $myenv.software.textfiles | ? {$_.name -eq "my.cnf"} | Select-Object -First 1 -ExpandProperty content | Out-File -FilePath "/etc/my.cnf" -Encoding ascii
 
-    $sf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $myenf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $mysqlds = "[mysqld]"
 
-    $logError = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-error"
-    $datadir = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "datadir"
-    $pidFile = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "pid-file"
-    $socket = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "socket"
+    $logError = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "log-error"
+    $datadir = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "datadir"
+    $pidFile = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "pid-file"
+    $socket = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "socket"
+    $port = Choose-FirstTrueValue (Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "port") "3306"
+
+    Centos7-FileWall -ports $port
 
     # first comment out log-bin and server-id item.
-    Comment-SectionKv -parsedSectionFile $sf -section $mysqlds -key "log-bin"
-    Comment-SectionKv -parsedSectionFile $sf -section $mysqlds -key "server-id"
-    $sf.writeToFile()
+    Comment-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
+    Comment-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "server-id"
+    $myenf.writeToFile()
 
-    #$binLog = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "log-bin"
+    #$binLog = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
     # we cannot use this server-id value, because all box are same.
-    #$serverId = Get-SectionValueByKey -parsedSectionFile $sf -section $mysqlds -key "server-id"
+    #$serverId = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "server-id"
 
     if (! (Split-Path -Parent $datadir | Test-Path)) {
         Split-Path -Parent $datadir | New-Directory | Out-Null
@@ -336,7 +321,7 @@ function Install-Mysql {
 
     $resultHash | ConvertTo-Json | Out-File -FilePath  $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
-    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
+    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
     Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","installed" -value $True
 }
@@ -355,15 +340,13 @@ $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
     "install-master" {
-        $ph = Parse-Parameters $remainingArguments
-        $ph | Write-Output
-        Install-master $myenv $ph
+        Install-master $myenv (Parse-Parameters $remainingArguments)
     }
     "install-masterreplica" {
-        install-masterreplica $myenv $ph
+        install-masterreplica $myenv (Parse-Parameters $remainingArguments)
     }
     "install-replica" {
-        install-replica $myenv $ph
+        install-replica $myenv (Parse-Parameters $remainingArguments)
     }
     "start" {
         if (!(Centos7-IsServiceRunning "mysqld")) {
@@ -376,7 +359,7 @@ switch ($action) {
         }
     }
     "t" {
-        $remainingArguments
+        Parse-Parameters $remainingArguments
         return
     }
     default {

@@ -13,7 +13,7 @@ foreach sql $sqls {
 
 set sqls $newsqls
 
-spawn -noecho mysql -uroot -p
+spawn mysql -uroot -p
 
 # it's important to match whole output, matched string will remove from expect(buffer), so will not match by next loop.
 expect {
@@ -21,14 +21,15 @@ expect {
     exp_send "$password\n"
     exp_continue
   }
-  "You have an error in your SQL syntax.*mysql> $" {
+  -re "You have an error in your SQL syntax.*mysql> $" {
     if {[info exists sql]} {
       puts "*******got sql syntax error: $sql ******"
     }
     puts  $expect_out(0,string)
+    close $fid
     exit 1
   }
-  "mysql> $" {
+  -re ".*mysql> $" {
         set sql [lindex $sqls $i]
         if {[string length $sql] > 0} {
           if {! [string equal ";" [string index $sql end]]} {
@@ -44,6 +45,7 @@ expect {
   eof {}
   timeout {}
 }
+
 # http://www.tcl.tk/man/expect5.31/expect.1.html
 # -re cause buffer to change.
 # if a process has produced output of "abcdefgh\n"

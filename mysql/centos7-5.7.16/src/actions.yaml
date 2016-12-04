@@ -1,4 +1,21 @@
-createUser: rootpassword:{password},,,sql:{CREATE USER 'jeffrey'@'localhost' IDENTIFIED BY 'new_password';} #PASSWORD EXPIRE
-install-master: newpass:{nps},,,replicauser:{repl},,,replicapass:{replicapass}
-install-masterreplica: newpass:{nps},,,replicauser:{repl},,,replicapass:{replicapass}
-install-replica: newpass:{nps}
+# {{{json}}}, this line determines finnal data formart transfer to server. support {json},{yaml},{xml}, default is plain text. this line will be removed automatically.
+create-user:
+  # this is in yaml format
+  rootpass:
+  userpass:
+  user: #jeffery@localhost
+  comment: CREATE USER 'jeffrey'@'localhost' IDENTIFIED BY 'new_password';
+install-master:
+  # this is in yaml format
+  newpass:
+  replicauser:
+  replicapass:
+  comment: please remember theses passwords, they are required for following steps.
+install-masterreplica:
+  # this is in yaml format
+  newpass:
+  replicauser:
+  replicapass:
+install-replica:
+  # this is in yaml format
+  newpass:
