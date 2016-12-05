@@ -109,6 +109,58 @@ function install-master {
    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
 
+function install-replica {
+   Param($myenv, $paramsHash)
+
+   $rsum = Get-MysqlRoleSum -myenv $myenv
+
+   if ($rsum.mine -ne "r") {
+       "this server not configurated as replica server...., skip installation."
+        return
+   }
+
+   if (!$paramsHash.newpass -or !$paramsHash.replicauser -or !$paramsHash.replicapass) {
+      Write-Error "For install action, newpass,replicauser,replicapass are mandontory."
+   }
+
+   if ($rsum.type -eq "chained") {
+       if (!($myenv.boxGroup.installResults.masterreplica -and $myenv.boxGroup.installResults.master)) {
+            Write-Output "Please install master-replica first!"
+            return
+       }
+   } else {
+       if (!$myenv.boxGroup.installResults.master) {
+            Write-Output "Please install master first!"
+            return
+       }
+   }
+
+   if (Test-Path $myenv.resultFile) {
+      $resultHash = Get-Content $myenv.resultFile | ConvertFrom-Json
+      if ($resultHash.info.installation.completed) {
+        Write-Output "mysqld already installed."
+        return
+      }
+   }
+
+   Install-Mysql $myenv $paramsHash
+   Set-NewMysqlPassword $myenv $paramsHash.newpass
+   # get master host
+   if ($rsum.type -eq "chained") {
+       $masterBox = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)} | Select-Object -First 1
+       $ir =  $myenv.boxGroup.installResults.masterreplica
+       $fa = $masterBox.hostname, $paramsHash.replicauser, ($paramsHash.replicapass -replace "'", "\'"),$ir.logname, $ir.position, (Choose-FirstTrueValue $ir.port "3306")
+   } else {
+      $masterBox = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)} | Select-Object -First 1
+      $ir =  $myenv.boxGroup.installResults.master
+      $fa = $masterBox.hostname, $paramsHash.replicauser, ($paramsHash.replicapass -replace "'", "\'"),$ir.logname, $ir.position, (Choose-FirstTrueValue $ir.port "3306")
+   }
+   $sqls = "CHANGE MASTER TO MASTER_HOST='{0}', MASTER_USER='{1}', MASTER_PASSWORD='{2}', MASTER_LOG_FILE='{3}', MASTER_LOG_POS={4}, MASTER_PORT={5};" -f $fa
+   # $myenv.boxGroup.installResults.master.logname, position
+   Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
+   Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
+}
+
 function install-masterreplica {
    Param($myenv, $paramsHash)
 
@@ -148,8 +200,7 @@ function install-masterreplica {
 
    # get master host
    $masterBox = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)} | Select-Object -First 1
-
-   $sqls = "CHANGE MASTER TO MASTER_HOST='{0}', MASTER_USER='{1}', MASTER_PASSWORD='{2}', MASTER_LOG_FILE='{3}', MASTER_LOG_POS={4};" -f $masterBox.hostname, $paramsHash.replicauser, ($paramsHash.replicapass -replace "'", "\'"), $myenv.boxGroup.installResults.master.logname, $myenv.boxGroup.installResults.master.position
+   $sqls = "CHANGE MASTER TO MASTER_HOST='{0}', MASTER_USER='{1}', MASTER_PASSWORD='{2}', MASTER_LOG_FILE='{3}', MASTER_LOG_POS={4}, MASTER_PORT={5};" -f $masterBox.hostname, $paramsHash.replicauser, ($paramsHash.replicapass -replace "'", "\'"), $myenv.boxGroup.installResults.master.logname, $myenv.boxGroup.installResults.master.position, (Choose-FirstTrueValue $myenv.boxGroup.installResults.master.port "3306")
    # $myenv.boxGroup.installResults.master.logname, position
    Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
 
@@ -224,12 +275,14 @@ function Enable-LogBinAndRecordStatus {
         $returnToClient.master = @{}
         $returnToClient.master.logname = $Matches[1]
         $returnToClient.master.position = $Matches[2]
+        $returnToClient.master.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "port") "3306"
         Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
     }
     if ($rsum.mine -eq "mr") {
         $returnToClient.masterreplica = @{}
         $returnToClient.masterreplica.logname = $Matches[1]
         $returnToClient.masterreplica.position = $Matches[2]
+        $returnToClient.masterreplica.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "port") "3306"
         Alter-ResultFile -resultFile $myenv.resultFile -keys "info","masterreplica" -value $returnToClient.masterreplica
         # need execute change master to statement.
     }

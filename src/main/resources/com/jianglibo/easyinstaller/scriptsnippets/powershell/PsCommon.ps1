@@ -330,6 +330,10 @@ function New-EnvForExec {
         "{0}-{1}-{2}" -f $this.name,$this.ostype,$this.sversion
     }
 
+    if ($efe.boxGroup.installResults | Trim-All) {
+        $efe.boxGroup.installResults = $efe.boxGroup.installResults | ConvertFrom-Json
+    }
+
     Add-AsHtScriptMethod $efe.software.configContent | Out-Null
 
     $efe | Add-Member -MemberType NoteProperty -Name resultFolder -Value ($efe.remoteFolder | Join-Path -ChildPath "results" | Join-Path -ChildPath $efe.software.fullName)

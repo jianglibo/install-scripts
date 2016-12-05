@@ -1,0 +1,90 @@
+{
+  "remoteFolder": "/easy-installer/",
+  "box": {
+    "id": 1769473,
+    "ip": "192.168.33.110",
+    "name": "box1",
+    "hostname": "a0.host.name",
+    "roles": "NAMENODE,MYSQL_MASTER,MYSQL_REPLICA,RESOURCEMANAGER",
+    "dnsServer": "",
+    "ips": "",
+    "ports": "",
+    "boxRoleConfig": ""
+  },
+  "boxGroup": {
+    "id": 1802240,
+    "name": "boxgroup1",
+    "configContent": "# place holder\r\n",
+    "installResults": "{\"master\":{\"logname\":\"mysql-bin.000001\",\"position\":\"154\"}}",
+    "boxes": [
+      {
+        "id": 1769473,
+        "ip": "192.168.33.110",
+        "name": "box1",
+        "hostname": "a0.host.name",
+        "roles": "NAMENODE,MYSQL_MASTER,MYSQL_REPLICA,RESOURCEMANAGER",
+        "dnsServer": "192.168.2.60",
+        "ips": "",
+        "ports": "",
+        "boxRoleConfig": null
+      },
+      {
+        "id": 1769472,
+        "ip": "192.168.33.111",
+        "name": "box2",
+        "hostname": "a1.host.name",
+        "roles": "NODEMANAGER,DATANODE,MYSQL_MASTER",
+        "dnsServer": "192.168.2.60",
+        "ips": "192.168.2.12,192.168.2.13",
+        "ports": "80,8080",
+        "boxRoleConfig": null
+      },
+      {
+        "id": 1769474,
+        "ip": "192.168.33.112",
+        "name": "box3",
+        "hostname": "a2.host.name",
+        "roles": "NODEMANAGER,DATANODE,MYSQL_REPLICA",
+        "dnsServer": "192.168.2.60",
+        "ips": "192.168.2.15,192.168.2.16",
+        "ports": "80,8080",
+        "boxRoleConfig": null
+      }
+    ]
+  },
+  "software": {
+    "name": "mysql",
+    "sversion": "ps-5.7.16",
+    "ostype": "CentOs7",
+    "runas": "",
+    "timeouts": null,
+    "runner": "powershell -File {code} -envfile {envfile} -action {action}",
+    "possibleRoles": null,
+    "textfiles": [
+      {
+        "name": "get-sqlresult.tcl",
+        "content": "package require Expect\n\nset password [lindex $argv 0]\nset sqls [lrange $argv 1 end]\nset i 0\n\nspawn -noecho mysql -uroot -p\n\n# it's important to match whole output, matched string will remove from expect(buffer), so will not match by next loop.\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"You have an error in your SQL syntax.*mysql> $\" {\n    if {[info exists sql]} {\n      puts \"*******got sql syntax error: $sql ******\"\n    }\n    puts  $expect_out(0,string)\n    exit 1\n  }\n  \"mysql> $\" {\n        set sql [lindex $sqls $i]\n        if {[string length $sql] > 0} {\n          if {! [string equal \";\" [string index $sql end]]} {\n            set sql \"${sql};\"\n          }\n          incr i\n          exp_send \"$sql\\n\"\n          exp_continue\n        } else {\n          exp_send \"exit\\n\"\n        }\n  }\n  eof {}\n  timeout {}\n}\n# http://www.tcl.tk/man/expect5.31/expect.1.html\n# -re cause buffer to change.\n# if a process has produced output of \"abcdefgh\\n\"\n# set expect_out(0,string) cd\n# set expect_out(buffer) abcd\n# $expect_out(buffer)",
+        "codeLineSeperator": "LF"
+      },
+      {
+        "name": "my.cnf",
+        "content": "# For advice on how to change settings please see\n# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html\n\n[mysqld]\n#\n# Remove leading # and set to the amount of RAM for the most important data\n# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.\n# innodb_buffer_pool_size = 128M\n#\n# Remove leading # to turn on a very important data integrity option: logging\n# changes to the binary log between backups.\nlog-bin=mysql-bin\n\n# server-id will random generate.\n# server-id=1\n#\n# Remove leading # to set options mainly useful for reporting servers.\n# The server defaults are faster for transactions and fast SELECTs.\n# Adjust sizes as needed, experiment to find the optimal values.\n# join_buffer_size = 128M\n# sort_buffer_size = 2M\n# read_rnd_buffer_size = 2M\ndatadir=/opt/mysqld-usage/datadir\nsocket=/var/lib/mysql/mysql.sock\n\n# Disabling symbolic-links is recommended to prevent assorted security risks\nsymbolic-links=0\n\nlog-error=/opt/mysqld-usage/mysqld.log\npid-file=/var/run/mysqld/mysqld.pid\n\n\n# with log-bin enabled too.\n#log-slave-updates=on\n\n#replicate-do-db=sales\n#replicate-do-table=db_name.tbl_name",
+        "codeLineSeperator": "LF"
+      },
+      {
+        "name": "change-init-pass.tcl",
+        "content": "package require Expect\n\nset password [lindex $argv 0]\nset newpass [regsub -all {'} [lindex $argv 1] {\\'}]\n\nspawn mysql -uroot -p\n\nexpect {\n  \"Enter password: $\" {\n    exp_send \"$password\\n\"\n    exp_continue\n  }\n  \"Welcome to the MySQL monitor.*mysql> $\" {\n    exp_send \"select 1;\\n\"\n    exp_continue\n  }\n  -re \"You must reset your password.*mysql> $\" {\n    exp_send \"SET PASSWORD = PASSWORD('${newpass}');\\n\"\n    exp_continue\n  }\n  \"Your password does not satisfy the current policy.*mysql> $\" {\n    puts \"$expect_out(0,string)\"\n    exit 1\n  }\n  \"mysql> $\" {\n      exp_send \"exit\\n\"\n  }\n  eof {}\n  timeout {}\n}\n# -re cause buffer to change.\n# $expect_out(buffer)",
+        "codeLineSeperator": "LF"
+      }
+    ],
+    "filesToUpload": [
+      "mysql-community-common-5.7.16-1.el7.x86_64.rpm",
+      "mysql-community-server-5.7.16-1.el7.x86_64.rpm",
+      "mysql-community-libs-5.7.16-1.el7.x86_64.rpm",
+      "mysql-community-client-5.7.16-1.el7.x86_64.rpm"
+    ],
+    "configContent": "{\"envvs\":[],\"firewall\":{\"Master\":\"\",\"Replica\":\"\"}}",
+    "actions": "install-master,install-masterreplica,install-replica,createUser",
+    "preferredFormat": "JSON"
+  }
+}

@@ -10,6 +10,7 @@ codeLineSeperator: LF
 runas:
 actions: install-master,install-masterreplica,install-replica,create-user
 actionDescriptions: actions.yaml
+possibleRoles: MYSQL_MASTER, MYSQL_REPLICA
 filesToUpload:
   - mysql-community-client-5.7.16-1.el7.x86_64.rpm
   - mysql-community-common-5.7.16-1.el7.x86_64.rpm
