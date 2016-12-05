@@ -122,20 +122,12 @@ function Write-OutputIfTesting {
 
 function Run-Tcl {
     Param([parameter(ValueFromPipeline=$True)]$content,[parameter(ValueFromRemainingArguments=$True)]$others)
-    begin {
-        $lines = @()
-    }
-    process {
-        $lines += $content
-    }
-    end {
-        $tf = (New-TemporaryFile).FullName
-        $lines | Out-File -FilePath $tf -Encoding ascii
-        $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
-        ("tclsh",$tf + $others) -join " " | Write-HostIfInTesting
-        ("tclsh",$tf + $others) -join " " | Invoke-Expression *>&1
-        Remove-Item -Path $tf
-    }
+    $tf = (New-TemporaryFile).FullName
+    $content | Out-File -FilePath $tf -Encoding ascii
+    $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
+    ("tclsh",$tf + $others) -join " " | Write-HostIfInTesting
+    ("tclsh",$tf + $others) -join " " | Invoke-Expression *>&1
+    Remove-Item -Path $tf
 }
 
 function Run-String {
