@@ -146,11 +146,31 @@ Describe "code" {
         $rpms = (Get-UploadFiles -myenv $myenv | ? {$_ -match "(-server-\d+|-client-\d+|-common-\d+|-libs-\d+).*rpm$"} | Sort-Object) -join ' '
         $rpms | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
     }
+    It "should install-replica" {
+        $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec-r.json -Resolve
+        $myenv = New-EnvForExec $envfile | Decorate-Env
+        remove-mysql $myenv
+        $newpass = "uvks^27A`"123'"
+        $replicapass = "kls@9s9Y28s"
+        install-replica $myenv @{newpass="$newpass";replicauser="repl";replicapass=$replicapass} | Write-Host
+
+        $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
+        $mysqlds = "[mysqld]"
+
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin" | Should Be $null
+        Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-slave-updates" | Should Be $null
+
+        Run-SQL -env $myenv -pass $newpass -sqls  "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
+
+        $fromTcl | Write-Host
+        $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
+        $Matches[1] | Should Be "0"
+    }
     It "should install-masterreplica" {
+        return
         $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec-mr.json -Resolve
         $myenv = New-EnvForExec $envfile | Decorate-Env
         remove-mysql $myenv
-
         $newpass = "uvks^27A`"123'"
         $replicapass = "kls@9s9Y28s"
         install-masterreplica $myenv @{newpass="$newpass";replicauser="repl";replicapass=$replicapass} | Write-Host

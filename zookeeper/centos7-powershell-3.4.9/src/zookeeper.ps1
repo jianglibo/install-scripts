@@ -2,20 +2,13 @@
 # ParamTest.ps1 - Show some parameter features
 # Param statement must be first non-comment, non-blank line in the script
 Param(
-    [parameter(Mandatory=$true)]
-    $envfile,
-    [string]
-    $action,
-    [string]
-    $codefile
+    [parameter(Mandatory=$true)]$envfile,
+    [string]$action,
+    [string]$remainingArguments
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
-
-if (! $codefile) {
-    $codefile = $MyInvocation.MyCommand.Path
-}
 
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
@@ -111,7 +104,7 @@ function Write-ConfigFiles {
     Centos7-FileWall -ports $myenv.software.configContent.zkports,$myenv.software.configContent.zkconfig.clientPort
 
     # write app.sh, this script will be invoked by root user.
-    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
+    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii

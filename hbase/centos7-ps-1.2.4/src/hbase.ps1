@@ -4,20 +4,13 @@
 # server must has a hostname
 
 Param(
-    [parameter(Mandatory=$true)]
-    $envfile,
-    [parameter(Mandatory=$true)]
-    $action,
-    [string]
-    $codefile
+    [parameter(Mandatory=$true)]$envfile,
+    [parameter(Mandatory=$true)] $action,
+    [string]$remainingArguments
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
-
-if (! $codefile) {
-    $codefile = $MyInvocation.MyCommand.Path
-}
 
 function Add-TagWithTextValue {
     Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
@@ -174,7 +167,7 @@ function Write-ConfigFiles {
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
-    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.user -envfile $envfile -code $codefile) | Out-File -FilePath $myenv.appFile -Encoding ascii
+    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.user -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
 }
 

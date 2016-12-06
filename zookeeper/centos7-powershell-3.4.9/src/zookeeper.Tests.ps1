@@ -1,4 +1,5 @@
-﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿# $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$here = $PSScriptRoot
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 
 $codefile = Join-Path -Path $here -ChildPath $sut
@@ -11,6 +12,8 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 . (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
+
+$I_AM_IN_TESTING = $True
 
 $resutl = . $codefile -envfile $envfile -codefile $codefile
 

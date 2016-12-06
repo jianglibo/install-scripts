@@ -46,13 +46,13 @@ function Get-MysqlRoleSum {
     # mater-replica boxes
     [array]$mrboxes = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
     if ($mrboxes.Count -gt 1) {
-        Write-Error "There can only be one server with both MYSQL_MASTER and MYSQL_REPLICA roles."
+        Write-Error "There can be exactly 1 server with both MYSQL_MASTER and MYSQL_REPLICA roles."
     }
 
     # master boxes
     [array]$mboxes = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)}
     if ($mboxes.Count -ne 1) {
-        Write-Error "There can only be one server with MYSQL_MASTER roles, but ${mboxes.Count}"
+        Write-Error ("There can be exact 1 server with MYSQL_MASTER roles, but " + (Choose-FirstTrueValue ${mboxes.Count} "0"))
     }
 
     if ($mrboxes.Count -eq 1) {
@@ -61,7 +61,7 @@ function Get-MysqlRoleSum {
         $rh.type = "notchained"
     }
 
-    if (($myenv.myRoles -contains $MYSQL_REPLICA) -and ($myenv.myRoles -contains $MYSQL_REPLICA)) {
+    if (($myenv.myRoles -contains $MYSQL_MASTER) -and ($myenv.myRoles -contains $MYSQL_REPLICA)) {
         $rh.mine = "mr"
     } elseif ($myenv.myRoles -contains $MYSQL_MASTER) {
         $rh.mine = "m"
@@ -144,6 +144,7 @@ function install-replica {
    }
 
    Install-Mysql $myenv $paramsHash
+
    Set-NewMysqlPassword $myenv $paramsHash.newpass
    # get master host
    if ($rsum.type -eq "chained") {
@@ -240,24 +241,24 @@ function Enable-LogBinAndRecordStatus {
         Write-Error "logbin already enabled. skipping....."
     }
 
-    $myenf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $mysqlds = "[mysqld]"
 
-    $serverId = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "server-id"
+    $serverId = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"
 
     if (! $serverId) {
-        Add-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "server-id" -value (Get-Random)
-        $serverId = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "server-id"
+        Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "server-id" -value (Get-Random)
+        $serverId = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"
     }
 
-    Add-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
+    Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
 
     if ($rsum.mine -eq "mr") {
-        Add-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "log-slave-updates" -value "on"
+        Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-slave-updates" -value "on"
     }
 
-    $myenf.writeToFile()
-    $logbin = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
+    $mycnf.writeToFile()
+    $logbin = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
 
     systemctl restart mysqld
 
@@ -275,14 +276,14 @@ function Enable-LogBinAndRecordStatus {
         $returnToClient.master = @{}
         $returnToClient.master.logname = $Matches[1]
         $returnToClient.master.position = $Matches[2]
-        $returnToClient.master.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "port") "3306"
+        $returnToClient.master.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "port") "3306"
         Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
     }
     if ($rsum.mine -eq "mr") {
         $returnToClient.masterreplica = @{}
         $returnToClient.masterreplica.logname = $Matches[1]
         $returnToClient.masterreplica.position = $Matches[2]
-        $returnToClient.masterreplica.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "port") "3306"
+        $returnToClient.masterreplica.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "port") "3306"
         Alter-ResultFile -resultFile $myenv.resultFile -keys "info","masterreplica" -value $returnToClient.masterreplica
         # need execute change master to statement.
     }
@@ -331,25 +332,25 @@ function Install-Mysql {
     #write my.cnf
     $myenv.software.textfiles | ? {$_.name -eq "my.cnf"} | Select-Object -First 1 -ExpandProperty content | Out-File -FilePath "/etc/my.cnf" -Encoding ascii
 
-    $myenf = New-SectionKvFile -FilePath "/etc/my.cnf"
+    $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $mysqlds = "[mysqld]"
 
-    $logError = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "log-error"
-    $datadir = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "datadir"
-    $pidFile = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "pid-file"
-    $socket = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "socket"
-    $port = Choose-FirstTrueValue (Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "port") "3306"
+    $logError = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-error"
+    $datadir = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "datadir"
+    $pidFile = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "pid-file"
+    $socket = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "socket"
+    $port = Choose-FirstTrueValue (Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "port") "3306"
 
     Centos7-FileWall -ports $port
 
     # first comment out log-bin and server-id item.
-    Comment-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
-    Comment-SectionKv -parsedSectionFile $myenf -section $mysqlds -key "server-id"
-    $myenf.writeToFile()
+    Comment-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+    Comment-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "server-id"
+    $mycnf.writeToFile()
 
-    #$binLog = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "log-bin"
+    #$binLog = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
     # we cannot use this server-id value, because all box are same.
-    #$serverId = Get-SectionValueByKey -parsedSectionFile $myenf -section $mysqlds -key "server-id"
+    #$serverId = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"
 
     if (! (Split-Path -Parent $datadir | Test-Path)) {
         Split-Path -Parent $datadir | New-Directory | Out-Null
