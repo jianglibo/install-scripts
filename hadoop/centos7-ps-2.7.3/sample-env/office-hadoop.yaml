@@ -1,0 +1,65 @@
+name: hadoop
+boxes:
+  - ip: 10.74.111.62
+    name: box62
+# this a so called master node
+    roles: NameNode,Zookeeper,ResourceManager # has more memory.
+    ostype: centos7
+    description:
+    keyFilePath:
+    port:
+    sshUser:
+    hostname: s62.host.name
+    dnsServer:
+    ips:
+    ports:
+  - ip: 10.74.111.63
+    name: box63
+    roles: DataNode,Zookeeper,NodeManager
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s63.host.name
+    dnsServer:
+    ips:
+    ports:
+  - ip: 10.74.111.64
+    name: box64
+    roles: DataNode,Zookeeper,NodeManager
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s64.host.name
+    dnsServer:
+    ips:
+    ports:
+  - ip: 10.74.111.65
+    name: box65
+    roles: DataNode,NodeManager
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s65.host.name
+    dnsServer:
+    ips:
+    ports:
+  - ip: 10.74.111.66
+    name: box66
+    roles: NodeManager
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s66.host.name
+    dnsServer:
+    ips:
+    ports:
+dnsServer:
+configContent:
