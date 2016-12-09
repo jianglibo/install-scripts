@@ -1,0 +1,4 @@
+start-hbase:
+  before start, you need login to hadoop name node. change /etc/passwd, hdfs login to /usr/bin/bash, and run following commands.
+  runuser -c "bin/hadoop fs -mkdir -p /user/hbase" hdfs
+  runuser -c "bin/hadoop fs -chown -R hbase:hbase /user/hbase" hdfs

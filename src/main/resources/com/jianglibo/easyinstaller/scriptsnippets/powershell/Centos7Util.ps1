@@ -99,13 +99,17 @@ function Centos7-GetOpenPorts {
 }
 
 function Centos7-UserManager {
-    Param([parameter(Mandatory=$True)][String]$username, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
+    Param([parameter(Mandatory=$True)][String]$username,[switch]$createHome, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
     $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
 
     switch ($action) {
         "add" {
             if ($r.Count -eq 0) {
-                useradd -r -M -s /sbin/nologin $username
+                if ($createHome) {
+                    useradd -r -m $username
+                } else {
+                    useradd -r -M -s /sbin/nologin $username
+                }
             }
         }
 

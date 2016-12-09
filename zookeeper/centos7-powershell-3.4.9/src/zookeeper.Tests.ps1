@@ -1,6 +1,6 @@
 ﻿# $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $here = $PSScriptRoot
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
+$sut = (Split-Path -Leaf $PSCommandPath) -replace '\.Tests\.', '.'
 
 $codefile = Join-Path -Path $here -ChildPath $sut
 
@@ -15,7 +15,7 @@ $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/
 
 $I_AM_IN_TESTING = $True
 
-$resutl = . $codefile -envfile $envfile -codefile $codefile
+$resutl = . $codefile -envfile $envfile -action t
 
 <#
 ZOOBINDIR=/opt/zookeeper/zookeeper-3.4.9/bin
@@ -30,19 +30,20 @@ Describe "code" {
         $decorated = (New-EnvForExec $envfile | Decorate-Env)
         $decorated.envvs.ZOOCFGDIR -replace '\\','/' | Should Be "/var/zookeeper"
         $decorated.installDir | Should Be "/opt/zookeeper"
-        $decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
-        $decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
+
+        #$decorated.serviceLines -join "," | Should Be "server.110=192.168.33.110:2888:3888,server.111=a1.host.name:2888:3888,server.112=a2.host.name:2888:3888"
+        #$decorated.zkconfigLines -join "," | Should Be "clientPort=2181,dataDir=/var/lib/zookeeper/,dataLogDir=/var/lib/zookeeper/,initLimit=5,syncLimit=2,tickTime=1999"
 
         $decorated.software.runas | Should Be "zookeeper"
 
         $myenv.envvs.ZOOCFGDIR | Should Be "/var/zookeeper"
         $myenv.envvs.ZOO_LOG_DIR | Should Be "/opt/zookeeper/logs"
 
-        ($decorated.software.textfiles).Length | Should Be 1
+        ([array]($decorated.software.textfiles)).Count | Should Be 1
 
         ($decorated.software.textfiles)[0].name | Should Be "zoo.cfg"
 
-        (($decorated.software.textfiles)[0].content -split '\r?\n|\r\n?').Count | Should Be 6
+        (($decorated.software.textfiles)[0].content -split '\r?\n|\r\n?').Count | Should Be 5
         
     }
     It "should be installed" {
@@ -70,7 +71,7 @@ Describe "code" {
 
         "2888/tcp","3888/tcp","2181/tcp" | ? {$_ -notin $allports} | Should Be $null
 
-        $decorated.resultFile -replace "\\", "/" | Should Be "/opt/easyinstaller/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
+        $decorated.resultFile -replace "\\", "/" | Should Be "/easy-installer/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
         (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
 
         $r = Change-Status -myenv $decorated -action start | Out-String

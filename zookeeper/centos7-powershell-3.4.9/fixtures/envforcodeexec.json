@@ -1,45 +1,54 @@
 {
   "remoteFolder": "/easy-installer/",
   "box": {
+    "id": 1900560,
     "ip": "192.168.33.110",
     "name": "box1",
     "hostname": "a0.host.com",
-    "roles": "NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
+    "roles": "MASTER,NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
     "dnsServer": "",
     "ips": "",
-    "ports": ""
+    "ports": "",
+    "boxRoleConfig": ""
   },
   "boxGroup": {
+    "id": 1933317,
     "name": "boxgroup1",
     "configContent": "{\"zkports\":\"2888,3888\",\"configFile\":\"/var/zookeeper/zoo.cfg\",\"binDir\":\"/opt/zookeeper\",\"zkconfig\":{\"tickTime\":\"1999\",\"dataDir\":\"/var/lib/zookeeper/\",\"clientPort\":\"2181\",\"initLimit\":\"5\",\"syncLimit\":\"2\"}}",
     "installResults": null,
     "boxes": [
       {
+        "id": 1900560,
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.com",
-        "roles": "NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
+        "roles": "MASTER,NAMENODE,ZOOKEEPER,MYSQL_MASTER,RESOURCEMANAGER",
         "dnsServer": "192.168.2.60",
         "ips": "",
-        "ports": ""
+        "ports": "",
+        "boxRoleConfig": null
       },
       {
+        "id": 1900561,
         "ip": "192.168.33.111",
         "name": "box2",
         "hostname": "a1.host.name",
-        "roles": "NODEMANAGER,DATANODE,ZOOKEEPER,MYSQL_REPLICA",
+        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,MYSQL_REPLICA,ZOOKEEPER",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.12,192.168.2.13",
-        "ports": "80,8080"
+        "ports": "80,8080",
+        "boxRoleConfig": null
       },
       {
+        "id": 1900559,
         "ip": "192.168.33.112",
         "name": "box3",
         "hostname": "a2.host.name",
-        "roles": "NODEMANAGER,DATANODE,ZOOKEEPER,MYSQL_REPLICA",
+        "roles": "NODEMANAGER,REGIONSERVER,DATANODE,MYSQL_REPLICA,ZOOKEEPER",
         "dnsServer": "192.168.2.60",
         "ips": "192.168.2.15,192.168.2.16",
-        "ports": "80,8080"
+        "ports": "80,8080",
+        "boxRoleConfig": null
       }
     ]
   },
@@ -48,10 +57,16 @@
     "sversion": "powershell-3.4.9",
     "ostype": "CentOs7",
     "runas": "zookeeper",
-    "timeouts": {},
+    "timeouts": null,
     "runner": "powershell -File {code} -envfile {envfile} -action {action}",
     "possibleRoles": "ZOOKEEPER",
-    "textfiles": [],
+    "textfiles": [
+      {
+        "name": "zoo.cfg",
+        "content": "tickTime=2000\ndataDir=/var/lib/zookeeper/\nclientPort=2181\ninitLimit=5\nsyncLimit=2",
+        "codeLineSeperator": "LF"
+      }
+    ],
     "filesToUpload": [
       "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz"
     ],

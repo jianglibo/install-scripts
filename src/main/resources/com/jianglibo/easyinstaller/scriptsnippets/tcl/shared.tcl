@@ -155,6 +155,23 @@ namespace eval EnvDictNs {
     }
   }
 
+  proc splitLine {longline} {
+    set newlines {}
+    set lines [split $longline "\n"]
+    foreach line $lines {
+      lappend newlines $line
+    }
+    return $newlines
+  }
+  
+  proc trimLeftLines {lines} {
+    set newlines {}
+    foreach line $lines {
+      lappend newlines [string trim $line]
+    }
+    return $newlines
+  }
+
   proc setupResolver {nameserver} {
     set resolverFile /etc/resolv.conf
     backupOrigin $resolverFile

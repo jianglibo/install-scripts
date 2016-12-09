@@ -30,6 +30,31 @@ function Add-HadoopProperty {
     $parent.AppendChild($property)
 }
 
+function Test-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name)
+    if (! $doc) {
+        $doc = $parent.OwnerDocument
+    }
+    if (! $parent) {
+        if ($doc.configuration) {
+            $parent = $doc.configuration
+        } else {
+            $parent = $doc.DocumentElement
+        }
+    }
+    $node = $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
+
+    if ($node) {
+        if ($node.Value -and $node.Value.trim()) {
+            $True
+        } else {
+            $False
+        }
+    } else {
+        $False
+    }
+}
+
 function Set-HadoopProperty {
     Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
     if (! $doc) {
@@ -169,6 +194,19 @@ function Write-ConfigFiles {
 
     Set-HadoopProperty -doc $coreSiteDoc -name "fs.defaultFS" -value $myenv.defaultFS
 
+    $zkKey = "ha.zookeeper.quorum"
+
+    if (! (Test-HadoopProperty -doc $coreSiteDoc -name $zkKey)) {
+        $zkurls = ($myenv.boxGroup.boxes | ? {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
+
+        if ($zkurls) {
+            Set-HadoopProperty -doc $coreSiteDoc -name $zkKey -value $zkurls
+        } else {
+            Write-Error "There's no $zkKey in core-site.xml, and can't imagin from boxgroups"
+        }
+    }
+
+
     Save-Xml -doc $coreSiteDoc -FilePath $DirInfo.coreSite -encoding ascii
 
     # process yarn-site.xml, because resourceManagerHostName is determined at runtime. it must write this way.
@@ -214,23 +252,38 @@ function Write-ConfigFiles {
     # find directory used by hdfs from hdfs-site.xml
     [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
 
+    $namenodeDirKey = "dfs.namenode.name.dir"
+    $datanodeDirKey = "dfs.datanode.data.dir"
+
+    if (Test-HadoopProperty -doc $hdfsSiteDoc -name $namenodeDirKey) {
+        $namenodeDir = ($hdfsSiteDoc.configuration.property | Where-Object name -eq $namenodeDirKey | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/"
+    } else {
+        $namenodeDir = $myenv.installDir | Join-Path -ChildPath "hadoop-usage" | Join-Path -ChildPath "dfs" | Join-Path -ChildPath "name"
+        Set-HadoopProperty -doc $hdfsSiteDoc -name $namenodeDirKey -value "file://$namenodeDir"
+    }
+
+    if (Test-HadoopProperty -doc $hdfsSiteDoc -name $datanodeDirKey) {
+        $datanodeDir = ($hdfsSiteDoc.configuration.property | Where-Object name -eq $datanodeDirKey | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/"
+    } else {
+        $datanodeDir = $myenv.installDir | Join-Path -ChildPath "hadoop-usage" | Join-Path -ChildPath "dfs" | Join-Path -ChildPath "data"
+        Set-HadoopProperty -doc $hdfsSiteDoc -name $datanodeDirKey -value "file://$datanodeDir"
+    }
 
     if ("NameNode" -in $myenv.myRoles) {
-        $namenodeDir = ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.namenode.name.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/"
         $namenodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
         $resultHash.info.namenodeDir = $namenodeDir
         Centos7-FileWall -ports $myenv.software.configContent.firewall.NameNode
     }
 
     if ("DataNode" -in $myenv.myRoles) {
-        ($hdfsSiteDoc.configuration.property | Where-Object name -eq "dfs.datanode.data.dir" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+        $datanodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
         Centos7-FileWall -ports $myenv.software.configContent.firewall.DataNode
     }
 
+    Save-Xml -doc $hdfsSiteDoc -FilePath $DirInfo.hdfsSite -encoding ascii
+
     # write profile.d
     "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
-
-
 
     $myenv.dfspiddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
     $myenv.dfslogdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
@@ -264,6 +317,7 @@ function Format-Hdfs {
         $DirInfo = Get-HadoopDirInfomation $myenv
     }
     expose-env $myenv
+    $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (! $resultJson.dfsFormatted) {
 #        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser

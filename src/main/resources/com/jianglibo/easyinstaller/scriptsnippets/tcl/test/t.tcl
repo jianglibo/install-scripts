@@ -21,6 +21,13 @@ namespace eval ::example::test {
       } -cleanup {
       } -result {/opt/easyinstaller}
 
+      test splitLine {} -constraints {} -setup {
+        } -body {
+          source [file normalize [file join $::baseDir shared.tcl]]
+          return [EnvDictNs::splitLine "abc\nbb"]
+        } -cleanup {
+        } -result {abc bb}
+
 
       test boxGroupProperty {} -constraints {X unix} -setup {
         } -body {

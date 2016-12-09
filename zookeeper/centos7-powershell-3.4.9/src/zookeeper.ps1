@@ -16,12 +16,6 @@ function Decorate-Env {
         $this.software.configContent.asHt("zkconfig").GetEnumerator() |
             ForEach-Object {"{0}={1}" -f $_.Key,$_.Value} | Sort-Object
     }
-    $myenv | Add-Member -MemberType ScriptProperty -Name serviceLines -Value {
-        $this.boxGroup.boxes |
-             Select-Object @{n="serverId"; e={$_.ip.split('\.')[-1]}}, hostname |
-             ForEach-Object {"server.{0}={1}:{2}:{3}" -f (@($_.serverId, $_.hostname) + $this.software.configContent.zkports.Split(','))} |
-             Sort-Object
-    }
     $myenv | Add-Member -MemberType NoteProperty -Name installDir -Value $myenv.software.configContent.installDir
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value $myenv.getUploadedFile("zookeeper-.*\.tar\.gz")
     $myenv | Add-Member -MemberType NoteProperty -Name envvs -Value $myenv.software.configContent.asHt("envvs")
@@ -55,16 +49,12 @@ function Write-ConfigFiles {
 
     $myenv.envvs.ZOOCFGDIR, $myenv.dataDir, $logDir | New-Directory | Out-Null
 
-    $myenv.software.textfiles | ForEach-Object {
-        $name = $_.name
-        $content = $_.content
-        switch ($name) {
-            "zoo.cfg" {
-                ($content -split '\r?\n|\r\n?') + $myenv.serviceLines | Out-File -FilePath $configFile -Encoding ascii
-            }
-        }
-    } | Out-Null
+    $idhpair = $myenv.boxGroup.boxes | ? {$_.roles -match "Zookeeper"} | Select-Object @{n="serverId"; e={$_.ip -split "\." | Select-Object -Last 1}}, hostname
+    $serviceLines = $idhpair | ForEach-Object {"server.{0}={1}:{2}:{3}" -f (@($_.serverId, $_.hostname) + $myenv.software.configContent.zkports.Split(','))} | Sort-Object
 
+    [array]$zcfgLines = $myenv.software.textfiles | ? {$_.name -eq "zoo.cfg"} | Select-Object -ExpandProperty content
+
+    $zcfgLines + $serviceLines  | Out-File -FilePath $configFile -Encoding ascii
 
     # encoding is very important.
     # $myenv.serviceLines | Out-File $myenv.configFile -Append -Encoding ascii
@@ -142,6 +132,9 @@ switch ($action) {
     "install" {
         Install-Zk $myenv
         break
+    }
+    "t" {
+        "t"
     }
     default {
         Change-Status -myenv $myenv -action $action

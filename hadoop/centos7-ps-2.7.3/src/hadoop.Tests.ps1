@@ -106,7 +106,7 @@ Describe "code" {
 
         Test-Path $tgzFile -PathType Leaf | Should Be $True
 
-        $myenv.getUploadedFile("hadoop-.*\.tar\.gz") | Should Be "/opt/easyinstaller/hadoop-2.7.3.tar.gz"
+        $myenv.getUploadedFile("hadoop-.*\.tar\.gz") | Should Be "/easy-installer/hadoop-2.7.3.tar.gz"
         $myenv.tgzFile = $tgzFile
 
         ($myenv.software.textfiles).length | Should Be 30
@@ -114,19 +114,19 @@ Describe "code" {
         # all name should start with etc
         ($myenv.software.textfiles | Where-Object {$_.name -match "^etc/"}).Count | Should Be $myenv.software.textfiles.length
 
-        $myenv.resultFile | Should Be "/opt/easyinstaller/results/hadoop-CentOs7-ps-2.7.3/easyinstaller-result.json"
+ #       $myenv.resultFile | Should Be "/easy-installer/results/hadoop-CentOs7-ps-2.7.3/easyinstaller-result.json"
 
-        $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
+ #       $resultJson = Choose-FirstTrueValue (Get-Content $myenv.resultFile -ErrorAction SilentlyContinue) "{}" | ConvertFrom-Json
 
-        $resultJson.getType() | Should Be "System.Management.Automation.PSCustomObject"
+ #       $resultJson.getType() | Should Be "System.Management.Automation.PSCustomObject"
 
-        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
+ #       $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
 
-        $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
+ #       $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
 
-        $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
+ #       $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
 
-        $resultJson.dfsFormatted | Should Be $True
+ #       $resultJson.dfsFormatted | Should Be $True
 
         Install-Hadoop $myenv
 

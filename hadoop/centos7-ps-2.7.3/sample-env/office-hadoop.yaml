@@ -3,7 +3,7 @@ boxes:
   - ip: 10.74.111.62
     name: box62
 # this a so called master node
-    roles: NameNode,Zookeeper,ResourceManager # has more memory.
+    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster # has more memory.
     ostype: centos7
     description:
     keyFilePath:
@@ -15,7 +15,7 @@ boxes:
     ports:
   - ip: 10.74.111.63
     name: box63
-    roles: DataNode,Zookeeper,NodeManager
+    roles: DataNode,Zookeeper,NodeManager,RegionServer
     ostype: centos7
     description: a description
     keyFilePath:
@@ -27,7 +27,7 @@ boxes:
     ports:
   - ip: 10.74.111.64
     name: box64
-    roles: DataNode,Zookeeper,NodeManager
+    roles: DataNode,Zookeeper,NodeManager,RegionServer
     ostype: centos7
     description: a description
     keyFilePath:
@@ -39,7 +39,7 @@ boxes:
     ports:
   - ip: 10.74.111.65
     name: box65
-    roles: DataNode,NodeManager
+    roles: DataNode,NodeManager,RegionServer
     ostype: centos7
     description: a description
     keyFilePath:
@@ -51,7 +51,7 @@ boxes:
     ports:
   - ip: 10.74.111.66
     name: box66
-    roles: NodeManager
+    roles: NodeManager,RegionServer
     ostype: centos7
     description: a description
     keyFilePath:

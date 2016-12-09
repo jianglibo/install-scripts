@@ -270,6 +270,9 @@ function New-KvFile {
 
 function Add-AsHtScriptMethod {
     Param([parameter(ValueFromPipeline=$True)]$pscustomob)
+    if (!$pscustomob) {
+        return
+    }
     $pscustomob | Add-Member -MemberType ScriptMethod -Name asHt -Value {
         Param([String]$pn)
         $tob = $this
@@ -333,6 +336,7 @@ function New-EnvForExec {
     if ($efe.boxGroup.installResults | Trim-All) {
         $efe.boxGroup.installResults = $efe.boxGroup.installResults | ConvertFrom-Json
     }
+
 
     Add-AsHtScriptMethod $efe.software.configContent | Out-Null
 

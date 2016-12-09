@@ -1,1 +1,6 @@
 * you can use start-hbase.sh to start hbase cluster in whole. or you can use hbase-daemon.sh start master|regionserver|master-backup
+* you must create a directory in hdfs, so hbase can use it. default is /user/hbase
+
+change /etc/passwd, hdfs login to /usr/bin/bash
+runuser -c "bin/hadoop fs -mkdir -p /user/hbase" hdfs
+runuser -c "bin/hadoop fs -chown -R hbase:hbase /user/hbase" hdfs

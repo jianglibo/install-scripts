@@ -1,6 +1,6 @@
 ﻿# $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $here = $PSScriptRoot
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
+$sut = (Split-Path -Leaf $PSCommandPath) -replace '\.Tests\.', '.'
 
 $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
 
@@ -48,7 +48,7 @@ Describe "code" {
 
         Test-Path $tgzFile -PathType Leaf | Should Be $True
 
-        $myenv.getUploadedFile("hbase-.*\.tar\.gz") | Should Be "/opt/easyinstaller/hbase-1.2.4-bin.tar.gz"
+        $myenv.getUploadedFile("hbase-.*\.tar\.gz") | Should Be "/easy-installer/hbase-1.2.4-bin.tar.gz"
         $myenv.tgzFile = $tgzFile
 
         ($myenv.software.textfiles).length | Should Be 7
@@ -56,7 +56,7 @@ Describe "code" {
         # all name should start with etc
         ($myenv.software.textfiles | Where-Object {$_.name -match "^conf/"}).Count | Should Be $myenv.software.textfiles.length
 
-        $myenv.resultFile | Should Be "/opt/easyinstaller/results/hbase-CentOs7-ps-1.2.4/easyinstaller-result.json"
+#        $myenv.resultFile | Should Be "/easy-installer/results/hbase-CentOs7-ps-1.2.4/easyinstaller-result.json"
 
         Install-Hbase $myenv
 

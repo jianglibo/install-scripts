@@ -29,6 +29,31 @@ function Add-HadoopProperty {
     $parent.AppendChild($property)
 }
 
+function Test-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name)
+    if (! $doc) {
+        $doc = $parent.OwnerDocument
+    }
+    if (! $parent) {
+        if ($doc.configuration) {
+            $parent = $doc.configuration
+        } else {
+            $parent = $doc.DocumentElement
+        }
+    }
+    $node = $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
+
+    if ($node) {
+        if ($node.Value -and $node.Value.trim()) {
+            $True
+        } else {
+            $False
+        }
+    } else {
+        $False
+    }
+}
+
 function Set-HadoopProperty {
     Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
     if (! $doc) {
@@ -57,11 +82,11 @@ function Set-HadoopProperty {
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
-    if (($myenv.box.hostname -eq $myenv.box.ip) -and ("Master" -in $myenv.myRoles)) {
+    if (($myenv.box.hostname -eq $myenv.box.ip) -and ("HbaseMaster" -in $myenv.myRoles)) {
         Write-Error "Hbase Master must has a hostname"
     }
 
-    $masterBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "Master"} | Select-Object -First 1
+    $masterBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "HbaseMaster"} | Select-Object -First 1
     $regionServerBoxes = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "RegionServer"}
 
     $myenv | Add-Member -MemberType NoteProperty -Name masterBox -Value $masterBox
@@ -135,6 +160,33 @@ function Write-ConfigFiles {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hbaseDir | Join-Path -ChildPath $_.name) -Encoding ascii
     } | Out-Null
 
+    # process hbase-site.xml
+    [xml]$hbaseSiteDoc = Get-Content $DirInfo.hbaseSite
+
+    $rootDirKey = "hbase.rootdir"
+
+    if (! (Test-HadoopProperty -doc $hbaseSiteDoc -name $rootDirKey)) {
+        $hadoopNameNode = $myenv.boxGroup.boxes | ? {$_.roles -match "NameNode"} | Select-Object -First 1 -ExpandProperty hostname
+
+        if (! $hadoopNameNode) {
+            Write-Error "There's no $rootDirKey in hbase-site.xml, and can't imagin from boxgroups"
+        }
+        $hdfsPort = $myenv.software.configContent.ports.namenode.api
+        Set-HadoopProperty -doc $hbaseSiteDoc -name $rootDirKey -value ("hdfs://{0}:{1}/user/hbase" -f $hadoopNameNode,$hdfsPort)
+    }
+
+    $zkKey = "hbase.zookeeper.quorum"
+    if (! (Test-HadoopProperty -doc $hbaseSiteDoc -name $zkKey)) {
+        $zkurls = ($myenv.boxGroup.boxes | ? {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
+        if ($zkurls) {
+            Set-HadoopProperty -doc $hbaseSiteDoc -name $zkKey -value $zkurls
+        } else {
+            Write-Error "There's no $zkKey in hbase-site.xml, and can't imagin from boxgroups"
+        }
+    }
+
+     Save-Xml -doc $hbaseSiteDoc -FilePath $DirInfo.hbaseSite -encoding ascii
+
     # process regionservers
     $myenv.regionServerBoxes | Select-Object -ExpandProperty hostname | Out-File -FilePath $DirInfo.regionserversFile -Encoding ascii
 
@@ -150,7 +202,7 @@ function Write-ConfigFiles {
         Centos7-SetHostName -hostname $myenv.box.hostname
     }
 
-    if("Master" -in $myenv.myRoles) {
+    if("HbaseMaster" -in $myenv.myRoles) {
         Centos7-FileWall -ports $myenv.software.configContent.firewall.Master
     }
 
@@ -175,7 +227,7 @@ function start-hbase {
     Param($myenv)
     expose-env $myenv
     $h = Get-HbaseDirInfomation $myenv
-    if ("Master" -in $myenv.myRoles) {
+    if ("HbaseMaster" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user
     } elseif ("RegionServer" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user
@@ -186,7 +238,7 @@ function stop-hbase {
     Param($myenv)
     expose-env $myenv
     $h = Get-HbaseDirInfomation $myenv
-    if ("Master" -in $myenv.myRoles) {
+    if ("HbaseMaster" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user
     } elseif ("RegionServer" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user

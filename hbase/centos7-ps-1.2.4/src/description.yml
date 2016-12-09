@@ -2,7 +2,7 @@ name: hbase
 ostype: CentOs7
 sversion: ps-1.2.4
 runner: powershell -File {code} -envfile {envfile} -action {action}
-possibleRoles: Master,RegionServer
+possibleRoles: HbaseMaster,RegionServer
 preferredFormat: JSON
 codeToExecute: hbase.ps1
 configContent: config.yml # content of this file will insert into software configContent field.
@@ -10,5 +10,6 @@ codeFileExt: .ps1
 codeLineSeperator: LF
 runas: hbase
 actions: install,start-hbase,stop-hbase
+actionDescriptions: actions.yaml
 filesToUpload:
   - http://mirror.bit.edu.cn/apache/hbase/stable/hbase-1.2.4-bin.tar.gz

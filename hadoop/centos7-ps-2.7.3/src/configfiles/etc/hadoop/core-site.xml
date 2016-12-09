@@ -36,7 +36,7 @@
   page size (4096 on Intel x86), and it determines how much data is
   buffered during read and write operations.</description>
 </property>
-
+<!--
 <property>
   <name>ha.zookeeper.quorum</name>
   <value>192.168.33.110,192.168.33.111,192.168.33.112</value>
@@ -45,7 +45,7 @@
     to be used by the ZKFailoverController in automatic failover.
   </description>
 </property>
-
+-->
 <property>
   <name>ha.zookeeper.session-timeout.ms</name>
   <value>5000</value>

@@ -1,6 +1,6 @@
 name: linuxcommon
 ostype: CentOs7
-sversion: 0.1.0
+sversion: tcl-0.1.0
 runner: tclsh
 preferredFormat: JSON
 codeToExecute: code.tcl
@@ -8,6 +8,6 @@ configContent: config.yml
 codeFileExt:
 codeLineSeperator: LF
 runas:
-actions: change-resolv
+actions: change-resolv,delete-folder
 actionDescriptions: actions.yaml
 filesToUpload: []

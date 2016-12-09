@@ -1,0 +1,13 @@
+name: linuxcommon
+ostype: CentOs7
+sversion: ps-0.1.0
+runner: powershell -File {code} -envfile {envfile} -action {action}
+preferredFormat: JSON
+codeToExecute: code.ps1
+configContent: config.yml
+codeFileExt: .ps1
+codeLineSeperator: LF
+runas:
+actions: setjavahome
+actionDescriptions: actions.yaml
+filesToUpload: []
