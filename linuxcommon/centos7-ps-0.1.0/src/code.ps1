@@ -23,6 +23,17 @@ switch ($action) {
     "setjavahome" {
         Set-JavaHome $myenv
     }
+    "openfirewall" {
+        [array]$ports = (Parse-Parameters $remainingArguments) -split "/"
+        $ports
+        $prot = "tcp"
+        if ($ports.Count -gt 1) {
+            $prot = $ports[1]
+        }
+        $ports = $ports[0]
+        Centos7-FileWall -ports $ports -prot $prot
+        firewall-cmd --list-all
+    }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)
     }

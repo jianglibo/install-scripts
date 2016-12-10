@@ -8,6 +8,6 @@ configContent: config.yml
 codeFileExt: .ps1
 codeLineSeperator: LF
 runas:
-actions: setjavahome
+actions: setjavahome,openfirewall
 actionDescriptions: actions.yaml
 filesToUpload: []

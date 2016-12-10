@@ -14,6 +14,7 @@ firewall:
   NameNode: 8020,50070,50470,50090,50091
   DataNode: 50010,50075,50020,50475
   ResourceManager: 8032,8033,8042,8030,8031
+  NodeManager: 8042,30000-65535
 ports:
   namenode:
     api: 8020
