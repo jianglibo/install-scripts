@@ -99,16 +99,33 @@ function Centos7-GetOpenPorts {
 }
 
 function Centos7-UserManager {
-    Param([parameter(Mandatory=$True)][String]$username,[switch]$createHome, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
+    Param([parameter(Mandatory=$True)][String]$username,[string]$group,[switch]$createHome, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
     $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
-
+    if ($group) {
+        $g = Get-Content /etc/group | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
+        if ($g.Count -eq 0) {
+            groupadd $group
+        } 
+    }
     switch ($action) {
         "add" {
             if ($r.Count -eq 0) {
                 if ($createHome) {
-                    useradd -r -m $username
+                    if ($group) {
+                        useradd -r -m -g $group $username
+                    } else {
+                        useradd -r -m $username
+                    }
                 } else {
-                    useradd -r -M -s /sbin/nologin $username
+                    if ($group) {
+                        useradd -r -M -s /sbin/nologin -g $group $username
+                    } else {
+                        useradd -r -M -s /sbin/nologin $username
+                    }
+                }
+            } else {
+                if ($group) {
+                    usermod -g $group $username
                 }
             }
         }
@@ -139,7 +156,7 @@ function Centos7-Run-User-String {
 }
 
 function Centos7-Run-User {
-    Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user, [switch]$background)
+    Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user, [switch]$background)
     $user = $user | Trim-All
     if (! $user) {
         $user = $env:USER

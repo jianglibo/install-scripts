@@ -1,0 +1,5 @@
+run-dfs:
+  mkdir /tmp
+  mkdir -p /user/hive/warehouse
+  chmod g+w /tmp
+  chmod g+w /user/hive/warehouse

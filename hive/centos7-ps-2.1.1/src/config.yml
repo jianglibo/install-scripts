@@ -1,0 +1,5 @@
+installDir: /opt/hive
+dfsClusterName: mydfscluster
+envvs:
+  HADOOP_HOME: /opt/hadoop/hadoop-2.7.3
+firewall:

@@ -1,0 +1,3 @@
+bin/hive script has a TMP_USER_DIR which pointer to /tmp/hive, all logs go there.
+
+/tmp/hive folder in dfs must a+w

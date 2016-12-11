@@ -13,73 +13,6 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
-function Add-TagWithTextValue {
-    Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
-    [System.Xml.XmlElement]$elem = $parent.OwnerDocument.CreateElement($tag)
-    [System.Xml.XmlText]$text = $parent.OwnerDocument.CreateTextNode($value)
-    $elem.AppendChild($text) | Out-Null  # The node added.
-    $parent.AppendChild($elem)
-}
-
-function Add-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
-    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
-    Add-TagWithTextValue -parent $property -tag "name" -value $name
-    Add-TagWithTextValue -parent $property -tag "value" -value $value
-    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
-    $parent.AppendChild($property)
-}
-
-function Test-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name)
-    if (! $doc) {
-        $doc = $parent.OwnerDocument
-    }
-    if (! $parent) {
-        if ($doc.configuration) {
-            $parent = $doc.configuration
-        } else {
-            $parent = $doc.DocumentElement
-        }
-    }
-    $node = $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
-
-    if ($node) {
-        if ($node.Value -and $node.Value.trim()) {
-            $True
-        } else {
-            $False
-        }
-    } else {
-        $False
-    }
-}
-
-function Set-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
-    if (! $doc) {
-        $doc = $parent.OwnerDocument
-    }
-    if (! $parent) {
-        if ($doc.configuration) {
-            $parent = $doc.configuration
-        } else {
-            $parent = $doc.DocumentElement
-        }
-    }
-
-    # exists item.
-    $node =  $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
-    if ($node) {
-        $node.Name = $name
-        $node.Value = $value
-        $node.Description = $descprition
-    } else {
-        Add-HadoopProperty -doc $doc -parent $parent -name $name -value $value -descprition $descprition
-    }
-}
-
-
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
@@ -151,6 +84,7 @@ function Get-HadoopDirInfomation {
     $h.hadoopDir = $h.hadoopDaemon | Split-Path -Parent | Split-Path -Parent
     $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hdfsCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hdfs"
+    $h.hadoopCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hadoop"
     $h.etcHadoop = Join-Path -Path $h.hadoopDir -ChildPath "etc/hadoop"
     $h.coreSite = Join-Path $h.etcHadoop -ChildPath "core-site.xml"
     $h.hdfsSite = Join-Path $h.etcHadoop -ChildPath "hdfs-site.xml"
@@ -182,6 +116,8 @@ function Write-ConfigFiles {
     $resultHash.env = @{}
     $resultHash.info = @{}
     $yarnDirs = @()
+    $returnToClient = @{}
+    $returnToClient.hadoop = @{}
 
     $DirInfo = Get-HadoopDirInfomation -myenv $myenv
 
@@ -252,6 +188,8 @@ function Write-ConfigFiles {
     # find directory used by hdfs from hdfs-site.xml
     [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
 
+    $returnToClient.hadoop.superusergroup = Choose-FirstTrueValue (Get-HadoopProperty -doc $hdfsSiteDoc -name "dfs.permissions.superusergroup") "supergroup"
+
     $namenodeDirKey = "dfs.namenode.name.dir"
     $datanodeDirKey = "dfs.datanode.data.dir"
 
@@ -293,6 +231,8 @@ function Write-ConfigFiles {
     $resultHash.env.YARN_LOG_DIR = $myenv.yarnlogdir
     $resultHash.env.YARN_PID_DIR = $myenv.yarnpiddir
 
+    $resultHash.dirInfo = $DirInfo
+
     $resultHash.env.HADOOP_PREFIX = $DirInfo.hadoopDir
 
     $myenv.software.configContent.asHt("envvs").GetEnumerator() | Where-Object {$_.Key -notin "HADOOP_LOG_DIR", "HADOOP_PID_DIR", "YARN_LOG_DIR", "YARN_PID_DIR"} | ForEach-Object {
@@ -307,7 +247,10 @@ function Write-ConfigFiles {
     if ("NameNode" -in $myenv.myRoles) {
         if(($resultHash.info.namenodeDir | Get-ChildItem -Recurse).Count -lt 3) {
             Format-Hdfs $myenv $DirInfo
-        } 
+        }
+        $R_T_C_B
+        $returnToClient | ConvertTo-Json
+        $R_T_C_E
     }
 }
 
@@ -371,6 +314,16 @@ function expose-env {
     }
 }
 
+function run-dfs {
+    Param($myenv, $dfslines)
+    expose-env $myenv
+    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+    $dfslines = $dfslines -split "`n"
+    $dfslines = $dfslines | % {$_.Trim()} | % {if ($_ -notmatch "^-") {"-" + $_} else {$_}} | % {"{0} fs {1}" -f $rh.dirInfo.hadoopCmd, $_}
+    $dfslines
+    $dfslines | % {Centos7-Run-User -shell "/bin/bash" -scriptcmd "$_"  -user $myenv.hdfsuser}
+}
+
 $myenv = New-EnvForExec $envfile | Decorate-Env
 
 switch ($action) {
@@ -389,6 +342,9 @@ switch ($action) {
     "stop-yarn" {
         start-yarn $myenv stop
     }
+    "run-dfs" {
+        run-dfs $myenv (Parse-Parameters $remainingArguments)
+    }
     "kill-alljava" {
         Get-Process | ? Name -EQ java | Stop-Process -Force
     }
@@ -401,3 +357,72 @@ switch ($action) {
 }
 
 Print-Success
+
+<#
+
+function Add-TagWithTextValue {
+    Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
+    [System.Xml.XmlElement]$elem = $parent.OwnerDocument.CreateElement($tag)
+    [System.Xml.XmlText]$text = $parent.OwnerDocument.CreateTextNode($value)
+    $elem.AppendChild($text) | Out-Null  # The node added.
+    $parent.AppendChild($elem)
+}
+
+function Add-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
+    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
+    Add-TagWithTextValue -parent $property -tag "name" -value $name
+    Add-TagWithTextValue -parent $property -tag "value" -value $value
+    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
+    $parent.AppendChild($property)
+}
+
+function Test-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name)
+    if (! $doc) {
+        $doc = $parent.OwnerDocument
+    }
+    if (! $parent) {
+        if ($doc.configuration) {
+            $parent = $doc.configuration
+        } else {
+            $parent = $doc.DocumentElement
+        }
+    }
+    $node = $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
+
+    if ($node) {
+        if ($node.Value -and $node.Value.trim()) {
+            $True
+        } else {
+            $False
+        }
+    } else {
+        $False
+    }
+}
+
+function Set-HadoopProperty {
+    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
+    if (! $doc) {
+        $doc = $parent.OwnerDocument
+    }
+    if (! $parent) {
+        if ($doc.configuration) {
+            $parent = $doc.configuration
+        } else {
+            $parent = $doc.DocumentElement
+        }
+    }
+
+    # exists item.
+    $node =  $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
+    if ($node) {
+        $node.Name = $name
+        $node.Value = $value
+        $node.Description = $descprition
+    } else {
+        Add-HadoopProperty -doc $doc -parent $parent -name $name -value $value -descprition $descprition
+    }
+}
+#>

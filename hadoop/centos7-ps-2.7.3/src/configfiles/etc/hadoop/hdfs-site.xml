@@ -62,4 +62,13 @@
     </description>
   </property>
 -->
+
+<property>
+  <name>dfs.permissions.superusergroup</name>
+  <value>supergroup</value>
+  <description>The name of the group of super-users.
+    The value should be a single group name.
+  </description>
+</property>
+
 </configuration>

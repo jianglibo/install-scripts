@@ -34,6 +34,10 @@ switch ($action) {
         Centos7-FileWall -ports $ports -prot $prot
         firewall-cmd --list-all
     }
+    "kill-process" {
+        [string[]]$pns = (Parse-Parameters $remainingArguments).Trim() -split "\s+"
+        Get-Process | ? Name -In $pns | ? {$_.Trim().Length -gt 0} | Stop-Process -Force
+    }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)
     }

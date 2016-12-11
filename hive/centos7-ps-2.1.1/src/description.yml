@@ -1,0 +1,15 @@
+name: hive
+ostype: CentOs7
+sversion: ps-2.1.1
+runner: powershell -File {code} -envfile {envfile} -action {action}
+possibleRoles: HIVE_SERVER
+preferredFormat: JSON
+codeToExecute: hive.ps1
+configContent: config.yml # content of this file will insert into software configContent field.
+codeFileExt: .ps1
+codeLineSeperator: LF
+runas: hive
+actions: install,start-hiveserver,stop-hiveserver
+actionDescriptions: actions.yml
+filesToUpload:
+  - http://apache.fayea.com/hive/stable-2/apache-hive-2.1.1-bin.tar.gz

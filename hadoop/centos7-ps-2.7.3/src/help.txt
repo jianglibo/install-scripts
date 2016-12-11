@@ -39,3 +39,5 @@ It is also traditional to configure HADOOP_PREFIX in the system-wide shell envir
 
 HADOOP_PREFIX=/path/to/hadoop
 export HADOOP_PREFIX
+
+dfs's  dfs.permissions.superusergroup is "supergroup", hdfs is super-user, because hdfs started the namenode.

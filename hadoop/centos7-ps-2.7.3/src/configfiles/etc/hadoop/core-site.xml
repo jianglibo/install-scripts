@@ -57,4 +57,14 @@
   </description>
 </property>
 
+
+<property>
+  <name>hadoop.proxyuser.hive.hosts</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.hive.groups</name>
+  <value>*</value>
+</property>
+
 </configuration>

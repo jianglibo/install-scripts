@@ -1,0 +1,6 @@
+start-hiveserver:
+  Before you start hive server, you must goto hadoop and create some user for hive use.
+  mkdir /tmp
+  mkdir /user/hive/warehouse
+  chmod g+w /tmp
+  chmod g+w /user/hive/warehouse

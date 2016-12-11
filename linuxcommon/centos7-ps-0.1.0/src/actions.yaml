@@ -3,3 +3,5 @@ setjavahome:
 openfirewall:
   8080/tcp
   30000-65535/tcp
+kill-process:
+  java yum
