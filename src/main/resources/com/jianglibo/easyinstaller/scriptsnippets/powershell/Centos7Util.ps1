@@ -155,6 +155,18 @@ function Centos7-Run-User-String {
     'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user
 }
 
+function Centos7-Nohup {
+    Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[int]$NICENESS, [string]$logfile,[string]$pidfile)
+    $newcmd = "nohup nice -n $NICENESS $ru > `"$logfile`" 2>&1 < /dev/null &"
+    $newcmd = Centos7-Run-User-String -shell $shell -scriptcmd $newcmd -user $user
+    $line2 = 'echo $! > $pidfile'
+    $line3 = 'sleep 1'
+    $tmp = New-TemporaryFile
+    $newcmd,$line2,$line3 | Out-File $tmp -Encoding ascii
+    bash "$tmp"
+    Remove-Item $tmp -Force
+}
+
 function Centos7-Run-User {
     Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user, [switch]$background)
     $user = $user | Trim-All

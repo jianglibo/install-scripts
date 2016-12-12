@@ -40,6 +40,10 @@ function Install-Hive {
 
     $myenv.InstallDir | New-Directory
 
+    $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | New-Directory | Centos7-Chown -user $myenv.software.runas
+
+    $myenv.InstallDir | Join-Path -ChildPath "logFolder" | New-Directory | Centos7-Chown -user $myenv.software.runas
+
     $superGroup = Choose-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "supergroup"
 
     Centos7-UserManager -username $myenv.software.runas -group $superGroup -action add
@@ -134,6 +138,9 @@ function Write-ConfigFiles {
 
     $resultHash.dirInfo = $DirInfo
 
+    $resultHash.pidFile = $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | Join-Path -ChildPath "hive.pid"
+    $resultHash.logFile = $myenv.InstallDir | Join-Path -ChildPath "logFolder" | Join-Path -ChildPath "hive.log"
+
     $envvs = $myenv.software.configContent.asHt("envvs")
     if ($envvs) {
         $envvs.GetEnumerator() | ForEach-Object {$resultHash.envvs[$_.Key] = $_.Value}
@@ -166,7 +173,22 @@ function start-hiveserver {
     expose-env $myenv
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     $scmd = $rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/hiveserver2"
-    Centos7-Run-User -shell "/bin/bash" -scriptcmd $scmd -user $myenv.software.runas
+    Centos7-Nohup -scriptcmd $scmd -user $myenv.software.runas -NICENESS 0 -logfile $rh.logFile -pidfile $rh.pidFile
+}
+
+function stop-hiveserver {
+    Param($myenv)
+    expose-env $myenv
+    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+    if (Test-Path $rh.pidFile) {
+        $pidcontent = Get-Content $rh.pidFile
+        if ($pidcontent) {
+            Stop-Process -Id $pidcontent
+            Remove-Item $rh.pidFile -Force
+        }       
+    } else {
+        Write-Error ($rh.pidFile + " doesn't exists")
+    }
 }
 
 function expose-env {
