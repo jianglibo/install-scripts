@@ -323,7 +323,7 @@ function New-EnvForExec {
 
     $efe.software.configContent = $efe.software.configContent | ConvertFrom-Json
 
-    $efe.software.runas = $efe.software.runas | Split-ColonComma
+    $efe.software.runas = $efe.software.runas | Parse-RunAs
 
     if (! $efe.software.runas) {
         $efe.software.runas = $env:USER
@@ -639,19 +639,24 @@ function Trim-End {
     }
 }
 
-function Split-ColonComma {
+function Parse-RunAs {
     Param([parameter(ValueFromPipeline=$True)][string]$content)
     $trimed = $content.Trim()
     if ($trimed) {
-        if ($trimed -match ':') {
-            $trimed -split ',' | ForEach-Object -End {$h} -Begin {$h = @{}} -Process {
-                    $a = $_.split(':')
-                    if ($a.length -eq 2) {
-                        $h[$a[0].trim()] = $a[1].trim()
+        try {
+           $trimed | ConvertFrom-Json -ErrorAction SilentlyContinue
+        }
+        catch {
+            if ($trimed -match ':') {
+                $trimed -split ',' | ForEach-Object -End {$h} -Begin {$h = @{}} -Process {
+                        $a = $_.split(':')
+                        if ($a.length -eq 2) {
+                            $h[$a[0].trim()] = $a[1].trim()
+                        }
                     }
-                }
-        } else {
-            $trimed
+            } else {
+                $trimed
+            }
         }
     } else {
         ""

@@ -1,8 +1,4 @@
 ﻿# how to run this script. powershell -File /path/to/this/file.
-# ParamTest.ps1 - Show some parameter features
-# Param statement must be first non-comment, non-blank line in the script
-# runuser -s /bin/bash -c "/opt/hadoop/hadoop-2.7.3/bin/hdfs dfs -mkdir -p /user/hbase" hdfs
-# runuser -s /bin/bash -c "/opt/hadoop/hadoop-2.7.3/bin/hdfs dfs -chown hbase /user/hbase" hdfs
 
 Param(
     [parameter(Mandatory=$true)]$envfile,
@@ -27,9 +23,9 @@ function Decorate-Env {
 
     $users = $myenv.software.runas
 
-    if ($users -is "string") {
-        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users
-        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users
+    if (!$users -or ($users -is "string")) {
+        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value @{user=$users;group=$users}
+        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value @{user=$users;group=$users}
     } else {
         $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users.hdfs
         $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users.yarn
@@ -156,12 +152,12 @@ function Write-ConfigFiles {
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.hostname" -value $myenv.resourceManagerHostName
 
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.nodemanager.log-dirs" -value $myenv.yarnlogdir
-    $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
+    $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
 
     if ("ResourceManager" -in $myenv.myRoles -or "NodeManager" -in $myenv.myRoles) {
-        $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
-        $myenv.yarnpiddir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
-        ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser
+        $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+        $myenv.yarnpiddir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+        ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
     }
 
     # write hostname to hosts.
@@ -208,13 +204,13 @@ function Write-ConfigFiles {
     }
 
     if ("NameNode" -in $myenv.myRoles) {
-        $namenodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+        $namenodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
         $resultHash.info.namenodeDir = $namenodeDir
         Centos7-FileWall -ports $myenv.software.configContent.firewall.NameNode
     }
 
     if ("DataNode" -in $myenv.myRoles) {
-        $datanodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+        $datanodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
         Centos7-FileWall -ports $myenv.software.configContent.firewall.DataNode
     }
 
@@ -223,8 +219,8 @@ function Write-ConfigFiles {
     # write profile.d
     "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
 
-    $myenv.dfspiddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
-    $myenv.dfslogdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser
+    $myenv.dfspiddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
+    $myenv.dfslogdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
 
     $resultHash.env.HADOOP_LOG_DIR = $myenv.dfslogdir
     $resultHash.env.HADOOP_PID_DIR = $myenv.dfspiddir
@@ -263,7 +259,7 @@ function Format-Hdfs {
     $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (! $resultJson.dfsFormatted) {
 #        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
         $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
         $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
     }
@@ -321,7 +317,7 @@ function run-dfs {
     $dfslines = $dfslines -split "`n"
     $dfslines = $dfslines | % {$_.Trim()} | % {if ($_ -notmatch "^-") {"-" + $_} else {$_}} | % {"{0} fs {1}" -f $rh.dirInfo.hadoopCmd, $_}
     $dfslines
-    $dfslines | % {Centos7-Run-User -shell "/bin/bash" -scriptcmd "$_"  -user $myenv.hdfsuser}
+    $dfslines | % {Centos7-Run-User -shell "/bin/bash" -scriptcmd "$_"  -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group}
 }
 
 $myenv = New-EnvForExec $envfile | Decorate-Env

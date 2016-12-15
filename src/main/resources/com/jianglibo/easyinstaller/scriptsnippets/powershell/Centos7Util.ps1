@@ -112,15 +112,15 @@ function Centos7-UserManager {
             if ($r.Count -eq 0) {
                 if ($createHome) {
                     if ($group) {
-                        useradd -r -m -g $group $username
+                        useradd -m -g $group $username
                     } else {
-                        useradd -r -m $username
+                        useradd -m $username
                     }
                 } else {
                     if ($group) {
-                        useradd -r -M -s /sbin/nologin -g $group $username
+                        useradd -M -s /sbin/nologin -g $group $username
                     } else {
-                        useradd -r -M -s /sbin/nologin $username
+                        useradd -M -s /sbin/nologin $username
                     }
                 }
             } else {
@@ -146,19 +146,22 @@ function Centos7-UserManager {
 # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 
 function Centos7-Run-User-String {
-    Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user)
+    Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user,[string]$group)
     $user = $user | Trim-All
     if (! $user) {
         $user = $env:USER
     }
-    Centos7-UserManager -username $user -action add
+    if (!$group) {
+        $group = $user
+    }
+    Centos7-UserManager -username $user -action add -group $group
     'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user
 }
 
 function Centos7-Nohup {
-    Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[int]$NICENESS, [string]$logfile,[string]$pidfile)
+    Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[int]$NICENESS, [string]$logfile,[string]$pidfile)
     $newcmd = "nohup nice -n $NICENESS $ru > `"$logfile`" 2>&1 < /dev/null &"
-    $newcmd = Centos7-Run-User-String -shell $shell -scriptcmd $newcmd -user $user
+    $newcmd = Centos7-Run-User-String -shell $shell -scriptcmd $newcmd -user $user -group $group
     $line2 = 'echo $! > $pidfile'
     $line3 = 'sleep 1'
     $tmp = New-TemporaryFile
@@ -168,12 +171,15 @@ function Centos7-Nohup {
 }
 
 function Centos7-Run-User {
-    Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user, [switch]$background)
+    Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[switch]$background)
     $user = $user | Trim-All
     if (! $user) {
         $user = $env:USER
     }
-    Centos7-UserManager -username $user -action add
+    if (!$group) {
+        $group = $user
+    }
+    Centos7-UserManager -username $user -group $group -action add
 #    chown $user $scriptfile | Out-Null
 #    chmod u+x $scriptfile | Out-Null
     if ($background) {
@@ -190,7 +196,7 @@ function Centos7-Chown {
         if (!$group) {
             $group = $user
         }
-        Centos7-UserManager -action add -username $user
+        Centos7-UserManager -action add -group $group -username $user
         if ($Path -is [System.IO.FileInfo]) {
             $Path = $Path.FullName
         }

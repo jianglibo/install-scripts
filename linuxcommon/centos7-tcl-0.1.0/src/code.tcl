@@ -44,9 +44,14 @@ proc deleteFolder {folderName} {
   }
 }
 
+porc anyCmd {oneCmd} {
+  exec $oneCmd
+}
+
 switch -exact -- $action {
   change-resolv {setupResolver $extraParam}
   delete-folder {deleteFolder $extraParam}
+  any-cmd {anyCmd $extraParam}
   t {}
   default {}
 }

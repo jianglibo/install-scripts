@@ -16,8 +16,16 @@ function Decorate-Env {
 
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("apache-hive-.*\.tar\.gz"))
-    $users = $myenv.software.runas
-    # piddir and logdir
+
+    $superGroup = Choose-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "supergroup"
+
+    $user = $myenv.software.runas
+    if (!$user) {
+        $user = @{user="hive";group=$superGroup}
+    } else {
+        $user.group = $superGroup
+    }
+    $myenv | Add-Member -MemberType NoteProperty -Name user -Value $user
     $myenv
 }
 
@@ -40,13 +48,11 @@ function Install-Hive {
 
     $myenv.InstallDir | New-Directory
 
-    $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | New-Directory | Centos7-Chown -user $myenv.software.runas
+    $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | New-Directory | Centos7-Chown -user $myenv.user.user -group $myenv.user.group
 
-    $myenv.InstallDir | Join-Path -ChildPath "logFolder" | New-Directory | Centos7-Chown -user $myenv.software.runas
+    $myenv.InstallDir | Join-Path -ChildPath "logFolder" | New-Directory | Centos7-Chown -user $myenv.user.user  -group $myenv.user.group
 
-    $superGroup = Choose-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "supergroup"
-
-    Centos7-UserManager -username $myenv.software.runas -group $superGroup -action add
+    Centos7-UserManager -username $myenv.user.user -group $myenv.user.group -action add
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -88,7 +94,7 @@ function Write-ConfigFiles {
 
     if (! (Test-HadoopProperty -doc $hiveSiteDoc -name $loglocKey)) {
         $logloc = ($myenv.InstallDir | Join-Path -ChildPath "operation_logs" | New-Directory)
-        Centos7-Chown -user $myenv.software.runas -Path $logloc
+        Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $logloc
         Set-HadoopProperty -doc $hiveSiteDoc -name $loglocKey -value "$logloc"
     }
 
@@ -113,7 +119,7 @@ function Write-ConfigFiles {
 
     if (!$done) {
         $metaFolder = ($myenv.InstallDir | Join-Path -ChildPath "metaStoreFolder" | New-Directory)
-        Centos7-Chown -user $myenv.software.runas -Path $metaFolder
+        Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $metaFolder
         $newdbname = $metaFolder | Join-Path -ChildPath $newdbname
         Write-Host $newdbname
         $metaStoreDb = "jdbc:derby:;databaseName=$newdbname;create=true"
@@ -163,7 +169,7 @@ function init-schema {
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (!$rh.info.initSchema.completed) {
         $scmd = "{0} -dbType derby -initSchema --verbose" -f  ($rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/schematool")
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd $scmd -user $myenv.software.runas
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group
         Alter-ResultFile -resultFile $myenv.resultFile -keys "info","initSchema","completed" -value $True
     }
 }
@@ -173,7 +179,7 @@ function start-hiveserver {
     expose-env $myenv
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     $scmd = $rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/hiveserver2"
-    Centos7-Nohup -scriptcmd $scmd -user $myenv.software.runas -NICENESS 0 -logfile $rh.logFile -pidfile $rh.pidFile
+    Centos7-Nohup -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group  -NICENESS 0 -logfile $rh.logFile -pidfile $rh.pidFile
 }
 
 function stop-hiveserver {
