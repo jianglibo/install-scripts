@@ -644,9 +644,11 @@ function Parse-RunAs {
     $trimed = $content.Trim()
     if ($trimed) {
         try {
-           $trimed | ConvertFrom-Json -ErrorAction SilentlyContinue
+           $trimed | ConvertFrom-Json -ErrorAction SilentlyContinue -OutVariable mayBeJson | Out-Null
+           $mayBeJson
         }
         catch {
+            $Error.Clear()
             if ($trimed -match ':') {
                 $trimed -split ',' | ForEach-Object -End {$h} -Begin {$h = @{}} -Process {
                         $a = $_.split(':')

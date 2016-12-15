@@ -10,6 +10,9 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+Get-Command java
+
+
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
     $myenv | Add-Member -MemberType ScriptProperty -Name zkconfigLines -Value {
@@ -112,6 +115,10 @@ function Change-Status {
     $rh.asHt("env").GetEnumerator() | ForEach-Object {
         Set-Content -Path "env:$($_.Key)" -Value $_.Value
     }
+    if ((Test-Path $myenv.envvs.ZOOPIDFILE) -and ($action -eq "start")) {
+        Centos7-Run-User -scriptcmd ($rh.executable + " stop") -user $myenv.software.runas
+    }
+
     Centos7-Run-User -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
 }
 

@@ -8,7 +8,7 @@ codeToExecute: hive.ps1
 configContent: config.yml # content of this file will insert into software configContent field.
 codeFileExt: .ps1
 codeLineSeperator: LF
-runas: {user: "hive", group: "hadoop"}
+runas: '{user: "hive", group: "hadoop"}'
 actions: install,start-hiveserver,stop-hiveserver
 actionDescriptions: actions.yml
 filesToUpload:

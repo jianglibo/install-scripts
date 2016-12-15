@@ -8,7 +8,7 @@ codeToExecute: hadoop.ps1
 configContent: config.yml # content of this file will insert into software configContent field.
 codeFileExt: .ps1
 codeLineSeperator: LF
-runas: {hdfs: {user: "hdfs",group: "hadoop"},yarn:{user: "yarn", group: "hadoop"}}
+runas: '{hdfs: {user: "hdfs",group: "hadoop"},yarn:{user: "yarn", group: "hadoop"}}'
 actions: install,start-dfs,stop-dfs,start-yarn,stop-yarn,run-dfs,kill-alljava
 actionDescriptions: actions.yml
 filesToUpload:

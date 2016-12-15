@@ -12,6 +12,8 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+Get-Command java
+
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
@@ -105,7 +107,7 @@ function Write-ConfigFiles {
             Write-Error "There's no $rootDirKey in hbase-site.xml, and can't imagin from boxgroups"
         }
         $hdfsPort = $myenv.software.configContent.ports.namenode.api
-        Set-HadoopProperty -doc $hbaseSiteDoc -name $rootDirKey -value ("hdfs://{0}:{1}/user/hbase" -f $hadoopNameNode,$hdfsPort)
+        Set-HadoopProperty -doc $hbaseSiteDoc -name $rootDirKey -value (("hdfs://{0}:{1}/user/" + $myenv.user.user) -f $hadoopNameNode,$hdfsPort)
     }
 
     $zkKey = "hbase.zookeeper.quorum"
@@ -123,7 +125,7 @@ function Write-ConfigFiles {
     # process regionservers
     $myenv.regionServerBoxes | Select-Object -ExpandProperty hostname | Out-File -FilePath $DirInfo.regionserversFile -Encoding ascii
 
-    $myenv.logdir,$myenv.piddir | New-Directory | Centos7-Chown -user $myenv.user
+    $myenv.logdir,$myenv.piddir | New-Directory | Centos7-Chown -user $myenv.user.user -group $myenv.user.group
 
     # write hostname to hosts.
     $hf = New-HostsFile
@@ -152,7 +154,7 @@ function Write-ConfigFiles {
 
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # write app.sh, this script will be invoked by root user.
-    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.user -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
+    "#!/usr/bin/env bash",(New-ExecuteLine $myenv.user.user -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
 }
 
@@ -161,9 +163,9 @@ function start-hbase {
     expose-env $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
     } elseif ("RegionServer" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
     }
 }
 
@@ -172,9 +174,9 @@ function stop-hbase {
     expose-env $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
     } elseif ("RegionServer" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user
+        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
     }
 }
 

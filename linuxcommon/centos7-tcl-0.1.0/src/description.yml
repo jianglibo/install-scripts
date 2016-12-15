@@ -8,6 +8,6 @@ configContent: config.yml
 codeFileExt:
 codeLineSeperator: LF
 runas:
-actions: change-resolv,delete-folder
+actions: change-resolv,delete-folder,enable-ntpd,any-cmd
 actionDescriptions: actions.yaml
 filesToUpload: []

@@ -9,23 +9,21 @@ stop NetworkManager, disable NetworkManager service,
 function Centos7-NetworkManager {
     Param([ValidateSet("enable", "disable")][parameter(Mandatory=$True)][string]$action)
     $nm = "NetworkManager"
-
-        switch ($action) {
-            "enable" {
-                systemctl enable $nm *>1 | Out-Null
-                systemctl start $nm *>1 | Out-Null
-            }
-            "disable" {
-                systemctl stop $nm *>1 | Out-Null
-                systemctl disable $nm *>1 | Out-Null
-            }
-        }
     
-
-        if ($LASTEXITCODE -gt 0) {
-            yum reinstall -y dbus-python pygobject3-base python-decorator python-slip-dbus python-decorator python-pyudev | Out-Null
+    switch ($action) {
+        "enable" {
+            try {systemctl enable $nm *>1 | Out-Null} catch {}
+            try {systemctl start $nm *>1 | Out-Null} catch {}
         }
+        "disable" {
+            try {systemctl stop $nm *>1 | Out-Null} catch {}
+            try {systemctl disable $nm *>1 | Out-Null} catch {}
+        }
+    }
 
+    if ($LASTEXITCODE -gt 0) {
+        yum reinstall -y dbus-python pygobject3-base python-decorator python-slip-dbus python-decorator python-pyudev | Out-Null
+    }
 }
 
 function Centos7-SetHostName {

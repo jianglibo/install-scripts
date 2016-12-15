@@ -3,3 +3,6 @@ change-resolv:
   search localdomain
   nameserver 223.5.5.5
   nameserver 223.6.6.6
+any-cmd:
+  ntpdate -q 0.rhel.pool.ntp.org
+  ntpdate 0.rhel.pool.ntp.org  

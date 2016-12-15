@@ -9,6 +9,8 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+Get-Command java
+
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 

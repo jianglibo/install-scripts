@@ -44,13 +44,21 @@ proc deleteFolder {folderName} {
   }
 }
 
-porc anyCmd {oneCmd} {
+proc anyCmd {oneCmd} {
   exec $oneCmd
+}
+
+proc enableNtpd {} {
+  exec yum install -y ntp
+  exec systemctl enable ntpd 2>@1
+  exec systemctl enable ntpdate 2>@1
+  exec systemctl start ntpd 2>@1
 }
 
 switch -exact -- $action {
   change-resolv {setupResolver $extraParam}
   delete-folder {deleteFolder $extraParam}
+  enable-ntpd {enableNtpd}
   any-cmd {anyCmd $extraParam}
   t {}
   default {}

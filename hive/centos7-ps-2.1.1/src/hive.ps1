@@ -11,6 +11,8 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+Get-Command java
+
 function Decorate-Env {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
@@ -191,7 +193,7 @@ function stop-hiveserver {
         if ($pidcontent) {
             Stop-Process -Id $pidcontent
             Remove-Item $rh.pidFile -Force
-        }       
+        }
     } else {
         Write-Error ($rh.pidFile + " doesn't exists")
     }
