@@ -1,0 +1,2 @@
+any-cmd:
+  kill -s 9 $(ps aux | grep '/usr/bin/yum' | awk '{print $2}')

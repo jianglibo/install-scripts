@@ -1,0 +1,13 @@
+name: linuxcommon
+ostype: CentOs7
+sversion: bash-0.1.0
+runner: bash
+preferredFormat: JSON
+codeToExecute: code.sh
+configContent: config.yml
+codeFileExt:
+codeLineSeperator: LF
+runas:
+actions: any-cmd
+actionDescriptions: actions.yaml
+filesToUpload: []

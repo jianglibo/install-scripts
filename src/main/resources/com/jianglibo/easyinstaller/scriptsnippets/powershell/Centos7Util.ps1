@@ -63,7 +63,15 @@ function Centos7-FileWall {
         }
         $firewalld = "firewalld"
         if (! (Centos7-IsServiceEnabled -serviceName $firewalld)) {
-            systemctl enable $firewalld *>&1 | Write-Output -OutVariable fromBash | Out-Null
+            try {
+                systemctl enable $firewalld *>&1 | Write-Output -OutVariable fromBash | Out-Null
+            }
+            catch {
+                $Error.Clear()
+#                if ($fromBash -match "Created symlink from") {
+#                    $Error.Clear()
+#                }
+            }
         }
 
         if (! (Centos7-IsServiceRunning -serviceName $firewalld)) {
