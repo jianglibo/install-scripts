@@ -104,7 +104,7 @@ function Install-Hadoop {
     } else {
         return
     }
-    Write-ConfigFiles -myenv $myenv | Out-Null
+    Write-ConfigFiles -myenv $myenv
 }
 
 
@@ -118,6 +118,8 @@ function Write-ConfigFiles {
     $returnToClient.hadoop = @{}
 
     $DirInfo = Get-HadoopDirInfomation -myenv $myenv
+
+    $returnToClient.hadoop.dirInfo = $DirInfo
 
     $myenv.software.textfiles | ForEach-Object {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
@@ -323,6 +325,8 @@ function run-dfs {
 }
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
+
+Persist-JavaHome $myenv
 
 switch ($action) {
     "install" {

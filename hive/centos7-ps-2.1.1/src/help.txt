@@ -1,3 +1,8 @@
 bin/hive script has a TMP_USER_DIR which pointer to /tmp/hive, all logs go there.
 
 /tmp/hive folder in dfs must a+w
+
+beeline -u jdbc:hive2://localhost:10000/default -n scott -w password_file
+
+mkdir -p /tmp/hive
+chmod g+w /tmp/hive

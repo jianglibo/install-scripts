@@ -19,7 +19,7 @@ function Decorate-Env {
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("apache-hive-.*\.tar\.gz"))
 
-    $superGroup = Choose-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "supergroup"
+    $superGroup = Choose-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "hadoop"
 
     $user = $myenv.software.runas
     if (!$user) {
@@ -123,7 +123,12 @@ function Write-ConfigFiles {
         $metaFolder = ($myenv.InstallDir | Join-Path -ChildPath "metaStoreFolder" | New-Directory)
         Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $metaFolder
         $newdbname = $metaFolder | Join-Path -ChildPath $newdbname
-        Write-Host $newdbname
+        # Microsoft.PowerShell.Core/FileSystem::/opt/hive/metaStoreFolder/metastore_db;create=true
+        $newdbname | Write-HostIfInTesting
+        if ($newdbname -match "::") {
+            $newdbname = $newdbname -replace ".*::(.*)$",'$1'
+        }
+        $newdbname | Write-HostIfInTesting
         $metaStoreDb = "jdbc:derby:;databaseName=$newdbname;create=true"
         Set-HadoopProperty -doc $hiveSiteDoc -name $metaStoreKey -value $metaStoreDb
     }
@@ -162,7 +167,6 @@ function Write-ConfigFiles {
 
 function remove-hive {
     Param($myenv)
-
 }
 
 function init-schema {
@@ -195,7 +199,18 @@ function stop-hiveserver {
             Remove-Item $rh.pidFile -Force
         }
     } else {
-        Write-Error ($rh.pidFile + " doesn't exists")
+        $rh.pidFile + " doesn't exists"
+    }
+}
+
+function kill-hiveserver {
+    Param($ptn)
+    try {
+        $c = "kill -s 9 `$(ps aux | grep '$ptn' | awk '{print `$2}')"
+        Run-Bash -content $c
+    }
+    catch {
+        $Error[0].Message | Write-HostIfInTesting
     }
 }
 
@@ -215,6 +230,12 @@ function expose-env {
 
 $myenv = New-EnvForExec $envfile | Decorate-Env
 
+if ("HIVE_SERVER" -notin $myenv.myRoles) {
+    if (!$I_AM_IN_TESTING) {
+        Write-Error "not a HIVE_SERVER"
+    }
+}
+
 switch ($action) {
     "install" {
         Install-Hive $myenv
@@ -224,6 +245,9 @@ switch ($action) {
     }
     "stop-hiveserver" {
         stop-hiveserver $myenv
+    }
+    "kill-hiveserver" {
+        kill-hiveserver HiveServer2
     }
     "t" {
         # do nothing

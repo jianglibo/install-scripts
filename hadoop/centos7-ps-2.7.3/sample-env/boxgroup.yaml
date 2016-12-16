@@ -3,7 +3,7 @@ boxes:
   - ip: 192.168.33.110
     name: box1
 # this a so called master node
-    roles: NameNode,ResourceManager,Master
+    roles: NameNode,ResourceManager,HbaseMaster
     ostype: centos7
     description:
     keyFilePath:

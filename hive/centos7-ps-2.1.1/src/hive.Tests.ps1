@@ -12,8 +12,9 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 
-$resutl = . "$here\$sut" -envfile $envfile -action t
+$I_AM_IN_TESTING = $True
 
+$resutl = . "$here\$sut" -envfile $envfile -action t
 
 Describe "code" {
     It  "should install hive" {
@@ -28,8 +29,26 @@ Describe "code" {
 
         $myenv.tgzFile = $tgzFile
 
-        Remove-Item $myenv.resultFile -Force
+        kill-hiveserver HiveServer2
 
+        if (Test-Path $myenv.resultFile) {
+            $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
+            Remove-Item $myenv.resultFile -Force
+            try {
+                if ($resultJson.info.metadb -is [string]) {
+                    $dbpath = $resultJson.info.metadb -replace "^([^;]+);.*",'$1' | Split-Path -Parent
+                } else {
+                    $dbpath = $resultJson.info.metadb.fullName -replace "^([^;]+);.*",'$1' | Split-Path -Parent
+                }
+                
+                if (Test-Path $dbpath) {
+                    Remove-Item -Path $dbpath -Recurse -Force
+                }
+            }
+            catch {}
+        }
+
+        
         ([array]($myenv.software.textfiles)).Count | Should Be 1
 
         # all name should start with etc
@@ -41,8 +60,6 @@ Describe "code" {
         init-schema $myenv
 
         start-hiveserver $myenv
-
-        $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
 
 <#
         $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"

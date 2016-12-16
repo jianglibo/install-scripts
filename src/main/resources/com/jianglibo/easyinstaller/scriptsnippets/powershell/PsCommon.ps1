@@ -130,6 +130,16 @@ function Run-Tcl {
     Remove-Item -Path $tf
 }
 
+function Run-Bash {
+    Param([parameter(ValueFromPipeline=$True)]$content,[parameter(ValueFromRemainingArguments=$True)]$others)
+    $tf = (New-TemporaryFile).FullName
+    $content | Out-File -FilePath $tf -Encoding ascii
+    $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
+    ("bash",$tf + $others) -join " " | Write-HostIfInTesting
+    ("bash",$tf + $others) -join " " | Invoke-Expression *>&1
+    Remove-Item -Path $tf
+}
+
 function Run-String {
     Param([string]$execute, [parameter(ValueFromPipeline=$True)]$content,[string]$quotaChar,[switch]$quotaInnerQuota, [parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
@@ -721,6 +731,19 @@ function Get-CmdTarget {
         $src
     }
 }
+
+function Persist-JavaHome {
+    Param($myenv,$jp)
+    $easyinstallerjava = "/etc/profile.d/easyinstallerjava.sh"
+    if (!(Test-Path $easyinstallerjava)) {
+        if (!$jp) {
+            $jp = Get-JavaHome
+        }
+        "JAVA_HOME=$jp", "export JAVA_HOME" | Out-File -FilePath $easyinstallerjava -Encoding ascii
+    }
+
+}
+
 
 function Get-JavaHome {
     Get-CmdTarget -command "java" | Split-Path -Parent | Split-Path -Parent

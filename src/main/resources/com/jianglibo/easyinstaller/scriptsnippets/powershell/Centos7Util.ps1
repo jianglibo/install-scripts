@@ -108,7 +108,7 @@ function Centos7-UserManager {
     Param([parameter(Mandatory=$True)][String]$username,[string]$group,[switch]$createHome, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
     $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
     if ($group) {
-        $g = Get-Content /etc/group | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
+        $g = Get-Content /etc/group | Where-Object {$_ -match "^${group}:"} | Select-Object -First 1 | measure
         if ($g.Count -eq 0) {
             groupadd $group
         } 
@@ -161,19 +161,20 @@ function Centos7-Run-User-String {
         $group = $user
     }
     Centos7-UserManager -username $user -action add -group $group
-    'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user
+    "runuser -s /bin/bash -c '{0}'  {1}" -f $scriptcmd,$user
 }
 
 function Centos7-Nohup {
     Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[int]$NICENESS, [string]$logfile,[string]$pidfile)
-    $newcmd = "nohup nice -n $NICENESS $ru > `"$logfile`" 2>&1 < /dev/null &"
+    $newcmd = "nohup nice -n $NICENESS $scriptcmd > `"$logfile`" 2>&1 < /dev/null &"
     $newcmd = Centos7-Run-User-String -shell $shell -scriptcmd $newcmd -user $user -group $group
-    $line2 = 'echo $! > $pidfile'
-    $line3 = 'sleep 1'
+    $line2 = 'sleep 1'
+    $line3 = 'echo $! >' + $pidfile
     $tmp = New-TemporaryFile
     $newcmd,$line2,$line3 | Out-File $tmp -Encoding ascii
+    Write-Host "$tmp"
     bash "$tmp"
-    Remove-Item $tmp -Force
+#    Remove-Item $tmp -Force
 }
 
 function Centos7-Run-User {
