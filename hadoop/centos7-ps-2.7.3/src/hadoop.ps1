@@ -9,9 +9,17 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
+try {
+    . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.ps1
+    . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\Centos7Util.ps1
+}
+catch {
+    $Error.Clear()
+}
+
 Get-Command java
 
-function Decorate-Env {
+function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
     $nameNodeBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "NameNode"} | Select-Object -First 1
@@ -97,12 +105,16 @@ function Get-HadoopDirInfomation {
 
 function Install-Hadoop {
     Param($myenv)
+
+    start-dfs $myenv stop
+    start-yarn $myenv stop
+
     $myenv.InstallDir | New-Directory
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
+        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {
-        return
+        $myenv.tgzFile + " doesn't exists!" | Write-Error
     }
     Write-ConfigFiles -myenv $myenv
 }
@@ -120,6 +132,13 @@ function Write-ConfigFiles {
     $DirInfo = Get-HadoopDirInfomation -myenv $myenv
 
     $returnToClient.hadoop.dirInfo = $DirInfo
+    $returnToClient.hadoop.user = @{}
+    $returnToClient.hadoop.user.hdfs = @{}
+    $returnToClient.hadoop.user.yarn = @{}
+    $returnToClient.hadoop.user.hdfs.user = $myenv.hdfsuser.user
+    $returnToClient.hadoop.user.hdfs.group = $myenv.hdfsuser.group
+    $returnToClient.hadoop.user.yarn.user = $myenv.yarnuser.user
+    $returnToClient.hadoop.user.yarn.group = $myenv.yarnuser.group
 
     $myenv.software.textfiles | ForEach-Object {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hadoopDir | Join-Path -ChildPath $_.name) -Encoding ascii
@@ -133,7 +152,7 @@ function Write-ConfigFiles {
     $zkKey = "ha.zookeeper.quorum"
 
     if (! (Test-HadoopProperty -doc $coreSiteDoc -name $zkKey)) {
-        $zkurls = ($myenv.boxGroup.boxes | ? {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
+        $zkurls = ($myenv.boxGroup.boxes | Where-Object {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
 
         if ($zkurls) {
             Set-HadoopProperty -doc $coreSiteDoc -name $zkKey -value $zkurls
@@ -221,7 +240,7 @@ function Write-ConfigFiles {
     Save-Xml -doc $hdfsSiteDoc -FilePath $DirInfo.hdfsSite -encoding ascii
 
     # write profile.d
-    "HADOOP_PREFIX=$($DirInfo.hadoopDir)", "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
+    'HADOOP_PREFIX=' + $DirInfo.hadoopDir, "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
 
     $myenv.dfspiddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
     $myenv.dfslogdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
@@ -248,9 +267,14 @@ function Write-ConfigFiles {
         if(($resultHash.info.namenodeDir | Get-ChildItem -Recurse).Count -lt 3) {
             Format-Hdfs $myenv $DirInfo
         }
-        $R_T_C_B
-        $returnToClient | ConvertTo-Json
-        $R_T_C_E
+        Write-ReturnToClient -returnToClient $returnToClient
+        $returnToDownload = @{}
+        $zipedFile = $DirInfo.hadoopDir | Split-Path -Parent | Join-Path -ChildPath "configuratedHadoopFolder.zip"
+        Compress-Archive -Path $DirInfo.hadoopDir -DestinationPath $zipedFile -CompressionLevel Fastest -Force
+        $files = @()
+        $files += @{name=(Split-Path $zipedFile -Leaf);fullName="$zipedFile"}
+        $returnToDownload.files = $files
+        Write-DownloadToClient -returnToDownload $returnToDownload
     }
 }
 
@@ -259,7 +283,7 @@ function Format-Hdfs {
     if (!$DirInfo) {
         $DirInfo = Get-HadoopDirInfomation $myenv
     }
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (! $resultJson.dfsFormatted) {
 #        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
@@ -272,7 +296,7 @@ function Format-Hdfs {
 # in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so
 function start-dfs {
     Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
     if ("NameNode" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
@@ -287,7 +311,7 @@ function start-dfs {
 
 function start-yarn {
     Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
     if ("ResourceManager" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
@@ -300,7 +324,7 @@ function start-yarn {
     }
 }
 
-function expose-env {
+function Start-ExposeEnv {
     Param($myenv)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     Add-AsHtScriptMethod $rh
@@ -314,19 +338,16 @@ function expose-env {
     }
 }
 
-function run-dfs {
-    Param($myenv, $dfslines)
-    expose-env $myenv
+function Invoke-MyDfs {
+    Param($myenv,$dfslines)
+    Start-ExposeEnv $myenv
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
-    $dfslines = $dfslines -split "`n"
-    $dfslines = $dfslines | % {$_.Trim()} | % {if ($_ -notmatch "^-") {"-" + $_} else {$_}} | % {"{0} fs {1}" -f $rh.dirInfo.hadoopCmd, $_}
-    $dfslines
-    $dfslines | % {Centos7-Run-User -shell "/bin/bash" -scriptcmd "$_"  -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group}
+    Invoke-DfsCmd -hadoopCmd $rh.dirInfo.hadoopCmd -dfslines $dfslines -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
-Persist-JavaHome $myenv
+Save-JavaHomeToEasyinstallerProfile $myenv
 
 switch ($action) {
     "install" {
@@ -344,11 +365,11 @@ switch ($action) {
     "stop-yarn" {
         start-yarn $myenv stop
     }
-    "run-dfs" {
-        run-dfs $myenv (Parse-Parameters $remainingArguments)
+    "Invoke-DfsCmd" {
+        Invoke-MyDfs $myenv (ConvertFrom-Base64Parameter $remainingArguments)
     }
     "kill-alljava" {
-        Get-Process | ? Name -EQ java | Stop-Process -Force
+        Get-Process | Where-Object Name -EQ java | Stop-Process -Force
     }
     "t" {
         # do nothing
@@ -358,7 +379,7 @@ switch ($action) {
     }
 }
 
-Print-Success
+Write-SuccessResult
 
 <#
 

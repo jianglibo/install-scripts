@@ -1,6 +1,4 @@
 start-hiveserver:
-  Before you start hive server, you must goto hadoop and create some user for hive use.
-  mkdir /tmp
-  mkdir /user/hive/warehouse
-  chmod g+w /tmp
-  chmod g+w /user/hive/warehouse
+  HiveServer should listening on port 10000, and web ui port is 10002
+remove-metadb:
+  In case HiveServer not be installed successly, You may need to delete the metadb and install again. 

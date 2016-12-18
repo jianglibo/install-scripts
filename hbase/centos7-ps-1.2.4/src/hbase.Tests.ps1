@@ -17,7 +17,7 @@ $resutl = . "$here\$sut" -envfile $envfile -action t
 
 Describe "code" {
     It  "should install hbase" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         $myenv.user | Should Be "hbase"
         $envvs = $myenv.software.configContent.asHt("envvs")
 
@@ -42,7 +42,7 @@ Describe "code" {
 
         $myenv.InstallDir | Should Be "/opt/hbase"
 
-        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 2
+        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | Measure-Object).Count | Should Be 2
 
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/hbase-1.2.4-bin.tar.gz"
 

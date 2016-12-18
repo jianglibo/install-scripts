@@ -66,7 +66,7 @@ expect {
       timeout {}
 }
 '@
-        $tcls -replace "{spawn-command}",("bash",$bsf -join " ") | Run-String -execute "tclsh" | Select-Object -First 1 | Should Be "Do you wish to install this program?"
+        $tcls -replace "{spawn-command}",("bash",$bsf -join " ") | Invoke-StringCode -execute "tclsh" | Select-Object -First 1 | Should Be "Do you wish to install this program?"
         Remove-Item $bsf
     }
 
@@ -78,20 +78,20 @@ expect {
 
         $bs | Out-File -FilePath $bsf -Encoding ascii
     
-        $r = Centos7-Run-User -scriptfile $bsf -user "abc"
+        $r = Centos7-Run-User -scriptcmd "bash $bsf" -user abc
 
         Centos7-UserManager -username "abc" -action remove
         Remove-Item $bsf
         $r | Should Be "helloabc"
     }
 
-    It "handle run-string" {
+    It "handle Invoke-StringCode" {
         $bs = 'echo "hello$1"'
-        Run-String -execute bash -content $bs -others "abc" | Should Be "helloabc"
+        Invoke-StringCode -execute bash -content $bs -others "abc","def"| Should Be "helloabc"
 
         $bs = 'echo "hello$1$2"'
-        Run-String -execute bash -content $bs "abc" "def" | Should Be "helloabcdef"
+        Invoke-StringCode -execute bash -content $bs -others "abc","def" | Should Be "helloabcdef"
 
-        Run-String -execute bash -content $bs -others "abc","def" | Should Be "helloabcdef"
+        Invoke-StringCode -execute bash -content $bs -others "abc","def" | Should Be "helloabcdef"
     }
 }

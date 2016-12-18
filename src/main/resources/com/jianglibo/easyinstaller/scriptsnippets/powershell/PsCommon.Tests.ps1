@@ -3,23 +3,6 @@ $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 . "$here\$sut"
 
 Describe "PsCommon" {
-    It "should parse parameter" {
-        [hashtable]$h = Parse-Parameters "key:{value},,,key1:{value1}"
-        $h.Count | Should Be 2
-        $h.key | Should Be "value"
-        $h.key1 | Should Be "value1"
-
-        [hashtable]$h = Parse-Parameters 'newpass:{aks&A2:937"},,,replicauser:{repl},,,replicapass:{aks&A2:937"}'
-
-        $h.Count | Should Be 3
-        $h.newpass | Should Be "aks&A2:937`""
-
-        [hashtable]$h = Parse-Parameters 'newpass:{{{aks&A2}:937"}}},,,replicauser:{repl},,,replicapass:{aks&A2:937"}'
-
-        $h.Count | Should Be 3
-        $h.newpass | Should Be '{{aks&A2}:937"}}'
-
-    }
     It "does something useful" {
         $true | Should Be $true
     }
@@ -36,38 +19,38 @@ Describe "PsCommon" {
         $oo.appp("abaac") | Should Be "abaac"
     }
     It "should run string" {
-        Run-String -execute tclsh -content 'puts "abc"' | Should Be "abc"
+        Invoke-StringCode -execute tclsh -content 'puts "abc"' | Should Be "abc"
         $c = @'
         set n [expr 1 + 1]
         puts $n
 '@
-    Run-String -execute tclsh -content $c | Should Be "2"
+    Invoke-StringCode -execute tclsh -content $c | Should Be "2"
     }
     It "should alter resultFile" {
         $tmp = New-TemporaryFile
         "{}" | Out-File -FilePath $tmp -Encoding ascii
-        Alter-ResultFile -resultFile $tmp -keys a,b,c -value 55
+        Set-ResultFileItem -resultFile $tmp -keys a,b,c -value 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a.b.c | Should Be 55
         $rh.value | Should Be $null
 
         "{}" | Out-File -FilePath $tmp -Encoding ascii
-        Alter-ResultFile -resultFile $tmp -keys a 55
+        Set-ResultFileItem -resultFile $tmp -keys a 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a | Should Be 55
 
         "{}" | Out-File -FilePath $tmp -Encoding ascii
-        Alter-ResultFile -resultFile $tmp -keys a 55
+        Set-ResultFileItem -resultFile $tmp -keys a 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a | Should Be 55
 
         "" | Out-File -FilePath $tmp -Encoding ascii
-        Alter-ResultFile -resultFile $tmp -keys a 55
+        Set-ResultFileItem -resultFile $tmp -keys a 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a | Should Be 55
 
-        "" | Out-File -FilePath notexistsfile -Encoding ascii
-        Alter-ResultFile -resultFile $tmp -keys a 55
+#        "" | Out-File -FilePath notexistsfile -Encoding ascii
+        Set-ResultFileItem -resultFile $tmp -keys a 55
         $rh = Get-Content $tmp | ConvertFrom-Json
         $rh.a | Should Be 55
         $rh.value | Should Be $null
@@ -200,7 +183,7 @@ Describe "PsCommon" {
     It "should handle envforexec" {
         $fixture = Join-Path -Path $here -ChildPath "fixtures/envforcodeexec.json"
         $efe = New-EnvForExec $fixture
-
+        $efe.getType().Name | Write-Host
         $efe.getType().Name | Should  Be "pscustomobject"
 
         $efe.remoteFolder | Should  Be "/opt/easyinstaller"
@@ -237,7 +220,7 @@ Describe "PsCommon" {
 
         (Get-Content $tmp).Count | Should Be 4
 
-        Insert-Lines $tmp "^ZOOBINDIR=" "hello"
+        Add-Lines $tmp "^ZOOBINDIR=" "hello"
         $c = Get-Content $tmp
         $c[1] | Should Be "hello"
         $c.Count | Should Be 5
@@ -245,7 +228,7 @@ Describe "PsCommon" {
         Test-Path ($tmp.FullName + ".origin") -PathType Leaf | Should Be $True
 
         Set-Content -Path $tmp -Value 'a', 'ZOOBINDIR="${ZOOBINDIR:-/usr/bin}"', 'b', 'c'
-        Insert-Lines -FilePath $tmp "^ZOOBINDIR=" -lines "hello","1","2" -after
+        Add-Lines -FilePath $tmp "^ZOOBINDIR=" -lines "hello","1","2" -after
         $c = Get-Content $tmp
         $c[2] | Should Be "hello"
         $c.Count | Should Be 7
@@ -312,20 +295,20 @@ Describe "PsCommon" {
     }
 
     It "shoud split coloncomma" {
-        Split-ColonComma -content "" | Should Be ""
-        Split-ColonComma -content "a" | Should Be "a"
+        Parse-RunAs -content "" | Should Be ""
+        Parse-RunAs -content "a" | Should Be "a"
 
-        (Split-ColonComma -content "a:").Count | Should Be 1
-        (Split-ColonComma -content "a:").a | Should Be ""
+        (Parse-RunAs -content "a:").Count | Should Be 1
+        (Parse-RunAs -content "a:").a | Should Be ""
 
-        (Split-ColonComma -content "a:b").Count | Should Be 1
-        (Split-ColonComma -content "a:b").a | Should Be "b"
+        (Parse-RunAs -content "a:b").Count | Should Be 1
+        (Parse-RunAs -content "a:b").a | Should Be "b"
 
-        (Split-ColonComma -content "a:b,c:d").Count | Should Be 2
-        (Split-ColonComma -content "a:b,c:d").a | Should Be "b"
-        (Split-ColonComma -content "a:b,c:d").c | Should Be "d"
+        (Parse-RunAs -content "a:b,c:d").Count | Should Be 2
+        (Parse-RunAs -content "a:b,c:d").a | Should Be "b"
+        (Parse-RunAs -content "a:b,c:d").c | Should Be "d"
 
-        ("a:b,c:d" | Split-ColonComma).c | Should Be "d"
+        ("a:b,c:d" | Parse-RunAs).c | Should Be "d"
     }
 
     It "should handle write-textfile" {
@@ -386,5 +369,29 @@ Describe "PsCommon" {
         Choose-OnCondition -condition 1 "a" "b" | Should Be "a"
 
         Choose-OnCondition -condition 0 "a" "b" | Should Be "b"
+    }
+
+    It "should parse return value" {
+
+    $c = @"
+    a
+        ------RETURN_TO_CLIENT_BEGIN------xs
+        {
+            "h": {
+                b: 55
+            }
+
+        }
+
+        uv------RETURN_TO_CLIENT_END------
+    b
+"@
+    $v =  $c | ConvertFrom-ReturnToClientInstallResult
+    $v | Write-Host
+    $v.h.b | Should Be 55
+    }
+
+    It "should equal array" {
+        1,2,3 | Should Be 3,1,2
     }
 }

@@ -13,7 +13,7 @@ Param(
 Get-Command java
 
 
-function Decorate-Env {
+function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
     $myenv | Add-Member -MemberType ScriptProperty -Name zkconfigLines -Value {
         $this.software.configContent.asHt("zkconfig").GetEnumerator() |
@@ -35,7 +35,7 @@ function Install-Zk {
     $myenv.InstallDir | New-Directory | Out-Null
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
+        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {
         return
     }
@@ -52,10 +52,10 @@ function Write-ConfigFiles {
 
     $myenv.envvs.ZOOCFGDIR, $myenv.dataDir, $logDir | New-Directory | Out-Null
 
-    $idhpair = $myenv.boxGroup.boxes | ? {$_.roles -match "Zookeeper"} | Select-Object @{n="serverId"; e={$_.ip -split "\." | Select-Object -Last 1}}, hostname
+    $idhpair = $myenv.boxGroup.boxes | Where-Object {$_.roles -match "Zookeeper"} | Select-Object @{n="serverId"; e={$_.ip -split "\." | Select-Object -Last 1}}, hostname
     $serviceLines = $idhpair | ForEach-Object {"server.{0}={1}:{2}:{3}" -f (@($_.serverId, $_.hostname) + $myenv.software.configContent.zkports.Split(','))} | Sort-Object
 
-    [array]$zcfgLines = $myenv.software.textfiles | ? {$_.name -eq "zoo.cfg"} | Select-Object -ExpandProperty content
+    [array]$zcfgLines = $myenv.software.textfiles | Where-Object {$_.name -eq "zoo.cfg"} | Select-Object -ExpandProperty content
 
     $zcfgLines + $serviceLines  | Out-File -FilePath $configFile -Encoding ascii
 
@@ -108,7 +108,7 @@ function Write-ConfigFiles {
     }
 }
 
-function Change-Status {
+function Invoke-ZookeeperExecutable {
     Param($myenv, [ValidateSet("start","start-foreground","stop", "restart", "status", "upgrade", "print-cmd")][String]$action)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json | Add-AsHtScriptMethod
     # expose environment variables.
@@ -122,7 +122,7 @@ function Change-Status {
     Centos7-Run-User -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 if ($myenv.boxGroup.boxes.Count -lt 3) {
     Write-Error "There must at least 3 servers to install zookeeper".
@@ -133,7 +133,7 @@ if (! $action) {
     return
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "install" {
@@ -144,8 +144,8 @@ switch ($action) {
         "t"
     }
     default {
-        Change-Status -myenv $myenv -action $action
+        Invoke-ZookeeperExecutable -myenv $myenv -action $action
     }
 }
 
-Print-Success
+Write-SuccessResult

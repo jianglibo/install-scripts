@@ -7,19 +7,19 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/Centos7Util.ps1
 
-function Decorate-Env {
+function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
     $myenv
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "setjavahome" {
-        Persist-JavaHome $myenv
+        Save-JavaHomeToEasyinstallerProfile $myenv
     }
     "openfirewall" {
-        [array]$ports = (Parse-Parameters $remainingArguments) -split "/"
+        [array]$ports = (ConvertFrom-Base64Parameter $remainingArguments) -split "/"
         $ports
         $prot = "tcp"
         if ($ports.Count -gt 1) {
@@ -30,12 +30,12 @@ switch ($action) {
         firewall-cmd --list-all
     }
     "kill-process" {
-        [string[]]$pns = (Parse-Parameters $remainingArguments).Trim() -split "\s+"
-        Get-Process | ? Name -In $pns | ? {$_.Trim().Length -gt 0} | Stop-Process -Force
+        [string[]]$pns = (ConvertFrom-Base64Parameter $remainingArguments).Trim() -split "\s+"
+        Get-Process | Where-Object Name -In $pns | Where-Object {$_.Trim().Length -gt 0} | Stop-Process -Force
     }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)
     }
 }
 
-Print-Success
+Write-SuccessResult

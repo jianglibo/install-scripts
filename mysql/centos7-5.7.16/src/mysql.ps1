@@ -19,7 +19,7 @@ Param(
 $MYSQL_MASTER = "MYSQL_MASTER"
 $MYSQL_REPLICA = "MYSQL_REPLICA"
 
-function Decorate-Env {
+function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
     # piddir and logdir
     $envvs = $myenv.software.configContent.asHt("envvs")
@@ -30,7 +30,7 @@ function Run-SQL {
     Param($myenv, $pass, $sqls)
     $fn = "get-sqlresult.tcl"
     $code = Get-TclContent -myenv $myenv -filename $fn
-    Run-Tcl -content $code $pass $sqls *>&1 | Write-Output -NoEnumerate -OutVariable fromRunSql
+    Invoke-TclContent -content $code $pass $sqls *>&1 | Write-Output -NoEnumerate -OutVariable fromRunSql
     if ($LASTEXITCODE -ne 0) {
         Write-Error "execute '$fn' failed. $fromRunSql"
     }
@@ -106,7 +106,7 @@ function install-master {
    $sqls = ($boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f $paramsHash.replicauser, ($paramsHash.replicapass -replace "'","\'"),$_.hostname}) -join ";"
    Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl
    Enable-LogBinAndRecordStatus $myenv $paramsHash $rsum
-   Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
+   Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
 
 function install-replica {
@@ -159,7 +159,7 @@ function install-replica {
    $sqls = "CHANGE MASTER TO MASTER_HOST='{0}', MASTER_USER='{1}', MASTER_PASSWORD='{2}', MASTER_LOG_FILE='{3}', MASTER_LOG_POS={4}, MASTER_PORT={5};" -f $fa
    # $myenv.boxGroup.installResults.master.logname, position
    Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
-   Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
+   Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
 
 function install-masterreplica {
@@ -205,7 +205,7 @@ function install-masterreplica {
    # $myenv.boxGroup.installResults.master.logname, position
    Run-SQL -myenv $myenv -pass $paramsHash.newpass -sqls $sqls | Write-Output -OutVariable fromTcl | Out-Null
 
-   Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
+   Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","installation","completed" -value $True
 }
 
 function Get-MysqlRpms {
@@ -227,9 +227,9 @@ function Set-NewMysqlPassword {
     $mycnf = New-SectionKvFile -FilePath "/etc/my.cnf"
     $initpassword = (Get-Content (Get-SectionValueByKey -parsedSectionFile $mycnf -section "[mysqld]" -key "log-error") | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1'
     $code = Get-TclContent -myenv $myenv -filename "change-init-pass.tcl"
-    Run-Tcl -content $code "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl | Out-Null
+    Invoke-TclContent -content $code "$initpassword" "$newpassword" | Write-Output -OutVariable fromTcl | Out-Null
 
-    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","initPasswordReseted" -value $True
+    Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","installation","initPasswordReseted" -value $True
 }
 
 function Enable-LogBinAndRecordStatus {
@@ -277,20 +277,20 @@ function Enable-LogBinAndRecordStatus {
         $returnToClient.master.logname = $Matches[1]
         $returnToClient.master.position = $Matches[2]
         $returnToClient.master.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "port") "3306"
-        Alter-ResultFile -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
+        Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","master" -value $returnToClient.master
     }
     if ($rsum.mine -eq "mr") {
         $returnToClient.masterreplica = @{}
         $returnToClient.masterreplica.logname = $Matches[1]
         $returnToClient.masterreplica.position = $Matches[2]
         $returnToClient.masterreplica.port = Choose-FirstTrueValue ( Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "port") "3306"
-        Alter-ResultFile -resultFile $myenv.resultFile -keys "info","masterreplica" -value $returnToClient.masterreplica
+        Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","masterreplica" -value $returnToClient.masterreplica
         # need execute change master to statement.
     }
-    $R_T_C_B
+    $_INSTALL_RESULT_BEGIN_
     $returnToClient | ConvertTo-Json
-    $R_T_C_E
-    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation", "logBinEnabled" -value $True
+    $_INSTALL_RESULT_END_
+    Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","installation", "logBinEnabled" -value $True
 }
 
 $cnt = 0
@@ -319,7 +319,7 @@ function Install-Mysql {
         }
     }
 
-    Detect-RunningYum
+    Test-RunningYum
     $mariadblibs = yum list installed | ? {$_ -match "mariadb-libs"}
 
     if ($mariadblibs) {
@@ -364,7 +364,7 @@ function Install-Mysql {
         Remove-Item -Path $logError | Out-Null
     }
 
-    # start mysqld£¬ when mysql first start, It will create directory and user to run mysql.
+    # start mysqldï¿½ï¿½ when mysql first start, It will create directory and user to run mysql.
     # so just change my.cnf, that's all.
     systemctl enable mysqld | Write-Output -OutVariable fromSh | Out-Null
     systemctl start mysqld | Write-Output -OutVariable fromSh | Out-Null
@@ -377,10 +377,10 @@ function Install-Mysql {
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
-    Alter-ResultFile -resultFile $myenv.resultFile -keys "info","installation","installed" -value $True
+    Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","installation","installed" -value $True
 }
 
-function expose-env {
+function Start-ExposeEnv {
     Param($myenv)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     Add-AsHtScriptMethod $rh
@@ -390,17 +390,17 @@ function expose-env {
     }
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "install-master" {
-        Install-master $myenv (Parse-Parameters $remainingArguments)
+        Install-master $myenv (ConvertFrom-Base64Parameter $remainingArguments)
     }
     "install-masterreplica" {
-        install-masterreplica $myenv (Parse-Parameters $remainingArguments)
+        install-masterreplica $myenv (ConvertFrom-Base64Parameter $remainingArguments)
     }
     "install-replica" {
-        install-replica $myenv (Parse-Parameters $remainingArguments)
+        install-replica $myenv (ConvertFrom-Base64Parameter $remainingArguments)
     }
     "start" {
         if (!(Centos7-IsServiceRunning "mysqld")) {
@@ -413,7 +413,7 @@ switch ($action) {
         }
     }
     "t" {
-        Parse-Parameters $remainingArguments
+        ConvertFrom-Base64Parameter $remainingArguments
         return
     }
     default {
@@ -421,4 +421,4 @@ switch ($action) {
     }
 }
 
-Print-Success
+Write-SuccessResult

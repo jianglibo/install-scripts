@@ -75,7 +75,7 @@ Describe "code" {
     }
 
     It  "should install hadoop" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
         $envvs = $myenv.software.configContent.asHt("envvs")
 
@@ -100,8 +100,6 @@ Describe "code" {
 
         $myenv.InstallDir | Should Be "/opt/hadoop"
 
-#        ($myenv.software.configContent.asHt("envvs").GetEnumerator() | measure).Count | Should Be 5
-
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/hadoop-2.7.3.tar.gz"
 
         Test-Path $tgzFile -PathType Leaf | Should Be $True
@@ -114,24 +112,26 @@ Describe "code" {
         # all name should start with etc
         ($myenv.software.textfiles | Where-Object {$_.name -match "^etc/"}).Count | Should Be $myenv.software.textfiles.length
 
- #       $myenv.resultFile | Should Be "/easy-installer/results/hadoop-CentOs7-ps-2.7.3/easyinstaller-result.json"
+        $installResutlts = Install-Hadoop $myenv
 
- #       $resultJson = Choose-FirstTrueValue (Get-Content $myenv.resultFile -ErrorAction SilentlyContinue) "{}" | ConvertFrom-Json
+        $installResutltsResults = $installResutlts | ConvertFrom-ReturnToClientInstallResult
 
- #       $resultJson.getType() | Should Be "System.Management.Automation.PSCustomObject"
+        $installResutltsResults.hadoop.user.hdfs.user | Should Be "hdfs"
+        $installResutltsResults.hadoop.user.hdfs.group | Should Be "hadoop"
 
- #       $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
+        $installResutltsResults.hadoop.user.yarn.user | Should Be "yarn"
+        $installResutltsResults.hadoop.user.yarn.group | Should Be "hadoop"
 
- #       $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
 
- #       $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
+        $installResutltsDownload = $installResutlts | ConvertFrom-ReturnToClientToDownload
 
- #       $resultJson.dfsFormatted | Should Be $True
-
-        Install-Hadoop $myenv
+        $installResutltsDownload.files[0].Name | Should be "configuratedHadoopFolder.zip"
 
         $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
-        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
+
+        $resultKeys = $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate
+        $resultJson | Write-Host
+        $resultKeys | Should Be "env", "info", "dirInfo"
 
         $di = Get-HadoopDirInfomation $myenv
         $coreSite =  Get-Item $di.coreSite
@@ -142,8 +142,8 @@ Describe "code" {
         [xml]$coreSiteDoc = Get-Content $coreSite
 
         $pnames = $coreSiteDoc.configuration.property | Select-Object -ExpandProperty Name | Write-Output -NoEnumerate
-
-        $pnames | Should Be "fs.defaultFS", "io.file.buffer.size", "ha.zookeeper.quorum", "ha.zookeeper.session-timeout.ms"
+        $pnames | Write-Host
+        $pnames | Should Be "fs.defaultFS", "io.file.buffer.size", "ha.zookeeper.quorum", "ha.zookeeper.session-timeout.ms", "hadoop.proxyuser.hive.hosts", "hadoop.proxyuser.hive.groups"
 
         if ($myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path) {
             start-yarn $myenv stop
@@ -167,11 +167,11 @@ Describe "code" {
     }
 
     It "should get right user" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
         $users = $myenv.software.runas
 
-        $users.getType() | Should Be "hashtable"
+        $users.getType() | Should Be "System.Management.Automation.PSCustomObject"
 
         $users -is "string" | Should Be $False
 
@@ -183,7 +183,11 @@ Describe "code" {
             $user_yarn = $users.yarn
         }
 
-        $user_hdfs | Should Be "hdfs"
-        $user_yarn | Should Be "yarn"
+        $user_hdfs.user | Should Be "hdfs"
+        $user_yarn.user | Should Be "yarn"
+
+        $user_hdfs.group | Should Be "hadoop"
+        $user_yarn.group | Should Be "hadoop"
+
     }
 }

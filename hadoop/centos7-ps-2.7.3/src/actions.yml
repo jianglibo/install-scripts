@@ -1,5 +1,9 @@
-run-dfs:
+Invoke-DfsCmd:
   mkdir /tmp
   mkdir -p /user/hive/warehouse
   chmod g+w /tmp
   chmod g+w /user/hive/warehouse
+start-dfs:
+  Hdfs web ui should listening on port 50070.
+start-yarn:
+  Yarn web ui should listening on port 8042

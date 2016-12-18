@@ -9,7 +9,7 @@ configContent: config.yml # content of this file will insert into software confi
 codeFileExt: .ps1
 codeLineSeperator: LF
 runas: '{user: "hive", group: "hadoop"}'
-actions: install,start-hiveserver,stop-hiveserver
+actions: install,start-hiveserver,stop-hiveserver,remove-metadb
 actionDescriptions: actions.yml
 filesToUpload:
   - http://apache.fayea.com/hive/stable-2/apache-hive-2.1.1-bin.tar.gz

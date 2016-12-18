@@ -1,18 +1,14 @@
 ﻿$ErrorActionPreference = "Stop"
 
-$R_T_C_B = "------RETURN_TO_CLIENT_BEGIN------"
-$R_T_C_E = "------RETURN_TO_CLIENT_END------"
+$_INSTALL_RESULT_BEGIN_ = "------RETURN_TO_CLIENT_BEGIN------"
+$_INSTALL_RESULT_END_ = "------RETURN_TO_CLIENT_END------"
 
-function Run-Tar {
- Param
-     (
-       [parameter(Position=0, Mandatory=$True)]
-       [String]
-       $TgzFileName,
-       [parameter(Mandatory=$False)]
-       [String]
-       $DestFolder
-    )
+$_DOWNLOAD_BEGIN_ = "------DOWNLOAD_TO_CLIENT_BEGIN------"
+$_DOWNLOAD_END_ = "------DOWNLOAD_TO_CLIENT_END------"
+
+function Start-Untgz {
+ Param([parameter(Position=0, Mandatory=$True)][String]$TgzFileName,
+       [parameter(Mandatory=$False)][String]$DestFolder)
     if ($DestFolder) { # had destFolder parameter
         if (!(Test-Path $DestFolder)) { # if not exists.
 #            if ((Get-Item $DestFolder).PSIsContainer) {
@@ -20,13 +16,91 @@ function Run-Tar {
         }
     }
     $command = "tar -zxvf $TgzFileName $(if ($DestFolder) {`" -C $DestFolder`"} else {''}) *>&1"
-    $r = $command | Invoke-Expression | Where-Object {$_ -cmatch "Cannot open:.*"} | measure
+    $r = $command | Invoke-Expression | Where-Object {$_ -cmatch "Cannot open:.*"} | Measure-Object
     if ($r.Count -gt 0) {$false} else {$True}
 }
 
-function Parse-Parameters {
-    Param([parameter(ValueFromPipeline=$True)]$parastr)
-    $mayBeJsonSting = Decode-Base64 -base64Str $parastr
+function Write-ReturnToClient {
+    Param([parameter(ValueFromPipeline=$True)]$returnToClient)
+    "`n", $_INSTALL_RESULT_BEGIN_, "`n" | Write-Output
+    $returnToClient | ConvertTo-Json -Depth 10
+    "`n", $_INSTALL_RESULT_END_, "`n" | Write-Output
+}
+
+function Write-DownloadToClient {
+    Param([parameter(ValueFromPipeline=$True)]$returnToDownload)
+    "`n", $_DOWNLOAD_BEGIN_, "`n" | Write-Output
+    $returnToDownload | ConvertTo-Json -Depth 10
+    "`n", $_DOWNLOAD_END_, "`n" | Write-Output
+}
+
+function ConvertFrom-LineBlock {
+    Param([parameter(ValueFromPipeline=$True)]$InputObject, $beginPtn, $endPtn)
+    Begin {
+        $totalLines = @()
+    }
+    Process {
+        $totalLines += ($_ -split '\r?\n|\r\n?')
+    }
+    End {
+        $jlines = @()
+        $bgn = $False
+        $end = $False
+        foreach ($line in $totalLines) {
+            if ($line -cmatch $endPtn) {
+                $end = $True
+            }
+            if ($bgn -and !$end) {
+                $jlines += $line
+            }
+            if ($line -cmatch $beginPtn) {
+                $bgn = $True
+            }
+        }
+        if ($bgn -and $end) {
+            $jlines | ConvertFrom-Json
+        }
+    }
+}
+
+function ConvertFrom-ReturnToClientInstallResult {
+    Param([parameter(ValueFromPipeline=$True)]$InputObject)
+    Begin {
+        $totalLines = @()
+    }
+    Process {
+        $totalLines += ($_ -split '\r?\n|\r\n?')
+    }
+    End {
+        $totalLines | ConvertFrom-LineBlock -beginPtn $_INSTALL_RESULT_BEGIN_ -endPtn $_INSTALL_RESULT_END_
+    }
+    
+}
+
+function ConvertFrom-ReturnToClientToDownload {
+    Param([parameter(ValueFromPipeline=$True)]$InputObject)
+    Begin {
+        $totalLines = @()
+    }
+    Process {
+        $totalLines += ($_ -split '\r?\n|\r\n?')
+    }
+    End {
+        $totalLines | ConvertFrom-LineBlock -beginPtn $_DOWNLOAD_BEGIN_ -endPtn $_DOWNLOAD_END_
+    }
+}
+
+function Invoke-DfsCmd {
+    Param([string]$hadoopCmd,$dfslines,[string]$user,[string]$group)
+    $dfslines = $dfslines -split "`n"
+    $dfslines = $dfslines | ForEach-Object {$_.Trim()} | ForEach-Object {if ($_ -notmatch "^-") {"-" + $_} else {$_}} | ForEach-Object {"{0} fs {1}" -f $hadoopCmd, $_}
+    $dfslines | Write-HostIfInTesting
+    $dfslines | ForEach-Object {Centos7-Run-User -shell "/bin/bash" -scriptcmd "$_"  -user $user -group $group}
+}
+
+function ConvertFrom-Base64Parameter {
+    Param([parameter(ValueFromPipeline=$True)][string]$parastr)
+    $mayBeJsonSting = ConvertFrom-Base64String -base64Str $parastr
     try {
         $mayBeJsonSting | ConvertFrom-Json -ErrorAction SilentlyContinue -OutVariable mayBeJson | Out-Null
         $mayBeJson
@@ -37,7 +111,7 @@ function Parse-Parameters {
     }
 }
 
-function Alter-ResultFile {
+function Set-ResultFileItem {
     Param([parameter(Mandatory=$True)][string]$resultFile,[parameter(Mandatory=$True)][array]$keys, $value)
     $rh = Get-Content $resultFile | ConvertFrom-Json
     if (!$rh) {
@@ -67,7 +141,7 @@ function Alter-ResultFile {
     if (!$leaf) {
         $leaf = $rh
     }
-    if ($leaf | Get-Member | ? Name -EQ $lastKey) {
+    if ($leaf | Get-Member | Where-Object Name -EQ $lastKey) {
         $leaf.$lastKey = $value
     } else {
         $leaf | Add-Member -MemberType NoteProperty -Name $lastKey -Value $value
@@ -76,31 +150,32 @@ function Alter-ResultFile {
     $rh | ConvertTo-Json | Out-File $resultFile -Force -Encoding ascii
 }
 
-function Encode-Base64 {
-    Param([string]$str)
+function ConvertTo-Base64String {
+    Param([parameter(ValueFromPipeline=$True)][string]$str)
     $bytes = [System.Text.Encoding]::ASCII.GetBytes($str)
     [System.Convert]::ToBase64String($bytes)
 }
 
-function Decode-Base64 {
-    Param([string]$base64Str)
+function ConvertFrom-Base64String {
+    Param([parameter(ValueFromPipeline=$True)][string]$base64Str)
     $bytes = [System.Convert]::FromBase64String($base64Str)
     [System.Text.Encoding]::ASCII.GetString($bytes)
 }
 
-function Quota-Quota {
-    Param([string]$quotaChar, [switch]$quotaInnerQuota,[parameter(ValueFromRemainingArguments=$True)]$others)
+function ConvertTo-EscapedQuotationForBashCommandLine {
+    Param([string]$quotaChar, [switch]$quotaInnerQuota, [string[]]$others)
+    $others | Write-Host
     if ($quotaChar -eq "'") {
         if ($quotaInnerQuota) {
-            $others = $others | % {"'" + ($_ -replace "'","'`"'`"'") + "'"}
+            $others = $others | ForEach-Object {"'" + ($_ -replace "'","'`"'`"'") + "'"}
         } else {
-            $others = $others | % {"'" + $_ + "'"}
+            $others = $others | ForEach-Object {"'" + $_ + "'"}
         }
     } elseif ($quotaChar -eq '"') {
         if ($quotaInnerQuota) {
-            $others = $others | % {'"' + ($_ -replace '"',"`"'`"'`"") + '"'}
+            $others = $others | ForEach-Object {'"' + ($_ -replace '"',"`"'`"'`"") + '"'}
         } else {
-            $others = $others | % {'"' + $_ + '"'}
+            $others = $others | ForEach-Object {'"' + $_ + '"'}
         }
     }
     $others
@@ -120,39 +195,44 @@ function Write-OutputIfTesting {
     }
 }
 
-function Run-Tcl {
+function Invoke-TclContent {
     Param([parameter(ValueFromPipeline=$True)]$content,[parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
     $content | Out-File -FilePath $tf -Encoding ascii
-    $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
+    $others = $others | ForEach-Object {"'" + (ConvertTo-Base64String $_) + "'"}
     ("tclsh",$tf + $others) -join " " | Write-HostIfInTesting
     ("tclsh",$tf + $others) -join " " | Invoke-Expression *>&1
     Remove-Item -Path $tf
 }
 
-function Run-Bash {
+function Invoke-BashContent {
     Param([parameter(ValueFromPipeline=$True)]$content,[parameter(ValueFromRemainingArguments=$True)]$others)
     $tf = (New-TemporaryFile).FullName
     $content | Out-File -FilePath $tf -Encoding ascii
-    $others = $others | % {"'" + (Encode-Base64 $_) + "'"}
+    $others = $others | ForEach-Object {"'" + (ConvertTo-Base64String $_) + "'"}
     ("bash",$tf + $others) -join " " | Write-HostIfInTesting
     ("bash",$tf + $others) -join " " | Invoke-Expression *>&1
     Remove-Item -Path $tf
 }
 
-function Run-String {
-    Param([string]$execute, [parameter(ValueFromPipeline=$True)]$content,[string]$quotaChar,[switch]$quotaInnerQuota, [parameter(ValueFromRemainingArguments=$True)]$others)
+function Invoke-StringCode {
+    Param([string]$execute, [parameter(ValueFromPipeline=$True)]$content,[string]$quotaChar="'",[switch]$quotaInnerQuota, [string[]]$others)
     $tf = (New-TemporaryFile).FullName
-
     $content | Out-File -FilePath $tf -Encoding ascii
-    $others = Quota-Quota -quotaChar $quotaChar -quotaInnerQuota $quotaInnerQuota @others
-    ($execute,$tf + $others) -join " " | Write-Host
-    ($execute,$tf + $others) -join " " | Invoke-Expression
+    if ($quotaInnerQuota) {
+        $others1 = ConvertTo-EscapedQuotationForBashCommandLine -quotaChar $quotaChar -quotaInnerQuota -others $others
+    } else {
+        $others1 = ConvertTo-EscapedQuotationForBashCommandLine -quotaChar $quotaChar -others $others
+    }
+    
+    $others1 | Write-Host
+    ($execute,$tf + $others1) -join " " | Write-Host
+    ($execute,$tf + $others1) -join " " | Invoke-Expression
     Remove-Item -Path $tf
 }
 
-function Detect-RunningYum {
-    if (Get-Process | ? Name -EQ yum) {
+function Test-RunningYum {
+    if (Get-Process | Where-Object Name -EQ yum) {
         Write-Error "Another yum are running, Please wait for it's completion"
     }
 }
@@ -169,7 +249,7 @@ function New-IpUtil {
 
 }
 
-function Insert-Lines {
+function Add-Lines {
     Param([String]$FilePath, [String]$ptn, $lines, [switch]$after)
     if ($FilePath -is [System.IO.FileInfo]) {
         $FilePath = $FilePath.FullName
@@ -396,7 +476,7 @@ function Get-UploadFiles {
         } else {
             $fullfns = $allfns
         }
-        $fullfns | % {$_ -split '/' | Select-Object -Last 1} | % {if($OnlyName) {$_} else {$myenv.remoteFolder | Join-Path -ChildPath $_}}
+        $fullfns | ForEach-Object {$_ -split '/' | Select-Object -Last 1} | ForEach-Object {if($OnlyName) {$_} else {$myenv.remoteFolder | Join-Path -ChildPath $_}}
     }
 }
 
@@ -501,7 +581,7 @@ function Comment-SectionKv {
 
 function Get-SectionValueByKey {
     Param([parameter(Mandatory=$True)]$parsedSectionFile,[parameter(Mandatory=$True)][string]$section, [parameter(Mandatory=$True)][string]$key)
-    $kv = $parsedSectionFile.blockHt[$section] | ? {$_ -match "^${key}\s*=\s*(.*?)\s*$"} | Select-Object -First 1
+    $kv = $parsedSectionFile.blockHt[$section] | Where-Object {$_ -match "^${key}\s*=\s*(.*?)\s*$"} | Select-Object -First 1
     if ($kv) {
         $Matches[1]
     }
@@ -596,7 +676,7 @@ function New-SectionKvFile {
 
     $getValue = {
         param([String]$section, [String]$k)
-        $kv = $this.blockHt[$section] | ? {$_ -match "^$k="}
+        $kv = $this.blockHt[$section] | Where-Object {$_ -match "^$k="}
         if ($kv) {
             $kv -split "=" | Select-Object -Index 1
         }
@@ -714,7 +794,7 @@ function Choose-OnCondition {
    }
 }
 
-function Print-Success {
+function Write-SuccessResult {
     if ($Error.Count -gt 0) {
         $Error | ForEach-Object {$_.ToString(),$_.ScriptStackTrace}
     } else {
@@ -732,7 +812,7 @@ function Get-CmdTarget {
     }
 }
 
-function Persist-JavaHome {
+function Save-JavaHomeToEasyinstallerProfile {
     Param($myenv,$jp)
     $easyinstallerjava = "/etc/profile.d/easyinstallerjava.sh"
     if (!(Test-Path $easyinstallerjava)) {

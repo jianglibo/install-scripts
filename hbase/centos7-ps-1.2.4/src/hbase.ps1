@@ -14,7 +14,7 @@ Param(
 
 Get-Command java
 
-function Decorate-Env {
+function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
     if (($myenv.box.hostname -eq $myenv.box.ip) -and ("HbaseMaster" -in $myenv.myRoles)) {
@@ -75,7 +75,7 @@ function Install-Hbase {
     $myenv.InstallDir | New-Directory | Out-Null
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
+        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {
         return
     }
@@ -101,7 +101,7 @@ function Write-ConfigFiles {
     $rootDirKey = "hbase.rootdir"
 
     if (! (Test-HadoopProperty -doc $hbaseSiteDoc -name $rootDirKey)) {
-        $hadoopNameNode = $myenv.boxGroup.boxes | ? {$_.roles -match "NameNode"} | Select-Object -First 1 -ExpandProperty hostname
+        $hadoopNameNode = $myenv.boxGroup.boxes | Where-Object {$_.roles -match "NameNode"} | Select-Object -First 1 -ExpandProperty hostname
 
         if (! $hadoopNameNode) {
             Write-Error "There's no $rootDirKey in hbase-site.xml, and can't imagin from boxgroups"
@@ -112,7 +112,7 @@ function Write-ConfigFiles {
 
     $zkKey = "hbase.zookeeper.quorum"
     if (! (Test-HadoopProperty -doc $hbaseSiteDoc -name $zkKey)) {
-        $zkurls = ($myenv.boxGroup.boxes | ? {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
+        $zkurls = ($myenv.boxGroup.boxes | Where-Object {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
         if ($zkurls) {
             Set-HadoopProperty -doc $hbaseSiteDoc -name $zkKey -value $zkurls
         } else {
@@ -160,7 +160,7 @@ function Write-ConfigFiles {
 
 function start-hbase {
     Param($myenv)
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
@@ -171,7 +171,7 @@ function start-hbase {
 
 function stop-hbase {
     Param($myenv)
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
         Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
@@ -180,7 +180,7 @@ function stop-hbase {
     }
 }
 
-function expose-env {
+function Start-ExposeEnv {
     Param($myenv)
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     Add-AsHtScriptMethod $rh
@@ -194,7 +194,7 @@ function expose-env {
     }
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "install" {
@@ -214,7 +214,7 @@ switch ($action) {
     }
 }
 
-Print-Success
+Write-SuccessResult
 
 <#
 function Add-TagWithTextValue {

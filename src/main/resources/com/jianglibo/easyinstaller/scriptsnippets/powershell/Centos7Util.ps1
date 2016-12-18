@@ -174,6 +174,7 @@ function Centos7-Nohup {
     $newcmd,$line2,$line3 | Out-File $tmp -Encoding ascii
     Write-Host "$tmp"
     bash "$tmp"
+    $tmp | Write-HostIfInTesting
 #    Remove-Item $tmp -Force
 }
 

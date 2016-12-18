@@ -18,7 +18,7 @@ $resutl = . "$here\$sut" -envfile $envfile -action t
 
 Describe "code" {
     It  "should install hive" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         $myenv.InstallDir | Should Be "/opt/hive"
 
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/apache-hive-2.1.1-bin.tar.gz"
@@ -29,8 +29,11 @@ Describe "code" {
 
         $myenv.tgzFile = $tgzFile
 
-        kill-hiveserver HiveServer2
+        stop-hiveserver HiveServer2
 
+        remove-metadb $myenv
+
+<#
         if (Test-Path $myenv.resultFile) {
             $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
             Remove-Item $myenv.resultFile -Force
@@ -47,7 +50,7 @@ Describe "code" {
             }
             catch {}
         }
-
+#>
         
         ([array]($myenv.software.textfiles)).Count | Should Be 1
 
@@ -55,46 +58,12 @@ Describe "code" {
         [array]$tfs = $myenv.software.textfiles | Where-Object {$_.name -match "^conf/"}
         $tfs.Count | Should Be $myenv.software.textfiles.length
 
-        Install-Hive $myenv
+        $installResults = Install-Hive $myenv | ConvertFrom-ReturnToClientInstallResult
 
-        init-schema $myenv
+        $installResults.hive.info.metadb | Should Be "/opt/hive/metaStoreFolder/metastore_db"
+
+        Initialize-HiveSchema $myenv
 
         start-hiveserver $myenv
-
-<#
-        $resultJson | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Sort-Object | Write-Output -NoEnumerate | Should Be "dfsFormatted", "env", "info"
-
-        $di = Get-HadoopDirInfomation $myenv
-        $coreSite =  Get-Item $di.coreSite
-        $hdfsSite = Get-Item $di.hdfsSite
-        $yarnSite = Get-Item $di.yarnSite
-        $mapredSite = Get-Item $di.mapredSite
-        
-        [xml]$coreSiteDoc = Get-Content $coreSite
-
-        $pnames = $coreSiteDoc.configuration.property | Select-Object -ExpandProperty Name | Write-Output -NoEnumerate
-
-        $pnames | Should Be "fs.defaultFS", "io.file.buffer.size", "ha.zookeeper.quorum", "ha.zookeeper.session-timeout.ms"
-
-        if ($myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path) {
-            start-yarn $myenv stop
-        }
-
-        if ($myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path) {
-            start-dfs $myenv stop
-        }
-
-        start-dfs $myenv start
-        start-yarn $myenv start
-
-        $myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $True
-        $myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path | Should Be $True
-
-        start-yarn $myenv stop
-        $myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path | Should Be $False
-
-        start-dfs $myenv stop
-        $myenv.dfspiddir | Join-Path  -ChildPath "hadoop-hdfs-namenode.pid" | Test-Path | Should Be $False
-#>
     }
 }

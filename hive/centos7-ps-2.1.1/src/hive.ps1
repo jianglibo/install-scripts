@@ -13,7 +13,7 @@ Param(
 
 Get-Command java
 
-function Decorate-Env {
+function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
 
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
@@ -48,6 +48,8 @@ function Install-Hive {
         return
     }
 
+    stop-hiveserver -myenv $myenv
+
     $myenv.InstallDir | New-Directory
 
     $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | New-Directory | Centos7-Chown -user $myenv.user.user -group $myenv.user.group
@@ -57,11 +59,11 @@ function Install-Hive {
     Centos7-UserManager -username $myenv.user.user -group $myenv.user.group -action add
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Run-Tar $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
+        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {
         Write-Error ($myenv.tgzFile + " doesn't exists.")
     }
-    Write-ConfigFiles -myenv $myenv | Out-Null
+    Write-ConfigFiles -myenv $myenv
 }
 
 
@@ -70,7 +72,10 @@ function Write-ConfigFiles {
     $resultHash = @{}
     $resultHash.envvs = @{}
     $resultHash.info = @{}
-    $yarnDirs = @()
+
+    $returnToClient = @{}
+    $returnToClient.hive = @{}
+    $returnToClient.hive.info = @{}
 
     $DirInfo = Get-HiveDirInfomation -myenv $myenv
 
@@ -86,7 +91,7 @@ function Write-ConfigFiles {
     $zkKey = "hive.zookeeper.quorum"
 
     if (! (Test-HadoopProperty -doc $hiveSiteDoc -name $zkKey)) {
-        $zkurls = ($myenv.boxGroup.boxes | ? {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
+        $zkurls = ($myenv.boxGroup.boxes | Where-Object {$_.roles -match "ZOOKEEPER"} | Select-Object -ExpandProperty hostname) -join ","
         if ($zkurls) {
             Set-HadoopProperty -doc $hiveSiteDoc -name $zkKey -value $zkurls
         }
@@ -108,32 +113,41 @@ function Write-ConfigFiles {
 
     $metaStoreDb = Get-HadoopProperty -doc $hiveSiteDoc -name $metaStoreKey
 
-    $newdbname = "metastore_db"
-    $done = $False
+    $urlPrefix = "jdbc:derby:;databaseName="
+    $urlPostfix = ";create=true"
 
+    $isAbsolute = $False
     if ($metaStoreDb) {
-        $dbname = $metaStoreDb -replace "^.*databaseName=([^;]+;.*$)",'$1'
+        if ($metaStoreDb -match "^(.*databaseName=)([^;]+)(;.*)$") {
+            $urlPrefix = $Matches[1]
+            $dbname = $Matches[2]
+            $urlPostfix = $Matches[3]
+        } else {
+           "Unknown metastore url: $metaStoreDb" | Write-Error
+        }
         if (Test-AbsolutePath $dbname) {
-            $done = $True
+            $isAbsolute = $True
         }
-        $newdbname = $dbname
+    } else {
+        $dbname = "metastore_db"
     }
-
-    if (!$done) {
-        $metaFolder = ($myenv.InstallDir | Join-Path -ChildPath "metaStoreFolder" | New-Directory)
-        Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $metaFolder
-        $newdbname = $metaFolder | Join-Path -ChildPath $newdbname
-        # Microsoft.PowerShell.Core/FileSystem::/opt/hive/metaStoreFolder/metastore_db;create=true
-        $newdbname | Write-HostIfInTesting
-        if ($newdbname -match "::") {
-            $newdbname = $newdbname -replace ".*::(.*)$",'$1'
-        }
-        $newdbname | Write-HostIfInTesting
-        $metaStoreDb = "jdbc:derby:;databaseName=$newdbname;create=true"
-        Set-HadoopProperty -doc $hiveSiteDoc -name $metaStoreKey -value $metaStoreDb
+    if (!$isAbsolute) {
+        $dbname = $myenv.InstallDir | Join-Path -ChildPath "metaStoreFolder" | Join-Path -ChildPath $dbname
     }
+    if ($dbname -match "::") {
+        $dbname = $dbname -replace ".*::(.*)$",'$1'
+    }
+    $dbFolder = $dbname | Split-Path -Parent
 
-    $resultHash.info.metadb = $newdbname
+    $dbFolder | New-Directory | Out-Null
+    Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $dbFolder
+
+    $metaStoreDb = $urlPrefix,$dbname,$urlPostfix -join ""
+    Set-HadoopProperty -doc $hiveSiteDoc -name $metaStoreKey -value $metaStoreDb
+
+    $resultHash.info.metadb = $dbname
+
+    $returnToClient.hive.info.metadb = $dbname
 
     Centos7-FileWall -ports $thriftPort,$thriftHttpPort,$webuiPort
 
@@ -163,26 +177,33 @@ function Write-ConfigFiles {
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
     chmod u+x $myenv.appFile
+
+    $dfscmds = "mkdir -p /tmp/hive", "chmod 777 /tmp/hive"
+    Invoke-DfsCmd -hadoopCmd $myenv.boxGroup.installResults.hadoop.dirInfo.hadoopCmd -dfslines $dfscmds -user $myenv.boxGroup.installResults.hadoop.user.hdfs.user -group $myenv.boxGroup.installResults.hadoop.user.hdfs.group
+
+    Initialize-HiveSchema -myenv $myenv
+
+    Write-ReturnToClient -returnToClient $returnToClient
 }
 
 function remove-hive {
     Param($myenv)
 }
 
-function init-schema {
+function Initialize-HiveSchema {
     Param($myenv)
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (!$rh.info.initSchema.completed) {
         $scmd = "{0} -dbType derby -initSchema --verbose" -f  ($rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/schematool")
         Centos7-Run-User -shell "/bin/bash" -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group
-        Alter-ResultFile -resultFile $myenv.resultFile -keys "info","initSchema","completed" -value $True
+        Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","initSchema","completed" -value $True
     }
 }
 
 function start-hiveserver {
     Param($myenv)
-    expose-env $myenv
+    Start-ExposeEnv $myenv
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     $scmd = $rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/hiveserver2"
     Centos7-Nohup -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group  -NICENESS 0 -logfile $rh.logFile -pidfile $rh.pidFile
@@ -190,37 +211,62 @@ function start-hiveserver {
 
 function stop-hiveserver {
     Param($myenv)
-    expose-env $myenv
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
-    if (Test-Path $rh.pidFile) {
-        $pidcontent = Get-Content $rh.pidFile
-        if ($pidcontent) {
-            Stop-Process -Id $pidcontent
-            Remove-Item $rh.pidFile -Force
+    Start-ExposeEnv $myenv
+    $done = $False
+    if ($myenv.resultFile -and (Test-Path $myenv.resultFile)) {
+        $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+
+        if (Test-Path $rh.pidFile) {
+            $pidcontent = Get-Content $rh.pidFile
+            if ($pidcontent -and $pidcontent.Trim()) {
+                Stop-Process -Id $pidcontent
+                Remove-Item $rh.pidFile -Force
+                $done = $True
+            }
         }
-    } else {
+    }
+    if (!$done) {
         $rh.pidFile + " doesn't exists"
+        Stop-HiveServerByKill HiveServer2
     }
 }
 
-function kill-hiveserver {
+function Stop-HiveServerByKill {
     Param($ptn)
     try {
         $c = "kill -s 9 `$(ps aux | grep '$ptn' | awk '{print `$2}')"
-        Run-Bash -content $c
+        Invoke-BashContent -content $c
     }
     catch {
         $Error[0].Message | Write-HostIfInTesting
+        $Error.Clear()
     }
 }
 
-function expose-env {
+function remove-metadb {
     Param($myenv)
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
-    Add-AsHtScriptMethod $rh
-    $envhash =  $rh.asHt("envvs")
-    $envhash.GetEnumerator() | ForEach-Object {
-        Set-Content -Path "env:$($_.Key)" -Value $_.Value
+    Start-ExposeEnv $myenv
+    if ($myenv.resultFile -and (Test-Path $myenv.resultFile)) {
+        $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+        stop-hiveserver -myenv $myenv
+
+        if (Test-Path $rh.info.metadb -PathType Container) {
+            Remove-Item -Path $rh.info.metadb -Recurse -Force
+        } else {
+            $rh.info.metadb + " is not a directory"
+        }
+    }
+}
+
+function Start-ExposeEnv {
+    Param($myenv)
+    if ($myenv.resultFile -and (Test-Path $myenv.resultFile)) {
+        $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+        Add-AsHtScriptMethod $rh
+        $envhash =  $rh.asHt("envvs")
+        $envhash.GetEnumerator() | ForEach-Object {
+            Set-Content -Path "env:$($_.Key)" -Value $_.Value
+        }
     }
 
     if (!$envhash.javahome) {
@@ -228,7 +274,7 @@ function expose-env {
     }
 }
 
-$myenv = New-EnvForExec $envfile | Decorate-Env
+$myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 if ("HIVE_SERVER" -notin $myenv.myRoles) {
     if (!$I_AM_IN_TESTING) {
@@ -246,8 +292,8 @@ switch ($action) {
     "stop-hiveserver" {
         stop-hiveserver $myenv
     }
-    "kill-hiveserver" {
-        kill-hiveserver HiveServer2
+    "remove-metadb" {
+        remove-metadb $myenv
     }
     "t" {
         # do nothing
@@ -257,4 +303,4 @@ switch ($action) {
     }
 }
 
-Print-Success
+Write-SuccessResult

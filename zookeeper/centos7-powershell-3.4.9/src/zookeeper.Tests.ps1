@@ -27,7 +27,7 @@ others can put into : "${ZOOCFGDIR}/zookeeper-env.sh": ZOOCFG,ZOO_LOG_DIR,ZOO_LO
 Describe "code" {
 
     It "should deco env" {
-        $decorated = (New-EnvForExec $envfile | Decorate-Env)
+        $decorated = (New-EnvForExec $envfile | ConvertTo-DecoratedEnv)
         $decorated.envvs.ZOOCFGDIR -replace '\\','/' | Should Be "/var/zookeeper"
         $decorated.installDir | Should Be "/opt/zookeeper"
 
@@ -50,7 +50,7 @@ Describe "code" {
         if (!$IsLinux) {
             return
         }
-        $decorated = (New-EnvForExec $envfile | Decorate-Env)
+        $decorated = (New-EnvForExec $envfile | ConvertTo-DecoratedEnv)
         $fixtureFile = Join-Path $testTgzFolder -ChildPath $decorated.getUploadedFile("", $True)
         $tgzFile = $decorated.getUploadedFile()
 
@@ -69,20 +69,20 @@ Describe "code" {
         
         $allports = Centos7-GetOpenPorts
 
-        "2888/tcp","3888/tcp","2181/tcp" | ? {$_ -notin $allports} | Should Be $null
+        "2888/tcp","3888/tcp","2181/tcp" | Where-Object {$_ -notin $allports} | Should Be $null
 
         $decorated.resultFile -replace "\\", "/" | Should Be "/easy-installer/results/zookeeper-CentOs7-powershell-3.4.9/easyinstaller-result.json"
         (Get-Content $decorated.resultFile | ConvertFrom-Json).executable | Should be "/opt/zookeeper/zookeeper-3.4.9/bin/zkServer.sh"
 
-        $r = Change-Status -myenv $decorated -action start | Out-String
+        $r = Invoke-ZookeeperExecutable -myenv $decorated -action start | Out-String
         Start-Sleep -Seconds 10
         if ($r -match "already running as") {
-            Change-Status -myenv $decorated -action stop
+            Invoke-ZookeeperExecutable -myenv $decorated -action stop
         }
-        $r = Change-Status -myenv $decorated -action start | Out-String
+        $r = Invoke-ZookeeperExecutable -myenv $decorated -action start | Out-String
         Start-Sleep -Seconds 10
         $r -match "already running as" | Should Be $False
         
-        Change-Status -myenv $decorated -action stop
+        Invoke-ZookeeperExecutable -myenv $decorated -action stop
     }
 }

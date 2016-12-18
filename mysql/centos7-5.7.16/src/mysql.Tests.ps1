@@ -12,7 +12,7 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 
 $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 
-$result = . "$here\$sut" -envfile $envfile -action t (Encode-Base64 "param0 param1 param2")
+$result = . "$here\$sut" -envfile $envfile -action t (ConvertTo-Base64String "param0 param1 param2")
 
 $I_AM_IN_TESTING = $True
 
@@ -79,13 +79,13 @@ function remove-mysql {
 
 Describe "code" {
     It "should get-tclcontent" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         Get-TclContent -myenv $myenv -filename "get-sqlresult.tcl" | Should Be $True
     }
     It "should return right result" {
         $result | Should Be "param0 param1 param2"
 
-        $p = Encode-Base64 '{"a":1, "b": "xx"}' | Parse-Parameters
+        $p = ConvertTo-Base64String '{"a":1, "b": "xx"}' | ConvertFrom-Base64Parameter
         $p.a | Should Be 1
         $p.b | Should Be "xx"
     }
@@ -116,11 +116,11 @@ Describe "code" {
         ttt a | Should Be System.Collections.Generic.List[System.Object]
     }
     It "should parse my.cnf" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         Get-mysqlcnfValue $myenv  "log-error"  | Should Be "/opt/mysqld-usage/mysqld.log"
     }
     It "should handle misc" {
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
         ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
         ([array]($myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)})).Count | Should Be 1
@@ -148,7 +148,7 @@ Describe "code" {
     }
     It "should install-replica" {
         $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec-r.json -Resolve
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         remove-mysql $myenv
         $newpass = "uvks^27A`"123'"
         $replicapass = "kls@9s9Y28s"
@@ -169,7 +169,7 @@ Describe "code" {
     It "should install-masterreplica" {
         return
         $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec-mr.json -Resolve
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         remove-mysql $myenv
         $newpass = "uvks^27A`"123'"
         $replicapass = "kls@9s9Y28s"
@@ -190,28 +190,28 @@ Describe "code" {
     It "should install-master" {
     return
         return
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         remove-mysql $myenv
         $newpass = "uvks^27A`"123'"
         $replicapass = "kls@9s9Y28s"
 
         install-master $myenv @{newpass="$newpass";replicauser="repl";replicapass=$replicapass} | Write-Output -OutVariable fromTcl | Out-Null
 
-        $fromTcl -match $R_T_C_B | Should Be $True
-        $fromTcl -match $R_T_C_E | Should Be $True
+        $fromTcl -match $_INSTALL_RESULT_BEGIN_ | Should Be $True
+        $fromTcl -match $_INSTALL_RESULT_END_ | Should Be $True
 
         $startFlag = $False
         $lines = @()
 
         foreach ($line in $fromTcl) {
-            if ($line -match $R_T_C_E) {
+            if ($line -match $_INSTALL_RESULT_END_) {
                 break
             }
 
             if ($startFlag) {
                 $lines += $line
             }
-            if ($line -match $R_T_C_B) {
+            if ($line -match $_INSTALL_RESULT_BEGIN_) {
                 $startFlag = $True
             }
         }
@@ -239,7 +239,7 @@ Describe "code" {
     It "should install mysql" {
         return
         remove-mysql $myenv
-        $myenv = New-EnvForExec $envfile | Decorate-Env
+        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         remove-mysql $myenv
         Install-Mysql $myenv
         Set-NewMysqlPassword $myenv "aks23A%soid"
