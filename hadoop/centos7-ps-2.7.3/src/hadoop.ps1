@@ -269,8 +269,8 @@ function Write-ConfigFiles {
         }
         Write-ReturnToClient -returnToClient $returnToClient
         $returnToDownload = @{}
-        $zipedFile = $DirInfo.hadoopDir | Split-Path -Parent | Join-Path -ChildPath "configuratedHadoopFolder.zip"
-        Compress-Archive -Path $DirInfo.hadoopDir -DestinationPath $zipedFile -CompressionLevel Fastest -Force
+        $zipedFile = $DirInfo.hadoopDir | Split-Path -Parent | Join-Path -ChildPath "hadoopConfig.zip"
+        Compress-Archive -Path ($DirInfo.hadoopDir | Join-Path -ChildPath "etc") -DestinationPath $zipedFile -CompressionLevel Fastest -Force
         $files = @()
         $files += @{name=(Split-Path $zipedFile -Leaf);fullName="$zipedFile"}
         $returnToDownload.files = $files
