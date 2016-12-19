@@ -19,7 +19,7 @@ function ConvertTo-DecoratedEnv {
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("apache-hive-.*\.tar\.gz"))
 
-    $superGroup = Choose-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "hadoop"
+    $superGroup = Select-FirstTrueValue $myenv.boxGroup.installResults.hadoop.superusergroup "hadoop"
 
     $user = $myenv.software.runas
     if (!$user) {

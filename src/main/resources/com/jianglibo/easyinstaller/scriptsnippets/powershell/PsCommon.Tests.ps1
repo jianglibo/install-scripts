@@ -89,7 +89,7 @@ Describe "PsCommon" {
         Add-SectionKv -parsedSectionFile $kvf -section $mains -key "uuu" -value "xxx"
 
         $kvf.blockHt[$mains].Count | Should Be 4
-        Comment-SectionKv -parsedSectionFile $kvf -section $mains -key "uuu"
+        Disable-SectionKeyValue -parsedSectionFile $kvf -section $mains -key "uuu"
         $kvf.blockHt[$mains].Count | Should Be 4
         Get-SectionValueByKey -parsedSectionFile $kvf -section $mains -key "uuu" | Should Be $null
 
@@ -97,7 +97,7 @@ Describe "PsCommon" {
         $kvf.blockHt[$mains].Count | Should Be 4
         Get-SectionValueByKey -parsedSectionFile $kvf -section $mains -key "uuu" | Should Be "xxx"
 
-        Comment-SectionKv -parsedSectionFile $kvf -section $mains -key "notexists"
+        Disable-SectionKeyValue -parsedSectionFile $kvf -section $mains -key "notexists"
         $kvf.blockHt[$mains].Count | Should Be 4
     }
     It "should write to file work" {
@@ -317,24 +317,24 @@ Describe "PsCommon" {
 
         # out-file will auto append newline.
         "a","b","c" | Out-File -FilePath $myf
-        (Get-Content -Path $myf | measure).Count | Should Be 3
+        (Get-Content -Path $myf | Measure-Object).Count | Should Be 3
         (Get-Content -Path $myf) -join "," | Should Be "a,b,c"
 
         # out-file will auto append newline.
         "a","b","c" | Out-File -FilePath $myf -NoNewline
-        (Get-Content -Path $myf | measure).Count | Should Be 1
+        (Get-Content -Path $myf | Measure-Object).Count | Should Be 1
         (Get-Content -Path $myf) -join "," | Should Be "abc"
 
         # if inputobject is a string contains newline, even there is -NoNewline option, newline in the string is still keeped.
          "a`rb`rc" | Out-File -FilePath $myf -NoNewline
-        (Get-Content -Path $myf | measure).Count | Should Be 3
+        (Get-Content -Path $myf | Measure-Object).Count | Should Be 3
         (Get-Content -Path $myf) -join "," | Should Be "a,b,c"
 
         [PSCustomObject]@{name=$myf;content="abc"} | Write-TextFile
         Get-Content -Path $myf | Write-Output -NoEnumerate | Should Be "abc"
 
         [PSCustomObject]@{name=$myf;content="abc`r`nde`tf"} | Write-TextFile
-        (Get-Content -Path $myf | measure).Count  |  Should Be 2
+        (Get-Content -Path $myf | Measure-Object).Count  |  Should Be 2
         (Get-Content -Path $myf)[0] | Should Be "abc"
 
         Remove-Item $tmp
@@ -361,14 +361,14 @@ Describe "PsCommon" {
     }
 
     It "should handle varargs" {
-        $r = Choose-FirstTrueValue "" $False $null 1 | Should Be 1
-        $r = Choose-FirstTrueValue "" $False $null 0 | Should Be $Null
+        $r = Select-FirstTrueValue "" $False $null 1 | Should Be 1
+        $r = Select-FirstTrueValue "" $False $null 0 | Should Be $Null
 
-        Choose-OnCondition -condition "" "a" "b" | Should Be "b"
+        Select-IfElse -condition "" "a" "b" | Should Be "b"
 
-        Choose-OnCondition -condition 1 "a" "b" | Should Be "a"
+        Select-IfElse -condition 1 "a" "b" | Should Be "a"
 
-        Choose-OnCondition -condition 0 "a" "b" | Should Be "b"
+        Select-IfElse -condition 0 "a" "b" | Should Be "b"
     }
 
     It "should parse return value" {

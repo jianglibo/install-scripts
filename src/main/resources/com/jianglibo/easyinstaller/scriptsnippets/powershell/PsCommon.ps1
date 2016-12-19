@@ -561,7 +561,7 @@ function Add-SectionKv {
     $parsedSectionFile.blockHt[$section] = $blockLines
 }
 
-function Comment-SectionKv {
+function Disable-SectionKeyValue {
     Param([parameter(Mandatory=$True)]$parsedSectionFile,[parameter(Mandatory=$True)][string]$section, [parameter(Mandatory=$True)][string]$key)
     $done = $False
     $blockLines = $parsedSectionFile.blockHt[$section] | ForEach-Object {
@@ -779,11 +779,11 @@ function New-Directory {
     }
 }
 
-function Choose-FirstTrueValue {
+function Select-FirstTrueValue {
     $args | Where-Object { if($_) {$_}} | Select-Object -First 1
 }
 
-function Choose-OnCondition {
+function Select-IfElse {
    Param([parameter(Mandatory=$True)]$condition,[parameter(Position=1)]$onTrue,[parameter(Position=2)]$onFalse)
    process {
        if ($condition) {

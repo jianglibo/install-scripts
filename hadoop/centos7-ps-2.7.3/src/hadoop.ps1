@@ -207,7 +207,7 @@ function Write-ConfigFiles {
     # find directory used by hdfs from hdfs-site.xml
     [xml]$hdfsSiteDoc = Get-Content $DirInfo.hdfsSite
 
-    $returnToClient.hadoop.superusergroup = Choose-FirstTrueValue (Get-HadoopProperty -doc $hdfsSiteDoc -name "dfs.permissions.superusergroup") "supergroup"
+    $returnToClient.hadoop.superusergroup = Select-FirstTrueValue (Get-HadoopProperty -doc $hdfsSiteDoc -name "dfs.permissions.superusergroup") "supergroup"
 
     $namenodeDirKey = "dfs.namenode.name.dir"
     $datanodeDirKey = "dfs.datanode.data.dir"

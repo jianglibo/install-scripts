@@ -47,7 +47,7 @@ function Get-MysqlcnfValue {
     Param($myenv, $key)
         $tmpfile = New-TemporaryFile
 
-        $myenv.software.textfiles | ? name -EQ "my.cnf" | Select-Object -First 1 -ExpandProperty content | Out-File -FilePath $tmpfile
+        $myenv.software.textfiles | Where-Object name -EQ "my.cnf" | Select-Object -First 1 -ExpandProperty content | Out-File -FilePath $tmpfile
 
         $sf = New-SectionKvFile -FilePath $tmpfile
 
@@ -65,9 +65,9 @@ function remove-mysql {
         Remove-Item -Path $myenv.resultFile -Force
     }
 
-    $revRpms = Get-MysqlRpms $myenv | % {$_ -replace ".*/(.*)-[^-]+$", '$1'}
+    $revRpms = Get-MysqlRpms $myenv | ForEach-Object {$_ -replace ".*/(.*)-[^-]+$", '$1'}
     [array]::reverse(($revRpms))
-    $revRpms | % {yum -y remove $_} | Out-Null
+    $revRpms | ForEach-Object {yum -y remove $_} | Out-Null
 
     if (get-mysqlcnfValue $myenv "datadir" | Test-Path) {
         get-mysqlcnfValue $myenv "datadir" | Remove-Item -Recurse -Force
@@ -122,8 +122,8 @@ Describe "code" {
     It "should handle misc" {
         $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
-        ($myenv.boxGroup.boxes | % {$_.roles} | ? {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
-        ([array]($myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)})).Count | Should Be 1
+        ($myenv.boxGroup.boxes | ForEach-Object {$_.roles} | Where-Object {($_ -match $MYSQL_MASTER) -and ($_ -notmatch $MYSQL_REPLICA)}).Count | Should Be 1
+        ([array]($myenv.boxGroup.boxes | Where-Object {($_.roles -match $MYSQL_MASTER) -and ($_.roles -notmatch $MYSQL_REPLICA)})).Count | Should Be 1
         $boxes = @()
         foreach ($box in $myenv.boxGroup.boxes) {
             if (($box.roles -match $MYSQL_MASTER) -and ($box.roles -notmatch $MYSQL_REPLICA)) {
@@ -132,18 +132,18 @@ Describe "code" {
         }
         $boxes.Count | Should Be 1
 
-        ("2016-12-01T11:02:30.947935Z 1 [Note] A temporary password is generated for root@localhost: q&kefv.7emJM" | ? {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1' | Should Be "q&kefv.7emJM"
-        $myenv.boxGroup.boxes | % {$_.roles} | ? {$_ -match $MYSQL_REPLICA} | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
+        ("2016-12-01T11:02:30.947935Z 1 [Note] A temporary password is generated for root@localhost: q&kefv.7emJM" | Where-Object {$_ -match "A temporary password is generated"} | Select-Object -First 1) -replace ".*A temporary password is generated.*?:\s*(.*?)\s*$",'$1' | Should Be "q&kefv.7emJM"
+        $myenv.boxGroup.boxes | ForEach-Object {$_.roles} | Where-Object {$_ -match $MYSQL_REPLICA} | ForEach-Object {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
 
-        $boxes | % {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
+        $boxes | ForEach-Object {"CREATE USER '{0}'@'{2}' IDENTIFIED BY '{1}'" -f "a", "b","c"} | Should Be "CREATE USER 'a'@'c' IDENTIFIED BY 'b'"
 
         if ( ! ( Get-UploadFiles $myenv | Select-Object -First 1 | Test-Path)) {
             Get-UploadFiles -myenv $myenv -OnlyName | Select-Object @{n="Path"; e={Join-Path $testTgzFolder -ChildPath $_}}, @{n="Destination";e={Join-Path $myenv.remoteFolder -ChildPath $_}} | Copy-Item
         }
 
-        $myenv.getUploadedFile() | % {Split-Path -Path $_ -Leaf} | Select-Object @{n="Path"; e={Join-Path $testTgzFolder -ChildPath $_}}, @{n="ChildPath";e={$_}} | Test-Path | ? {! $_} | Should Be $null
+        $myenv.getUploadedFile() | ForEach-Object {Split-Path -Path $_ -Leaf} | Select-Object @{n="Path"; e={Join-Path $testTgzFolder -ChildPath $_}}, @{n="ChildPath";e={$_}} | Test-Path | Where-Object {! $_} | Should Be $null
         $myenv.remoteFolder | Should Be "/easy-installer/"
-        $rpms = (Get-UploadFiles -myenv $myenv | ? {$_ -match "(-server-\d+|-client-\d+|-common-\d+|-libs-\d+).*rpm$"} | Sort-Object) -join ' '
+        $rpms = (Get-UploadFiles -myenv $myenv | Where-Object {$_ -match "(-server-\d+|-client-\d+|-common-\d+|-libs-\d+).*rpm$"} | Sort-Object) -join ' '
         $rpms | Should Be "/easy-installer/mysql-community-client-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-common-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-libs-5.7.16-1.el7.x86_64.rpm /easy-installer/mysql-community-server-5.7.16-1.el7.x86_64.rpm"
     }
     It "should install-replica" {
@@ -163,7 +163,7 @@ Describe "code" {
         Run-SQL -env $myenv -pass $newpass -sqls  "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
 
         $fromTcl | Write-Host
-        $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
+        $fromTcl | Where-Object {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
         $Matches[1] | Should Be "0"
     }
     It "should install-masterreplica" {
@@ -184,7 +184,7 @@ Describe "code" {
         Run-SQL -env $myenv -pass $newpass -sqls  "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
 
         $fromTcl | Write-Host
-        $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
+        $fromTcl | Where-Object {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
         $Matches[1] | Should Be "1"
     }
     It "should install-master" {
@@ -231,7 +231,7 @@ Describe "code" {
         Run-SQL -env $myenv -pass $newpass -sqls  "select count(*) from mysql.user where user like '%repl%';" | Write-Output -OutVariable fromTcl
 
         $fromTcl | Write-Host
-        $fromTcl | ? {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
+        $fromTcl | Where-Object {$_ -match  '^\|\s*(\d+)\s*\|\s*$'} | Select-Object -First 1 | Should Be $True
         $Matches[1] | Should Be "2"
 
         $LASTEXITCODE | Write-Host
@@ -249,10 +249,10 @@ Describe "code" {
         Add-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
         $lb = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
         $lb | Should Be "mysql-bin"
-        Comment-SectionKv -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
+        Disable-SectionKeyValue -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
         $mycnf.writeToFile()
         $datadir = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "datadir"
-        Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$" | Should Be $null
+        Get-ChildItem -Path $datadir | Where-Object Name -Match "$lb\.\d+$" | Should Be $null
 
         Enable-LogBinAndRecordStatus $myenv @{newpass="aks23A%soid";replicauser="repl";replicapass="A2938^%ccy"} (Get-MysqlRoleSum $myenv)
 
@@ -261,6 +261,6 @@ Describe "code" {
         Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"  | Should Be "mysql-bin"
         Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "server-id"  | Should Be $True
 
-        (Get-ChildItem -Path $datadir | ? Name -Match "$lb\.\d+$").Count -gt 0 | Should Be $True
+        (Get-ChildItem -Path $datadir | Where-Object Name -Match "$lb\.\d+$").Count -gt 0 | Should Be $True
     }
 }
