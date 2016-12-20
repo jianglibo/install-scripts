@@ -1,0 +1,43 @@
+# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+
+# localhost name resolution is handled within DNS itself.
+#       127.0.0.1       localhost
+#       ::1             localhost
+
+74.125.237.1 dl-ssl.google.com
+127.0.0.1 abc.m3958.com
+185.31.16.184 github.global.ssl.fastly.net
+60.12.23.34 fhgczxzl.fh.gov.cn
+192.168.88.130 mysql5 rabbitmq
+
+#10.74.111.100 zx.fh.gov.cn
+#10.74.111.97 www.zjfenghua.jcy.gov.cn
+#10.74.111.45 jcy.fh.gov.cn
+#10.74.111.89 www.fhast.net
+
+#10.74.111.31 www.fhdgw.gov.cn
+#60.12.23.37 www.fhlr.gov.cn
+#10.74.111.4 zs.fh.gov.cn
+#127.0.0.1 login.openscanner.cc
+#10.74.111.89 www.fhagri.gov.cn
+10.74.111.62 s62.host.name
+10.74.111.63 s63.host.name
+10.74.111.64 s64.host.name
+10.74.111.65 s65.host.name
+10.74.111.66 s66.host.name

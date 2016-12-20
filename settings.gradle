@@ -17,4 +17,15 @@ include 'services:webservice'
 */
 
 rootProject.name = 'install-scripts'
-include 'zookeeper:centos7-tcl-3.4.9', 'zookeeper:centos7-powershell-3.4.9', 'powershell:centos7-tcl-6.0.0_alpha.10', 'tcl:centos7-1.8.5', 'yumsource:centos7-0.1.0', 'java:centos7-yum','hbase:centos7-ps-1.2.4','hadoop:centos7-ps-2.7.3'
+include 'zookeeper:centos7-tcl-3.4.9',
+ 'zookeeper:centos7-powershell-3.4.9',
+ 'powershell:centos7-tcl-6.0.0_alpha.13',
+ 'linuxcommon:centos7-bash-0.1.0',
+ 'linuxcommon:centos7-ps-0.1.0',
+ 'linuxcommon:centos7-tcl-0.1.0',
+ 'hive:centos7-ps-2.1.1',
+ 'tcl:centos7-1.8.5', 
+ 'yumsource:centos7-0.1.0', 
+ 'java:centos7-yum',
+ 'hbase:centos7-ps-1.2.4',
+ 'hadoop:centos7-ps-2.7.3'

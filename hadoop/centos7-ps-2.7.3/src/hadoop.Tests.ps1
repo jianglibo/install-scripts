@@ -1,6 +1,6 @@
 ﻿# $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $here = $PSScriptRoot
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
+$sut = (Split-Path -Leaf $PSCommandPath) -replace '\.Tests\.', '.'
 
 $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
 
