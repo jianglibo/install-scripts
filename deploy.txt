@@ -1,5 +1,5 @@
 1. .\gradlew uploadArchives
 2. .\gradlew zipScript
 3. goto http://central.sonatype.org releaseit.
-4. git tag --list. git tag -a v0.1.4 -m "my version 1.4",  git push origin --tags
+4. git tag --list. git tag -a v0.1.5 -m "my version 1.5",  git push origin --tags
 5. change build.gradle version number.
