@@ -26,6 +26,32 @@ function Centos7-NetworkManager {
     }
 }
 
+function Install-Alternatives {
+   Param(
+       [Parameter(Mandatory=$true)]
+       [string]$link,
+       [Parameter(Mandatory=$true)]
+       [string]$name,
+       [Parameter(Mandatory=$true)]
+       [string]$path,
+       [Parameter(Mandatory=$true)]
+       [long]$priority
+    )
+
+    $aname = alternatives --display $name | Where-Object {$_ -match ".*priority\s+(\d+).*"} | Select-Object -First 1
+    if ($aname) {
+        [long]$curPriority = $Matches[1]
+        if ($priority -lt $curPriority) {
+            $priority = $curPriority + 100
+        }
+    }
+    $cmd = "alternatives --install {0} {1} {2} {3}" -f $link,$name,$path,$priority
+    $cmd | Write-HostIfInTesting
+    $cmd | Invoke-Expression
+    alternatives --auto $name
+
+}
+
 function Centos7-SetHostName {
     Param([String]$hostname)
     hostnamectl --static set-hostname $hostname

@@ -1,0 +1,15 @@
+name: oozie
+ostype: CentOs7
+sversion: ps-4.3.0
+runner: powershell -File {code} -envfile {envfile} -action {action}
+possibleRoles: OOZIE_SERVER
+preferredFormat: JSON
+codeToExecute: oozie.ps1
+configContent: config.yml # content of this file will insert into software configContent field.
+codeFileExt: .ps1
+codeLineSeperator: LF
+runas: '{user: "oozie", group: "hadoop"}'
+actions: install,start-oozie,stop-oozie
+actionDescriptions: actions.yml
+filesToUpload:
+  - http://apache.communilink.net/oozie/4.3.0/oozie-4.3.0.tar.gz

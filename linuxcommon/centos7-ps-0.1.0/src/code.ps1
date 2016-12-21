@@ -16,7 +16,7 @@ $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "setjavahome" {
-        Save-JavaHomeToEasyinstallerProfile $myenv
+        Save-JavaHomeToEasyinstallerProfile
     }
     "openfirewall" {
         [array]$ports = (ConvertFrom-Base64Parameter $remainingArguments) -split "/"

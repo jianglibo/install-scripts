@@ -1,0 +1,49 @@
+{
+    "remoteFolder": "/easy-installer/",
+    "box": {
+        "id": 1998848,
+        "ip": "192.168.33.110",
+        "name": "box1",
+        "hostname": "a0.host.name",
+        "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+        "dnsServer": "",
+        "ips": "",
+        "ports": "",
+        "boxRoleConfig": ""
+    },
+    "boxGroup": {
+        "id": 2031616,
+        "name": "java",
+        "configContent": "# place holder\r\n",
+        "installResults": null,
+        "boxes": [
+            {
+                "id": 1998848,
+                "ip": "192.168.33.110",
+                "name": "box1",
+                "hostname": "a0.host.name",
+                "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+                "dnsServer": "192.168.2.60",
+                "ips": "",
+                "ports": "",
+                "boxRoleConfig": null
+            }
+        ]
+    },
+    "software": {
+        "name": "java",
+        "sversion": "oraclejdk-8u112",
+        "ostype": "CentOs7",
+        "runas": "",
+        "timeouts": null,
+        "runner": "powershell -File {code} -envfile {envfile} -action {action}",
+        "possibleRoles": null,
+        "textfiles": [],
+        "filesToUpload": [
+            "jdk-8u112-linux-x64.tar.gz"
+        ],
+        "configContent": "{\"installDir\":\"/opt/java\"}",
+        "actions": "install",
+        "preferredFormat": "JSON"
+    }
+}

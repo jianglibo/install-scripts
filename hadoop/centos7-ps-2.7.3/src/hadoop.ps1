@@ -347,7 +347,7 @@ function Invoke-MyDfs {
 
 $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
-Save-JavaHomeToEasyinstallerProfile $myenv
+Save-JavaHomeToEasyinstallerProfile
 
 switch ($action) {
     "install" {

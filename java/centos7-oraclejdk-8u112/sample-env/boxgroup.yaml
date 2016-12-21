@@ -1,0 +1,17 @@
+name: java
+boxes:
+  - ip: 192.168.33.110
+    name: box1
+# this a so called master node
+    roles: NameNode,ResourceManager,HbaseMaster,,HIVE_SERVER,OOZIE_SERVER
+    ostype: centos7
+    description:
+    keyFilePath:
+    port:
+    sshUser:
+    hostname: a0.host.name
+    dnsServer:
+    ips:
+    ports:
+dnsServer: 192.168.2.60
+configContent: configContent.yaml

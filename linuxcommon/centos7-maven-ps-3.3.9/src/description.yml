@@ -1,0 +1,14 @@
+name: maven
+ostype: CentOs7
+sversion: ps-3.3.9
+runner: powershell -File {code} -envfile {envfile} -action {action}
+preferredFormat: JSON
+codeToExecute: maven.ps1
+configContent: config.yml
+codeFileExt: .ps1
+codeLineSeperator: LF
+runas:
+actions: install
+actionDescriptions: actions.yaml
+filesToUpload: 
+  -  http://apache.communilink.net/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz

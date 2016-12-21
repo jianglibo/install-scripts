@@ -813,7 +813,7 @@ function Get-CmdTarget {
 }
 
 function Save-JavaHomeToEasyinstallerProfile {
-    Param($myenv,$jp)
+    Param($jp)
     $easyinstallerjava = "/etc/profile.d/easyinstallerjava.sh"
     if (!(Test-Path $easyinstallerjava)) {
         if (!$jp) {

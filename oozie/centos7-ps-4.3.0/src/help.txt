@@ -1,0 +1,14 @@
+bin/hive script has a TMP_USER_DIR which pointer to /tmp/hive, all logs go there.
+
+/tmp/hive folder in dfs must a+w
+
+beeline -u jdbc:hive2://localhost:10000/default -n scott -w password_file
+beeline -u jdbc:hive2://localhost:10000/default -n hive
+beeline -u jdbc:hive2://192.168.33.110:10000/default -n hive
+
+mkdir -p /tmp/hive
+chmod g+w /tmp/hive
+
+beeline.cmd in windows doesn't work properly. must define HIVE_HOME explicitly.
+setx HIVE_HOME "xxx"
+set HADOOP_CLASSPATH=%HADOOP_CLASSPATH%;%HIVE_HOME%\lib\*
