@@ -1,0 +1,14 @@
+name: nexusoss
+ostype: CentOs7
+sversion: ps-3.2.0
+runner: powershell -File {code} -envfile {envfile} -action {action}
+preferredFormat: JSON
+codeToExecute: oss.ps1
+configContent: config.yml
+codeFileExt: .ps1
+codeLineSeperator: LF
+runas: nexus
+actions: install,start,stop,restart
+actionDescriptions: actions.yaml
+filesToUpload: 
+  -  nexus-3.2.0-01-unix.tar.gz

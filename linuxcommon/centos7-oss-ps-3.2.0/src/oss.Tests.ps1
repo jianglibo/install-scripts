@@ -6,21 +6,19 @@ $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com
 . $commonPath
 . (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
 
-$envfile = $here | Split-Path -Parent | Join-Path -ChildPath fixtures/envforcodeexec.json -Resolve
+$envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
 $resutl = . "$here\$sut" -envfile $envfile -action t
 
 $I_AM_IN_TESTING = $True
 
 Describe "code" {
-    It "should install java" {
+    It "should install mvn" {
         $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
-
-        $tn = "jdk-8u112-linux-x64.tar.gz";
+        $tn = "apache-maven-3.3.9-bin.tar.gz";
         $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/$tn"
         Write-Host $tgzFile
         Test-Path $tgzFile -PathType Leaf | Should Be $True
         $myenv.tgzFile = $tgzFile
-
-        install-java $myenv
+        install-mvn $myenv
     }
 }

@@ -1,0 +1,2 @@
+create a new user nexus to run nexus.
+untar, chown

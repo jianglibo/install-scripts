@@ -12,15 +12,10 @@ $resutl = . "$here\$sut" -envfile $envfile -action t
 $I_AM_IN_TESTING = $True
 
 Describe "code" {
-    It "should install java" {
-        $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
-
-        $tn = "jdk-8u112-linux-x64.tar.gz";
-        $tgzFile = Join-Path $here -ChildPath "../../../tgzFolder/$tn"
-        Write-Host $tgzFile
-        Test-Path $tgzFile -PathType Leaf | Should Be $True
-        $myenv.tgzFile = $tgzFile
-
-        install-java $myenv
+    It "should install chrony" {
+        $myenv = New-EnvForExec $envfile
+        install-chrony $myenv
+        Get-Content -Path "/etc/chrony.conf" | Where-Object {$_ -match "I should be sit at /etc/chrony.conf"} | Should Be $True
+        Get-Content -Path "/etc/chrony.conf" | Where-Object {$_ -match "^\s*allow"} | Should Be "allow a1.host.name"
     }
 }

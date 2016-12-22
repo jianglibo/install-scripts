@@ -177,7 +177,7 @@ function Write-ConfigFiles {
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.nodemanager.log-dirs" -value $myenv.yarnlogdir
     $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
 
-    if ("ResourceManager" -in $myenv.myRoles -or "NodeManager" -in $myenv.myRoles) {
+    if (("ResourceManager" -in $myenv.myRoles) -or ("NodeManager" -in $myenv.myRoles)) {
         $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
         $myenv.yarnpiddir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
         ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group

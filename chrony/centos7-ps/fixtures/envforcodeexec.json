@@ -1,0 +1,64 @@
+{
+    "remoteFolder": "/easy-installer/",
+    "box": {
+        "id": 2064384,
+        "ip": "192.168.33.110",
+        "name": "box1",
+        "hostname": "a0.host.name",
+        "roles": "HIVE_SERVER,CHRONY_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+        "dnsServer": "",
+        "ips": "",
+        "ports": "",
+        "boxRoleConfig": ""
+    },
+    "boxGroup": {
+        "id": 2097152,
+        "name": "java",
+        "configContent": "# place holder\r\n",
+        "installResults": null,
+        "boxes": [
+            {
+                "id": 2064384,
+                "ip": "192.168.33.110",
+                "name": "box1",
+                "hostname": "a0.host.name",
+                "roles": "HIVE_SERVER,CHRONY_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+                "dnsServer": "192.168.2.60",
+                "ips": "",
+                "ports": "",
+                "boxRoleConfig": null
+            },
+            {
+                "id": 2064385,
+                "ip": "192.168.33.111",
+                "name": "box1",
+                "hostname": "a1.host.name",
+                "roles": "NODEMANAGER,HIVE_SERVER,DATANODE,CHRONY_CLIENT,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+                "dnsServer": "192.168.2.60",
+                "ips": "",
+                "ports": "",
+                "boxRoleConfig": null
+            }
+        ]
+    },
+    "software": {
+        "name": "chrony",
+        "sversion": "ps",
+        "ostype": "CentOs7",
+        "runas": "",
+        "timeouts": null,
+        "runner": "powershell -File {code} -envfile {envfile} -action {action}",
+        "possibleRoles": "CHRONY_SERVER,CHRONY_CLIENT",
+        "textfiles": [
+            {
+                "name": "chrony.conf",
+                "content": "# Use public servers from the pool.ntp.org project.\n# Please consider joining the pool (http://www.pool.ntp.org/join.html).\nserver 0.centos.pool.ntp.org iburst\nserver 1.centos.pool.ntp.org iburst\nserver 2.centos.pool.ntp.org iburst\nserver 3.centos.pool.ntp.org iburst\n\n# Ignore stratum in source selection.\nstratumweight 0\n\n# Record the rate at which the system clock gains/losses time.\ndriftfile /var/lib/chrony/drift\n\n# Enable kernel RTC synchronization.\nrtcsync\n\n# In first three updates step the system clock instead of slew\n# if the adjustment is larger than 10 seconds.\nmakestep 10 3\n\n# Allow NTP client access from local network.\n#allow 192.168/16\n\n# Listen for commands only on localhost.\nbindcmdaddress 127.0.0.1\nbindcmdaddress ::1\n\n# Serve time even if not synchronized to any NTP server.\n#local stratum 10\n\nkeyfile /etc/chrony.keys\n\n# Specify the key used as password for chronyc.\ncommandkey 1\n\n# Generate command key if missing.\ngeneratecommandkey\n\n# Disable logging of client accesses.\nnoclientlog\n\n# Send a message to syslog if a clock adjustment is larger than 0.5 seconds.\nlogchange 0.5\n\nlogdir /var/log/chrony\n#log measurements statistics tracking\n\n# I should be sit at /etc/chrony.conf",
+                "codeLineSeperator": "LF"
+            }
+        ],
+        "filesToUpload": [],
+        "configContent": "",
+        "actions": "install",
+        "preferredFormat": "JSON"
+    }
+}

@@ -18,14 +18,12 @@ function Get-DirInfomation {
     Param($myenv)
     $h = @{}
     $h.mvnBin = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/mvn$"} | Select-Object -First 1 -ExpandProperty FullName
+    $h.mvnHome = $h.mvnBin | Split-Path -Parent | Split-Path -Parent
     $h
 }
 
 function install-mvn {
-    if (Get-Command mvn -ErrorAction SilentlyContinue) {
-        $Error.Clear()
-        return
-    }
+    Param($myenv)
     $myenv.InstallDir | New-Directory
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -33,6 +31,11 @@ function install-mvn {
         $myenv.tgzFile + " doesn't exists!" | Write-Error
     }
     $DirInfo = Get-DirInfomation -myenv $myenv
+
+    $myenv.software.textfiles | ForEach-Object {
+        $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.mvnHome | Join-Path -ChildPath $_.name) -Encoding ascii
+    } | Out-Null
+
     Install-Alternatives -link /usr/bin/mvn -name mvn -path $DirInfo.mvnBin -priority 100
 }
 

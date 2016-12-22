@@ -1,23 +1,20 @@
 ﻿# $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $here = $PSScriptRoot
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
+$sut = (Split-Path -Leaf $PSCommandPath) -replace '\.Tests\.', '.'
 
 $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
-
 $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.Ps1" -Resolve
-
 . $commonPath
-
 . (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
 
-$envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/envforcodeexec.json -Resolve
+$envfile = $here | Split-Path -Parent | Join-Path -ChildPath fixtures/envforcodeexec.json -Resolve
 
 $I_AM_IN_TESTING = $True
 
 $resutl = . "$here\$sut" -envfile $envfile -action t
 
 Describe "code" {
-    It  "should install hive" {
+    It  "should build oozie" {
         $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
         $myenv.InstallDir | Should Be "/opt/hive"
 
@@ -32,25 +29,6 @@ Describe "code" {
         stop-hiveserver HiveServer2
 
         remove-metadb $myenv
-
-<#
-        if (Test-Path $myenv.resultFile) {
-            $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
-            Remove-Item $myenv.resultFile -Force
-            try {
-                if ($resultJson.info.metadb -is [string]) {
-                    $dbpath = $resultJson.info.metadb -replace "^([^;]+);.*",'$1' | Split-Path -Parent
-                } else {
-                    $dbpath = $resultJson.info.metadb.fullName -replace "^([^;]+);.*",'$1' | Split-Path -Parent
-                }
-                
-                if (Test-Path $dbpath) {
-                    Remove-Item -Path $dbpath -Recurse -Force
-                }
-            }
-            catch {}
-        }
-#>
         
         ([array]($myenv.software.textfiles)).Count | Should Be 1
 

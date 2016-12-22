@@ -1,0 +1,13 @@
+name: chrony
+ostype: CentOs7
+sversion: ps
+runner: powershell -File {code} -envfile {envfile} -action {action}
+possibleRoles: CHRONY_SERVER,CHRONY_CLIENT
+preferredFormat: JSON
+codeToExecute: chrony.ps1
+configContent: config.yml
+codeFileExt:
+codeLineSeperator: LF
+runas:
+actions: install,start,stop
+filesToUpload: []
