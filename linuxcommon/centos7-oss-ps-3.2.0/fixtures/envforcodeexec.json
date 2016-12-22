@@ -1,28 +1,28 @@
 {
     "remoteFolder": "/easy-installer/",
     "box": {
-        "id": 1998850,
+        "id": 786432,
         "ip": "192.168.33.110",
         "name": "box1",
         "hostname": "a0.host.name",
-        "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+        "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,ZOOKEEPER,OOZIE_SERVER,MYSQL_MASTER,RESOURCEMANAGER",
         "dnsServer": "",
         "ips": "",
         "ports": "",
         "boxRoleConfig": ""
     },
     "boxGroup": {
-        "id": 2031618,
+        "id": 950272,
         "name": "maven",
         "configContent": "# place holder\r\n",
         "installResults": null,
         "boxes": [
             {
-                "id": 1998850,
+                "id": 786432,
                 "ip": "192.168.33.110",
                 "name": "box1",
                 "hostname": "a0.host.name",
-                "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+                "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,ZOOKEEPER,OOZIE_SERVER,MYSQL_MASTER,RESOURCEMANAGER",
                 "dnsServer": "192.168.2.60",
                 "ips": "",
                 "ports": "",
@@ -31,19 +31,30 @@
         ]
     },
     "software": {
-        "name": "maven",
-        "sversion": "ps-3.3.9",
+        "name": "nexusoss",
+        "sversion": "ps-3.2.0",
         "ostype": "CentOs7",
-        "runas": "",
+        "runas": "nexus",
         "timeouts": null,
         "runner": "powershell -File {code} -envfile {envfile} -action {action}",
         "possibleRoles": null,
-        "textfiles": [],
-        "filesToUpload": [
-            "http://apache.communilink.net/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz"
+        "textfiles": [
+            {
+                "name": "sonatype-work/nexus3/etc/healthcheck.properties",
+                "content": "#Configuration for Health Check\n#Wed Dec 21 19:26:29 CST 2016\nmaven-central.enabled=true",
+                "codeLineSeperator": "LF"
+            },
+            {
+                "name": "sonatype-work/nexus3/etc/nexus.properties",
+                "content": "# Jetty section\n# application-port=8081\n# application-host=0.0.0.0\n# nexus-args=${jetty.etc}/jetty.xml,${jetty.etc}/jetty-http.xml,${jetty.etc}/jetty-requestlog.xml\n# nexus-context-path=/\n\n# Nexus section\n# nexus-edition=nexus-pro-edition\n# nexus-features=\\\n#  nexus-pro-feature",
+                "codeLineSeperator": "LF"
+            }
         ],
-        "configContent": "{\"installDir\":\"/opt/maven\"}",
-        "actions": "install",
+        "filesToUpload": [
+            "nexus-3.2.0-01-unix.tar.gz"
+        ],
+        "configContent": "{\"installDir\":\"/opt/nexus\"}",
+        "actions": "install,start,stop,restart",
         "preferredFormat": "JSON"
     }
 }

@@ -28,18 +28,56 @@ function install-oss {
     $resultHash = @{}
     $resultHash.env = @{}
     $resultHash.info = @{}
+
     $myenv.InstallDir | New-Directory
+
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {
         $myenv.tgzFile + " doesn't exists!" | Write-Error
     }
+
+    $myenv.InstallDir | Centos7-Chown -user $myenv.software.runas
+
     $DirInfo = Get-DirInfomation -myenv $myenv
+
+    $logFile = $DirInfo.nexusHome | Join-Path -ChildPath "sonatype-work/nexus3/log/nexus.log"
+
+    if (Test-Path $logFile) {
+        Remove-Item $logFile -Force
+    }
+
+    Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} start" -f $DirInfo.nexusBin) -user $myenv.software.runas
+
+    $steady = $false
+    $lastLc = 0
+    while (!$steady) {
+        Start-Sleep -Seconds 30
+        $lc = Get-Content -Path $logFile | Measure-Object -Line | Select-Object -ExpandProperty Lines
+        $lc | Write-HostIfInTesting
+        $lastLc | Write-HostIfInTesting
+        if ($lc -eq $lastLc) {
+            $steady = $true
+        } else {
+            $lastLc = $lc
+        }
+        if (Get-Content $logFile | Where-Object {$_ -match "^Started Sonatype Nexus OSS"} | Select-Object -First 1) {
+            $steady = $true
+        }
+    }
+
+    Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} stop" -f $DirInfo.nexusBin) -user $myenv.software.runas
 
     $myenv.software.textfiles | ForEach-Object {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.nexusHome | Join-Path -ChildPath $_.name) -Encoding ascii
     } | Out-Null
 
+    $portLine = Get-Content ($DirInfo.nexusHome | Join-Path -ChildPath "sonatype-work/nexus3/etc/nexus.properties") | Where-Object {$_ -match "^\s*application-port=(\d+)"} | Select-Object -First 1
+    $nexusPort = "8081"
+    if ($portLine) {
+        $nexusPort = $Matches[1]
+    }
+    Centos7-FileWall -ports $Matches[1]
     $resultHash.dirInfo = $DirInfo
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 }
