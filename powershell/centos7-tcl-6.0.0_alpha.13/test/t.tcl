@@ -4,7 +4,7 @@ eval ::tcltest::configure $::argv
 set ::baseDir [file join [file dirname [info script]] ..]
 lappend auto_path $::baseDir
 
-source [file normalize [file join $::baseDir .. .. src main resources com jianglibo easyinstaller scriptsnippets tcl shared.tcl]]
+source [file normalize [file join $::baseDir .. .. src main resources com jianglibo easyinstaller scriptsnippets tcl tclcommon.tcl]]
 
 set ::rpmName [file join $::baseDir fixtures powershell-6.0.0_alpha.10-1.el7.centos.x86_64.rpm]
 

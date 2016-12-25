@@ -4,7 +4,7 @@ eval ::tcltest::configure $::argv
 set ::baseDir [file join [file dirname [info script]] ..]
 lappend auto_path $::baseDir
 
-source [file normalize [file join $::baseDir .. .. src main resources scripts tcl shared.tcl]]
+source [file normalize [file join $::baseDir .. .. src main resources scripts tcl tclcommon.tcl]]
 
 set tgzFolder [file normalize [file join $::baseDir .. .. tgzFolder]]
 

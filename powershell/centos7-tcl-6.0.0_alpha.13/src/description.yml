@@ -2,7 +2,7 @@ name: powershell
 ostype: CentOs7
 sversion: tcl-6.0.0_alpha.13
 runner: bash
-preferredFormat: JSON
+preferredFormat: YAML
 codeToExecute: code.tcl
 configContent: config.yml
 codeFileExt:

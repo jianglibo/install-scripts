@@ -15,7 +15,7 @@ namespace eval ::example::test {
 
     test topProperty {} -constraints {X unix} -setup {
       } -body {
-        source [file normalize [file join $::baseDir shared.tcl]]
+        source [file normalize [file join $::baseDir tclcommon.tcl]]
         EnvDictNs::initialize $::fixJson
         return [dict get $EnvDictNs::envdict remoteFolder]
       } -cleanup {
@@ -23,7 +23,7 @@ namespace eval ::example::test {
 
       test splitLine {} -constraints {} -setup {
         } -body {
-          source [file normalize [file join $::baseDir shared.tcl]]
+          source [file normalize [file join $::baseDir tclcommon.tcl]]
           return [EnvDictNs::splitLine "abc\nbb"]
         } -cleanup {
         } -result {abc bb}
@@ -31,7 +31,7 @@ namespace eval ::example::test {
 
       test boxGroupProperty {} -constraints {X unix} -setup {
         } -body {
-          source [file normalize [file join $::baseDir shared.tcl]]
+          source [file normalize [file join $::baseDir tclcommon.tcl]]
           EnvDictNs::initialize $::fixJson
           return [dict get $EnvDictNs::boxGroupConfigContent zkconfig tickTime]
         } -cleanup {
@@ -39,7 +39,7 @@ namespace eval ::example::test {
 
       test softwareProperty {} -constraints {X unix} -setup {
         } -body {
-            source [file normalize [file join $::baseDir shared.tcl]]
+            source [file normalize [file join $::baseDir tclcommon.tcl]]
             EnvDictNs::initialize $::fixJson
             return [dict get $EnvDictNs::softwareConfigContent zkconfig tickTime]
         } -cleanup {
@@ -47,7 +47,7 @@ namespace eval ::example::test {
 
         test filesToUpload {} -constraints {X unix} -setup {
           } -body {
-              source [file normalize [file join $::baseDir shared.tcl]]
+              source [file normalize [file join $::baseDir tclcommon.tcl]]
               EnvDictNs::initialize $::fixJson
               return [EnvDictNs::getUpload]
           } -cleanup {
@@ -55,7 +55,7 @@ namespace eval ::example::test {
 
         test filesToUploadExists {} -constraints {X unix} -setup {
           } -body {
-              source [file normalize [file join $::baseDir shared.tcl]]
+              source [file normalize [file join $::baseDir tclcommon.tcl]]
               EnvDictNs::initialize $::fixJson
               return [EnvDictNs::getUpload *zookeeper*]
           } -cleanup {
@@ -63,7 +63,7 @@ namespace eval ::example::test {
 
         test filesToUploadNotExists {} -constraints {X unix} -setup {
           } -body {
-              source [file normalize [file join $::baseDir shared.tcl]]
+              source [file normalize [file join $::baseDir tclcommon.tcl]]
               EnvDictNs::initialize $::fixJson
               return [EnvDictNs::getUpload *notexists*]
           } -cleanup {
@@ -71,7 +71,7 @@ namespace eval ::example::test {
 
       test filesToUploads {} -constraints {X unix} -setup {
         } -body {
-            source [file normalize [file join $::baseDir shared.tcl]]
+            source [file normalize [file join $::baseDir tclcommon.tcl]]
             EnvDictNs::initialize $::fixJson
             return [EnvDictNs::getUploads]
         } -cleanup {

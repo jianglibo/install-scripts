@@ -1,0 +1,13 @@
+name: java
+ostype: CentOs7
+sversion: oraclejdk-8u112
+runner: powershell -File {code} -envfile {envfile} -action {action}
+preferredFormat: JSON
+codeToExecute: java.ps1
+configContent: config.yml
+codeFileExt: ps1
+codeLineSeperator: LF
+runas:
+actions: install
+filesToUpload: 
+  - jdk-8u112-linux-x64.tar.gz

@@ -6,7 +6,7 @@ set extraParam [lindex $argv 4]
 
 set extraParam [::base64::decode $extraParam]
 
-# insert-common-script-here:tcl/shared.tcl
+# insert-common-script-here:tcl/tclcommon.tcl
 
 proc setupResolver {resolvContent} {
   if {[string length $resolvContent] == 0} {

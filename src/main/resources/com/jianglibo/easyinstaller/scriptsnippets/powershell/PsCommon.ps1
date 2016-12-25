@@ -815,13 +815,10 @@ function Get-CmdTarget {
 function Save-JavaHomeToEasyinstallerProfile {
     Param($jp)
     $easyinstallerjava = "/etc/profile.d/easyinstallerjava.sh"
-    if (!(Test-Path $easyinstallerjava)) {
-        if (!$jp) {
-            $jp = Get-JavaHome
-        }
-        "JAVA_HOME=$jp", "export JAVA_HOME" | Out-File -FilePath $easyinstallerjava -Encoding ascii
+    if (!$jp) {
+        $jp = Get-JavaHome
     }
-
+    "JAVA_HOME=$jp", "export JAVA_HOME" | Out-File -FilePath $easyinstallerjava -Encoding ascii
 }
 
 
