@@ -32,28 +32,35 @@ function Get-ZooieBuildDirInfomation {
 function Start-build {
     Param($myenv)
     $DirInfo = Get-ZooieBuildDirInfomation $myenv
-    $cmd =  $DirInfo.mkdistro + " -DskipTests"
-    $cmd | Write-HostIfInTesting
+    $tmplog = New-TemporaryFile
+    $cmd =  $DirInfo.mkdistro + " -DskipTests >${tmplog} 2>&1"
 
-    $j = Start-Job -ScriptBlock {$cmd | Invoke-Expression} 
+    "$cmd" | Write-HostIfInTesting
     $success = $false
-    for ($i = 0; $i -lt 1; $i++) {
-        Start-Sleep -Seconds 2
-        $j | Receive-Job -Keep | Write-HostIfInTesting
-        if ($j.State -in "Completed","Stopped","Failed") {
-            $j | Write-HostIfInTesting
-            $allr = $j | Receive-Job -Keep
-            "aaaaa" | Write-HostIfInTesting
-            $r = $allr | Where-Object {$_ -match "\[INFO\] Apache Oozie Distro .* SUCCESS"} | Select-Object -First 1
-            if ($r) {
-                $success = $true
-                break
-            } else {
-                $j = Start-Job -ScriptBlock {$cmd | Invoke-Expression}
-            }
+    $retry = 1
+    
+    for ($i = 0; $i -lt $retry; $i++) {
+        try {
+            "$cmd" | Invoke-Expression
+        }
+        catch {
+            "ttttttttt" | Write-HostIfInTesting
+            $Error | Write-HostIfInTesting
+            "ttttttttt" | Write-HostIfInTesting
+            $LASTEXITCODE | Write-HostIfInTesting
+        }
+        finally {
+            $allr = Get-Content $tmplog
+            Remove-Item -Force -Path $tmplog
+        }
+        
+        $allr | Write-HostIfInTesting
+        $r = $allr | Where-Object {$_ -match "\[INFO\] Apache Oozie Distro .* SUCCESS"} | Select-Object -First 1
+        if ($r) {
+            $success = $true
+            break
         }
     }
-
     # $mvnRoot = "~/.m2/repository/"
     # $hadoopVersion = "2.4.0"
     # $commonsConfigurationVersion = "1.8"
@@ -88,15 +95,18 @@ function Start-BuildOozieGit {
     }
 
     $repoFolder = $myenv.InstallDir | Join-Path -ChildPath $Matches[1]
-    $repoFolder | Write-HostIfInTesting
-    if (Test-Path $repoFolder) {
-#        $repoFolder | Remove-Item -Recurse -Force
-    }
 
-    Set-Location $myenv.InstallDir
-#    git clone $cc.gitUrl
-    Set-Location $Matches[1]
-    git checkout $cc.branch
+    $repoFolder | Write-HostIfInTesting
+
+    if (Test-Path $repoFolder) {
+        Set-Location $repoFolder
+#        git pull $cc.gitUrl $cc.branch
+    } else {
+        Set-Location $myenv.InstallDir
+        git clone $cc.gitUrl
+        Set-Location $repoFolder
+        git checkout $cc.branch
+    }
     Start-build $myenv
 }
 

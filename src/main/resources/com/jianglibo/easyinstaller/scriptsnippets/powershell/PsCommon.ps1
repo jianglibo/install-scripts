@@ -183,8 +183,10 @@ function ConvertTo-EscapedQuotationForBashCommandLine {
 
 function Write-HostIfInTesting {
     Param([parameter(ValueFromPipeline=$True)]$messageToWrite)
-    if ($I_AM_IN_TESTING) {
-        $messageToWrite | Write-Host
+    Process {
+        if ($I_AM_IN_TESTING) {
+            $messageToWrite | Write-Host
+        }
     }
 }
 
