@@ -1,0 +1,4 @@
+installDir: /opt/oozie
+envvs:
+firewall: 11000,11001
+ 

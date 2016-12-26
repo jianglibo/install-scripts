@@ -1,2 +1,2 @@
-start-hiveserver:
-  OozieServer should listening on port 11000 and 11001.
+install:
+  Building Oozie takes very long time, there are very much maven dependencies to resolve, according the net connect condition, may fail many times. Please try again and again.

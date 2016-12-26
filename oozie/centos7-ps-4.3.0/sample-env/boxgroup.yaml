@@ -3,7 +3,7 @@ boxes:
   - ip: 192.168.33.110
     name: box1
 # this a so called master node
-    roles: NameNode,ResourceManager,Master,HIVE_SERVER, OOZIE_SERVER, OOZIE_BUILD_SERVER
+    roles: NameNode,ResourceManager,Master,HIVE_SERVER, OOZIE_SERVER
     ostype: centos7
     description:
     keyFilePath:

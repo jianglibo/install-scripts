@@ -162,6 +162,24 @@ under the License.
       <name>Human Readable Name for this Mirror.</name>
       <url>http://10.74.111.97:8081/repository/maven-central/</url>
     </mirror>
+    <mirror>
+      <id>minedatanucleus</id>
+      <name>mine proxy Central</name>
+      <url>http://10.74.111.97:8081/repository/datanucleus/</url>
+      <mirrorOf>datanucleus</mirrorOf>
+    </mirror>
+    <mirror>
+      <id>minecloudra</id>
+      <name>mine proxy Central</name>
+      <url>http://10.74.111.97:8081/repository/cloudera/</url>
+      <mirrorOf>repository.cloudera.com</mirrorOf>
+    </mirror>
+    <mirror>
+      <id>nexus-aliyun</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Nexus aliyun</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+    </mirror>
 -->
   </mirrors>
 

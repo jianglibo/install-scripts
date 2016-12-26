@@ -1,4 +1,5 @@
-installDir: /opt/oozie
+installDir: /opt/oozie-build
+branch: my4.3.0
+gitUrl: https://github.com/jianglibo/oozie.git
 envvs:
-firewall: 11000,11001
  

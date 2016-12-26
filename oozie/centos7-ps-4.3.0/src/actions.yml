@@ -1,0 +1,2 @@
+start-hiveserver:
+  OozieServer should listening on port 11000 and 11001.
