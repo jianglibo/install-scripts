@@ -7,7 +7,8 @@ stop NetworkManager, disable NetworkManager service,
 #>
 
 function Centos7-NetworkManager {
-    Param([ValidateSet("enable", "disable")][parameter(Mandatory=$True)][string]$action)
+    Param([ValidateSet("enable", "disable")][parameter(Mandatory=$True)][string]$action,
+        [ValidateSet("centos7", "unbuntu")][string]$ostype="centos7")
     $nm = "NetworkManager"
     
     switch ($action) {
@@ -41,7 +42,7 @@ function Install-Alternatives {
     $aname = alternatives --display $name | Where-Object {$_ -match ".*priority\s+(\d+).*"} | Select-Object -First 1
     if ($aname) {
         [long]$curPriority = $Matches[1]
-        if ($priority -lt $curPriority) {
+        if ($priority -le $curPriority) {
             $priority = $curPriority + 100
         }
     }

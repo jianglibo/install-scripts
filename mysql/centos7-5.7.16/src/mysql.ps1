@@ -14,7 +14,7 @@ Param(
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# insert-common-script-here:powershell/Centos7Util.ps1
+# insert-common-script-here:powershell/LinuxUtil.ps1
 
 $MYSQL_MASTER = "MYSQL_MASTER"
 $MYSQL_REPLICA = "MYSQL_REPLICA"

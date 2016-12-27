@@ -16,7 +16,7 @@ Param(
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# insert-common-script-here:powershell/Centos7Util.ps1
+# insert-common-script-here:powershell/LinuxUtil.ps1
 
 function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
@@ -43,7 +43,7 @@ function ConvertTo-DecoratedEnv {
 ```
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# insert-common-script-here:powershell/Centos7Util.ps1
+# insert-common-script-here:powershell/LinuxUtil.ps1
 this two lines will be substituted by shared scripts.
 
 this is test file:
@@ -56,7 +56,7 @@ $testTgzFolder = Join-Path -Path $here -ChildPath "../../../tgzFolder" -Resolve
 $commonPath = Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.Ps1" -Resolve
 . $commonPath
 
-. (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\CentOs7Util.Ps1" -Resolve)
+. (Join-Path -Path $here -ChildPath "\..\..\..\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\LinuxUtil.ps1" -Resolve)
 ```
 
 Here we direct source these two files.

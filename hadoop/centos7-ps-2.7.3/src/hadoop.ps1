@@ -7,11 +7,11 @@ Param(
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# insert-common-script-here:powershell/Centos7Util.ps1
+# insert-common-script-here:powershell/LinuxUtil.ps1
 
 try {
     . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.ps1
-    . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\Centos7Util.ps1
+    . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\LinuxUtil.ps1
 }
 catch {
     $Error.Clear()

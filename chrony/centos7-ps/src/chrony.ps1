@@ -5,7 +5,7 @@ Param(
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# insert-common-script-here:powershell/Centos7Util.ps1
+# insert-common-script-here:powershell/LinuxUtil.ps1
 
 function install-chrony {
     Param($myenv)

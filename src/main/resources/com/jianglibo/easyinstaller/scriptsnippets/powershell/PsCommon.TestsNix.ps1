@@ -2,7 +2,7 @@
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.TestsNix\.', '.'
 . "$here\$sut"
 
-. "$here\Centos7Util.ps1"
+. "$here\LinuxUtil.ps1"
 
 Describe "PsCommon" {
 

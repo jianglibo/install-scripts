@@ -5,7 +5,7 @@ Param(
 )
 
 # insert-common-script-here:powershell/PsCommon.ps1
-# insert-common-script-here:powershell/Centos7Util.ps1
+# insert-common-script-here:powershell/LinuxUtil.ps1
 
 function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
@@ -17,8 +17,13 @@ function ConvertTo-DecoratedEnv {
 function Get-DirInfomation {
     Param($myenv)
     $h = @{}
-    $h.javaBin = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/java$"} | Select-Object -First 1 -ExpandProperty FullName
-    $h
+    if ($myenv.tgzFile -match "jdk-[^-]+?(\d+)-") {
+        $pathptn = "_" + $Matches[1]
+        $h.javaBin = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "${pathptn}/bin/java$"} | Select-Object -First 1 -ExpandProperty FullName
+        $h
+    } else {
+        $myenv.tgzFile + "not match jdk pattern." | Write-Error
+    }
 }
 
 function install-java {
