@@ -103,7 +103,7 @@ function Write-ConfigFiles {
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
     # change run user.
     if ($myenv.software.runas) {
-        Centos7-UserManager -username $myenv.software.runas -action add
+        New-LinuxUser -username $myenv.software.runas
         $myenv.dataDir, $logDir, $pidFolder | Invoke-Chown -user $myenv.software.runas
     }
 }

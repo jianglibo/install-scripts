@@ -56,7 +56,7 @@ function Install-Hive {
 
     $myenv.InstallDir | Join-Path -ChildPath "logFolder" | New-Directory | Invoke-Chown -user $myenv.user.user  -group $myenv.user.group
 
-    Centos7-UserManager -username $myenv.user.user -group $myenv.user.group -action add
+    New-LinuxUser -username $myenv.user.user -groupname $myenv.user.group
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -206,7 +206,7 @@ function start-hiveserver {
     Start-ExposeEnv $myenv
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     $scmd = $rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/hiveserver2"
-    Centos7-Nohup -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group  -NICENESS 0 -logfile $rh.logFile -pidfile $rh.pidFile
+    Start-Nohup -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group  -NICENESS 0 -logfile $rh.logFile -pidfile $rh.pidFile
 }
 
 function stop-hiveserver {

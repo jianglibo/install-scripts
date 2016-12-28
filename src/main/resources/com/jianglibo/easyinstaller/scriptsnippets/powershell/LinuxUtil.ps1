@@ -13,12 +13,12 @@ function Update-NetworkManagerState {
     
     switch ($action) {
         "enable" {
-            try {systemctl enable $nm *>1 | Out-Null} catch {}
-            try {systemctl start $nm *>1 | Out-Null} catch {}
+            try {systemctl enable $nm *>&1 | Out-Null} catch {}
+            try {systemctl start $nm *>&1 | Out-Null} catch {}
         }
         "disable" {
-            try {systemctl stop $nm *>1 | Out-Null} catch {}
-            try {systemctl disable $nm *>1 | Out-Null} catch {}
+            try {systemctl stop $nm *>&1 | Out-Null} catch {}
+            try {systemctl disable $nm *>&1 | Out-Null} catch {}
         }
     }
 
@@ -50,31 +50,37 @@ function Install-Alternatives {
     $cmd | Write-HostIfInTesting
     $cmd | Invoke-Expression
     alternatives --auto $name
-
 }
 
 function Set-HostName {
-    Param([String]$hostname)
+    Param([String]$hostname, [string]$ostype="centos7")
     hostnamectl --static set-hostname $hostname
 }
 
-function Centos7-InstallNtp {
+function Install-NtpService {
+    Param([string]$ostype="centos7")
     yum install -y ntp ntpdate
     systemctl enable ntpd
     ntpdate pool.ntp.org
     systemctl start ntpd
 }
 
+function Uninstall-NtpService {
+    Param([string]$ostype="centos7")
+    if (Test-ServiceRunning -serviceName "ntpd") {
+        systemctl stop ntpd
+    }
+    yum remove -y ntpd ntpdate
+}
+
 function Test-ServiceRunning {
     Param([parameter(Mandatory=$True)][String]$serviceName)
-    $r = systemctl status $serviceName | Select-Object -First 6 | Where-Object {$_ -match "\s+Loaded:.*\(running\)"} | Select-Object -First 1 | measure
-    $r.Count -eq 1
+    systemctl status $serviceName | Select-Object -First 6 | Where-Object {$_ -match "\s+Loaded:.*\(running\)"} | Select-Object -First 1
 }
 
 function Test-ServiceExists {
     Param([parameter(Mandatory=$True)][String]$serviceName)
-    $r = systemctl status $serviceName| Select-Object -First 6 | Where-Object {$_ -match "\s+Active:\s*not-found"} | Select-Object -First 1 | measure
-    $r.Count -eq 1
+    systemctl status $serviceName| Select-Object -First 6 | Where-Object {$_ -match "\s+Active:\s*not-found"} | Select-Object -First 1
 }
 
 function Test-ServiceEnabled {
@@ -131,49 +137,92 @@ function Get-FirewallOpenPorts {
     (firewall-cmd --list-all | Where-Object {$_ -match "^\s*ports:"} | Select-Object -First 1) -split "\s+" | Where-Object {$_.length -gt 0} | Select-Object -Skip 1
 }
 
-function Centos7-UserManager {
-    Param([parameter(Mandatory=$True)][String]$username,[string]$group,[switch]$createHome, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
-    $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
-    if ($group) {
-        $g = Get-Content /etc/group | Where-Object {$_ -match "^${group}:"} | Select-Object -First 1 | measure
-        if ($g.Count -eq 0) {
-            groupadd $group
-        } 
-    }
-    switch ($action) {
-        "add" {
-            if ($r.Count -eq 0) {
-                if ($createHome) {
-                    if ($group) {
-                        useradd -m -g $group $username
-                    } else {
-                        useradd -m $username
-                    }
-                } else {
-                    if ($group) {
-                        useradd -M -s /sbin/nologin -g $group $username
-                    } else {
-                        useradd -M -s /sbin/nologin $username
-                    }
-                }
+function Find-LinuxUser {
+    Param([parameter(Mandatory=$True)][String]$username)
+    Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1
+}
+
+function Find-LinuxGroup {
+    Param([parameter(Mandatory=$True)][String]$groupname)
+    Get-Content /etc/group | Where-Object {$_ -match "^${groupname}:"} | Select-Object -First 1
+}
+
+function New-LinuxUser {
+    Param([parameter(Mandatory=$True)][String]$username,[string]$groupname,[switch]$createHome)
+    if (Find-User $username) {
+        if ($groupname) {
+            $inGroup = ((groups $username) -split "\s*:\s*") -contains $groupname
+            if (!$inGroup) {
+                usermod -g $groupname $username
+            }
+        }
+    } else {
+        if ($createHome) {
+            if ($groupname) {
+                useradd -m -g $groupname $username
             } else {
-                if ($group) {
-                    usermod -g $group $username
-                }
+                useradd -m $username
             }
-        }
-
-        "remove" {
-            if ($r.Count -eq 1) {
-                userdel -f $username
+        } else {
+            if ($groupname) {
+                useradd -M -s /sbin/nologin -g $groupname $username
+            } else {
+                useradd -M -s /sbin/nologin $username
             }
-        }
-
-        "exists" {
-            $r.Count -eq 1
         }
     }
 }
+
+function Remove-LinuxUser {
+    Param([parameter(Mandatory=$True)][String]$username)
+    if (Find-LinuxUser $username) {
+        userdel -f $username
+    }
+}
+
+# function Centos7-UserManager {
+#     Param([parameter(Mandatory=$True)][String]$username,[string]$group,[switch]$createHome, [ValidateSet("add", "remove", "exists")][parameter(Mandatory=$True)][string]$action)
+#     $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | Measure-Object
+#     if ($group) {
+#         $g = Get-Content /etc/group | Where-Object {$_ -match "^${group}:"} | Select-Object -First 1 | Measure-Object
+#         if ($g.Count -eq 0) {
+#             groupadd $group
+#         } 
+#     }
+#     switch ($action) {
+#         "add" {
+#             if ($r.Count -eq 0) {
+#                 if ($createHome) {
+#                     if ($group) {
+#                         useradd -m -g $group $username
+#                     } else {
+#                         useradd -m $username
+#                     }
+#                 } else {
+#                     if ($group) {
+#                         useradd -M -s /sbin/nologin -g $group $username
+#                     } else {
+#                         useradd -M -s /sbin/nologin $username
+#                     }
+#                 }
+#             } else {
+#                 if ($group) {
+#                     usermod -g $group $username
+#                 }
+#             }
+#         }
+
+#         "remove" {
+#             if ($r.Count -eq 1) {
+#                 userdel -f $username
+#             }
+#         }
+
+#         "exists" {
+#             $r.Count -eq 1
+#         }
+#     }
+# }
 
 # runuser -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
@@ -187,11 +236,11 @@ function Start-RunUser-String {
     if (!$group) {
         $group = $user
     }
-    Centos7-UserManager -username $user -action add -group $group
+    New-LinuxUser -username $user -groupname $group
     "runuser -s /bin/bash -c '{0}'  {1}" -f $scriptcmd,$user
 }
 
-function Centos7-Nohup {
+function Start-Nohup {
     Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[int]$NICENESS, [string]$logfile,[string]$pidfile)
     $newcmd = "nohup nice -n $NICENESS $scriptcmd > `"$logfile`" 2>&1 < /dev/null &"
     $newcmd = Start-RunUser-String -shell $shell -scriptcmd $newcmd -user $user -group $group
@@ -214,7 +263,7 @@ function Start-RunUser {
     if (!$group) {
         $group = $user
     }
-    Centos7-UserManager -username $user -group $group -action add
+    New-LinuxUser -username $user -groupname $group
 #    chown $user $scriptfile | Out-Null
 #    chmod u+x $scriptfile | Out-Null
     if ($background) {
@@ -231,7 +280,7 @@ function Invoke-Chown {
         if (!$group) {
             $group = $user
         }
-        Centos7-UserManager -action add -group $group -username $user
+        New-LinuxUser -username $user -groupname $group
         if ($Path -is [System.IO.FileInfo]) {
             $Path = $Path.FullName
         }

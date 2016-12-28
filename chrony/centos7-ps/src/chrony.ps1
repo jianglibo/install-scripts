@@ -9,6 +9,8 @@ Param(
 
 function install-chrony {
     Param($myenv)
+    
+    Uninstall-NtpService
     yum install -y chrony
     $myenv.software.textfiles | Where-Object Name -Match "chrony.conf$" | ForEach-Object {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ("/etc/" | Join-Path -ChildPath $_.name) -Encoding ascii

@@ -50,20 +50,19 @@ Describe "Centos7Util" {
     It "should handle user manager" {
         $username = "a" + (Get-Random)
     
-        Centos7-UserManager -username $username -action add
+        New-LinuxUser -username $username
 
-        Centos7-UserManager -username $username -action exists | Should Be $True
+        Find-LinuxUser -username $username | Should Be $True
         
-        $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
+        $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | Measure-Object
 
         $r.Count | Should Be 1
-        
-        Centos7-UserManager -username $username -action remove
 
-        $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | measure
+        Remove-LinuxUser -username $username
+
+        $r = Get-Content /etc/passwd | Where-Object {$_ -match "^${username}:"} | Select-Object -First 1 | Measure-Object
         $r.Count | Should Be 0
-
-        Centos7-UserManager -username "xxxxxxxxxxu" -action exists | Should Be $False
+        Find-LinuxUser -username "xxxxxxxxxxu" | Should Be $False
     }
 
     It "should persist export" {
@@ -75,8 +74,8 @@ Describe "Centos7Util" {
         Save-EnvToProfile -key "JAVA_HOME" -value "/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.111-1.b15.el7_2.x86_64/jre"
         $f | Test-Path | Should Be $True
         
-        Get-Content $f | ? {$_ -match "^JAVA_HOME"} | Select-Object -First 1 | Should Be "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.111-1.b15.el7_2.x86_64/jre"
-        Get-Content $f | ? {$_ -match "^export JAVA_HOME"} | Select-Object -First 1 | Should Be "export JAVA_HOME"
+        Get-Content $f | Where-Object {$_ -match "^JAVA_HOME"} | Select-Object -First 1 | Should Be "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.111-1.b15.el7_2.x86_64/jre"
+        Get-Content $f | Where-Object {$_ -match "^export JAVA_HOME"} | Select-Object -First 1 | Should Be "export JAVA_HOME"
         # Remove-Item $f
     }
 }
