@@ -37,7 +37,7 @@ function install-oss {
         $myenv.tgzFile + " doesn't exists!" | Write-Error
     }
 
-    $myenv.InstallDir | Centos7-Chown -user $myenv.software.runas
+    $myenv.InstallDir | Invoke-Chown -user $myenv.software.runas
 
     $DirInfo = Get-DirInfomation -myenv $myenv
 
@@ -47,7 +47,7 @@ function install-oss {
         Remove-Item $logFile -Force
     }
 
-    Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} start" -f $DirInfo.nexusBin) -user $myenv.software.runas
+    Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} start" -f $DirInfo.nexusBin) -user $myenv.software.runas
 
     $steady = $false
     $lastLc = 0
@@ -66,7 +66,7 @@ function install-oss {
         }
     }
 
-    Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} stop" -f $DirInfo.nexusBin) -user $myenv.software.runas
+    Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} stop" -f $DirInfo.nexusBin) -user $myenv.software.runas
 
     $myenv.software.textfiles | ForEach-Object {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.nexusHome | Join-Path -ChildPath $_.name) -Encoding ascii
@@ -77,7 +77,7 @@ function install-oss {
     if ($portLine) {
         $nexusPort = $Matches[1]
     }
-    Centos7-FileWall -ports $Matches[1]
+    Update-FirewallItem -ports $Matches[1]
     $resultHash.dirInfo = $DirInfo
     $resultHash | ConvertTo-Json | Write-Output -NoEnumerate | Out-File $myenv.resultFile -Force -Encoding ascii
 }
@@ -85,7 +85,7 @@ function install-oss {
 function Update-OssStataus {
     Param($myenv, $state)
     $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
-    Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} $state" -f $resultJson.dirInfo.nexusBin) -user $myenv.software.runas
+    Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} $state" -f $resultJson.dirInfo.nexusBin) -user $myenv.software.runas
 }
 
 $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv

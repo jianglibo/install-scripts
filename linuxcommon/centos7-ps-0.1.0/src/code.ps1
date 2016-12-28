@@ -26,7 +26,7 @@ switch ($action) {
             $prot = $ports[1]
         }
         $ports = $ports[0]
-        Centos7-FileWall -ports $ports -prot $prot
+        Update-FirewallItem -ports $ports -prot $prot
         firewall-cmd --list-all
     }
     "kill-process" {

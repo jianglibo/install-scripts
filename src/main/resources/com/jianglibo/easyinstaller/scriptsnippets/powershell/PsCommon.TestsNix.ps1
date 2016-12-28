@@ -78,7 +78,7 @@ expect {
 
         $bs | Out-File -FilePath $bsf -Encoding ascii
     
-        $r = Centos7-Run-User -scriptcmd "bash $bsf" -user abc
+        $r = Start-RunUser -scriptcmd "bash $bsf" -user abc
 
         Centos7-UserManager -username "abc" -action remove
         Remove-Item $bsf

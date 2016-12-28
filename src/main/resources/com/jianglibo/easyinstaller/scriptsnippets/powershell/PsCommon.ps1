@@ -95,7 +95,7 @@ function Invoke-DfsCmd {
     $dfslines = $dfslines -split "`n"
     $dfslines = $dfslines | ForEach-Object {$_.Trim()} | ForEach-Object {if ($_ -notmatch "^-") {"-" + $_} else {$_}} | ForEach-Object {"{0} fs {1}" -f $hadoopCmd, $_}
     $dfslines | Write-HostIfInTesting
-    $dfslines | ForEach-Object {Centos7-Run-User -shell "/bin/bash" -scriptcmd "$_"  -user $user -group $group}
+    $dfslines | ForEach-Object {Start-RunUser -shell "/bin/bash" -scriptcmd "$_"  -user $user -group $group}
 }
 
 function ConvertFrom-Base64Parameter {

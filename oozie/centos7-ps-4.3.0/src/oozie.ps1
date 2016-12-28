@@ -52,9 +52,9 @@ function Install-Hive {
 
     $myenv.InstallDir | New-Directory
 
-    $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | New-Directory | Centos7-Chown -user $myenv.user.user -group $myenv.user.group
+    $myenv.InstallDir | Join-Path -ChildPath "pidFolder" | New-Directory | Invoke-Chown -user $myenv.user.user -group $myenv.user.group
 
-    $myenv.InstallDir | Join-Path -ChildPath "logFolder" | New-Directory | Centos7-Chown -user $myenv.user.user  -group $myenv.user.group
+    $myenv.InstallDir | Join-Path -ChildPath "logFolder" | New-Directory | Invoke-Chown -user $myenv.user.user  -group $myenv.user.group
 
     Centos7-UserManager -username $myenv.user.user -group $myenv.user.group -action add
 
@@ -101,7 +101,7 @@ function Write-ConfigFiles {
 
     if (! (Test-HadoopProperty -doc $hiveSiteDoc -name $loglocKey)) {
         $logloc = ($myenv.InstallDir | Join-Path -ChildPath "operation_logs" | New-Directory)
-        Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $logloc
+        Invoke-Chown -user $myenv.user.user -group $myenv.user.group -Path $logloc
         Set-HadoopProperty -doc $hiveSiteDoc -name $loglocKey -value "$logloc"
     }
 
@@ -140,7 +140,7 @@ function Write-ConfigFiles {
     $dbFolder = $dbname | Split-Path -Parent
 
     $dbFolder | New-Directory | Out-Null
-    Centos7-Chown -user $myenv.user.user -group $myenv.user.group -Path $dbFolder
+    Invoke-Chown -user $myenv.user.user -group $myenv.user.group -Path $dbFolder
 
     $metaStoreDb = $urlPrefix,$dbname,$urlPostfix -join ""
     Set-HadoopProperty -doc $hiveSiteDoc -name $metaStoreKey -value $metaStoreDb
@@ -149,7 +149,7 @@ function Write-ConfigFiles {
 
     $returnToClient.hive.info.metadb = $dbname
 
-    Centos7-FileWall -ports $thriftPort,$thriftHttpPort,$webuiPort
+    Update-FirewallItem -ports $thriftPort,$thriftHttpPort,$webuiPort
 
     Save-Xml -doc $hiveSiteDoc -FilePath $DirInfo.hiveSite -encoding ascii
 
@@ -160,7 +160,7 @@ function Write-ConfigFiles {
 
     #change hostname
     if ($myenv.box.ip -ne $myenv.box.hostname) {
-        Centos7-SetHostName -hostname $myenv.box.hostname
+        Set-HostName -hostname $myenv.box.hostname
     }
 
     $resultHash.dirInfo = $DirInfo
@@ -196,7 +196,7 @@ function Initialize-HiveSchema {
     $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (!$rh.info.initSchema.completed) {
         $scmd = "{0} -dbType derby -initSchema --verbose" -f  ($rh.dirInfo.hiveHome | Join-Path -ChildPath "bin/schematool")
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd $scmd -user $myenv.user.user -group $myenv.user.group
         Set-ResultFileItem -resultFile $myenv.resultFile -keys "info","initSchema","completed" -value $True
     }
 }

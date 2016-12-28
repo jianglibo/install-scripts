@@ -91,10 +91,10 @@ function Write-ConfigFiles {
 
     #change hostname
     if ($myenv.box.ip -ne $myenv.box.hostname) {
-        Centos7-SetHostName -hostname $myenv.box.hostname
+        Set-HostName -hostname $myenv.box.hostname
     }
     # open firewall
-    Centos7-FileWall -ports $myenv.software.configContent.zkports,$myenv.software.configContent.zkconfig.clientPort
+    Update-FirewallItem -ports $myenv.software.configContent.zkports,$myenv.software.configContent.zkconfig.clientPort
 
     # write app.sh, this script will be invoked by root user.
     "#!/usr/bin/env bash",(New-ExecuteLine $myenv.software.runner -envfile $envfile -code $PSCommandPath) | Out-File -FilePath $myenv.appFile -Encoding ascii
@@ -104,7 +104,7 @@ function Write-ConfigFiles {
     # change run user.
     if ($myenv.software.runas) {
         Centos7-UserManager -username $myenv.software.runas -action add
-        $myenv.dataDir, $logDir, $pidFolder | Centos7-Chown -user $myenv.software.runas
+        $myenv.dataDir, $logDir, $pidFolder | Invoke-Chown -user $myenv.software.runas
     }
 }
 
@@ -116,10 +116,10 @@ function Invoke-ZookeeperExecutable {
         Set-Content -Path "env:$($_.Key)" -Value $_.Value
     }
     if ((Test-Path $myenv.envvs.ZOOPIDFILE) -and ($action -eq "start")) {
-        Centos7-Run-User -scriptcmd ($rh.executable + " stop") -user $myenv.software.runas
+        Start-RunUser -scriptcmd ($rh.executable + " stop") -user $myenv.software.runas
     }
 
-    Centos7-Run-User -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
+    Start-RunUser -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
 }
 
 $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv

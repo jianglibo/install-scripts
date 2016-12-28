@@ -9,14 +9,6 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/LinuxUtil.ps1
 
-try {
-    . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.ps1
-    . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\LinuxUtil.ps1
-}
-catch {
-    $Error.Clear()
-}
-
 Get-Command java
 
 function ConvertTo-DecoratedEnv {
@@ -33,13 +25,8 @@ function ConvertTo-DecoratedEnv {
 
     $users = $myenv.software.runas
 
-    if (!$users -or ($users -is "string")) {
-        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value @{user=$users;group=$users}
-        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value @{user=$users;group=$users}
-    } else {
-        $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users.hdfs
-        $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users.yarn
-    }
+    $myenv | Add-Member -MemberType NoteProperty -Name hdfsuser -Value $users.hdfs
+    $myenv | Add-Member -MemberType NoteProperty -Name yarnuser -Value $users.yarn
 
         # piddir and logdir
     $envvs = $myenv.software.configContent.asHt("envvs")
@@ -175,12 +162,12 @@ function Write-ConfigFiles {
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.resourcemanager.hostname" -value $myenv.resourceManagerHostName
 
     Set-HadoopProperty -doc $yarnSiteDoc -name "yarn.nodemanager.log-dirs" -value $myenv.yarnlogdir
-    $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+    $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
 
     if (("ResourceManager" -in $myenv.myRoles) -or ("NodeManager" -in $myenv.myRoles)) {
-        $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
-        $myenv.yarnpiddir -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
-        ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Centos7-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+        $myenv.yarnlogdir -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+        $myenv.yarnpiddir -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+        ($yarnSiteDoc.configuration.property | Where-Object name -eq "yarn.nodemanager.local-dirs" | Select-Object -First 1 -ExpandProperty value) -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
     }
 
     # write hostname to hosts.
@@ -190,15 +177,15 @@ function Write-ConfigFiles {
 
     #change hostname
     if ($myenv.box.ip -ne $myenv.box.hostname) {
-        Centos7-SetHostName -hostname $myenv.box.hostname
+        Set-HostName -hostname $myenv.box.hostname
     }
 
     if("ResourceManager" -in $myenv.myRoles) {
-        Centos7-FileWall -ports $myenv.software.configContent.firewall.ResourceManager
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.ResourceManager
     }
 
     if("NodeManager" -in $myenv.myRoles) {
-        Centos7-FileWall -ports $myenv.software.configContent.firewall.NodeManager
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.NodeManager
     }
 
 
@@ -227,14 +214,14 @@ function Write-ConfigFiles {
     }
 
     if ("NameNode" -in $myenv.myRoles) {
-        $namenodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
+        $namenodeDir | New-Directory | Invoke-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
         $resultHash.info.namenodeDir = $namenodeDir
-        Centos7-FileWall -ports $myenv.software.configContent.firewall.NameNode
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.NameNode
     }
 
     if ("DataNode" -in $myenv.myRoles) {
-        $datanodeDir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
-        Centos7-FileWall -ports $myenv.software.configContent.firewall.DataNode
+        $datanodeDir | New-Directory | Invoke-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.DataNode
     }
 
     Save-Xml -doc $hdfsSiteDoc -FilePath $DirInfo.hdfsSite -encoding ascii
@@ -242,8 +229,8 @@ function Write-ConfigFiles {
     # write profile.d
     'HADOOP_PREFIX=' + $DirInfo.hadoopDir, "export HADOOP_PREFIX" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
 
-    $myenv.dfspiddir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
-    $myenv.dfslogdir | New-Directory | Centos7-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
+    $myenv.dfspiddir | New-Directory | Invoke-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
+    $myenv.dfslogdir | New-Directory | Invoke-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
 
     $resultHash.env.HADOOP_LOG_DIR = $myenv.dfslogdir
     $resultHash.env.HADOOP_PID_DIR = $myenv.dfspiddir
@@ -287,7 +274,7 @@ function Format-Hdfs {
     $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
     if (! $resultJson.dfsFormatted) {
 #        $DirInfo.hdfsCmd, "namenode", "-format", $myenv.software.configContent.dfsClusterName  -join " " | Invoke-Expression
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} namenode -format {1}" -f $DirInfo.hdfsCmd, $myenv.software.configContent.dfsClusterName) -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
         $resultJson | Add-Member -MemberType NoteProperty -Name dfsFormatted -Value $True -Force
         $resultJson | ConvertTo-Json | Out-File -FilePath $myenv.resultFile -Encoding ascii
     }
@@ -299,11 +286,11 @@ function start-dfs {
     Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
     if ("NameNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action namenode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
 #        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs start namenode
 #        $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
     } elseif ("DataNode" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} --script hdfs $action datanode" -f $h.hadoopDaemon,$h.etcHadoop) -user "hdfs"
 #        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs start datanode
 #        $HADOOP_PREFIX/sbin/hadoop-daemons.sh --config $HADOOP_CONF_DIR --script hdfs stop datanode
     }
@@ -314,11 +301,11 @@ function start-yarn {
     Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
     if ("ResourceManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action resourcemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
 #        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR start resourcemanager
 #        $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
     } elseif ("NodeManager" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action nodemanager" -f $h.yarnDaemon,$h.etcHadoop) -user "yarn"
 #        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR start nodemanager
 #        $HADOOP_YARN_HOME/sbin/yarn-daemons.sh --config $HADOOP_CONF_DIR stop nodemanager
     }
@@ -449,3 +436,11 @@ function Set-HadoopProperty {
     }
 }
 #>
+
+# try {
+#     . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.ps1
+#     . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\LinuxUtil.ps1
+# }
+# catch {
+#     $Error.Clear()
+# }

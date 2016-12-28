@@ -57,7 +57,7 @@ function Get-MysqlcnfValue {
 
 function remove-mysql {
     Param($myenv)
-    if (Centos7-IsServiceRunning "mysqld") {
+    if (Test-ServiceRunning "mysqld") {
         systemctl stop "mysqld"
     }
 

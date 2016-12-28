@@ -44,7 +44,7 @@ function Get-MysqlRoleSum {
     $rh = @{}
 
     # mater-replica boxes
-    [array]$mrboxes = $myenv.boxGroup.boxes | ? {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
+    [array]$mrboxes = $myenv.boxGroup.boxes | Where-Object {($_.roles -match $MYSQL_MASTER) -and ($_.roles -match $MYSQL_REPLICA)}
     if ($mrboxes.Count -gt 1) {
         Write-Error "There can be exactly 1 server with both MYSQL_MASTER and MYSQL_REPLICA roles."
     }
@@ -210,10 +210,10 @@ function install-masterreplica {
 
 function Get-MysqlRpms {
     Param($myenv)
-    Get-UploadFiles $myenv | ? {$_ -match "-common-\d+.*rpm$"}
-    Get-UploadFiles $myenv | ? {$_ -match "-libs-\d+.*rpm$"}
-    Get-UploadFiles $myenv | ? {$_ -match "-client-\d+.*rpm$"}
-    Get-UploadFiles $myenv | ? {$_ -match "-server-\d+.*rpm$"}
+    Get-UploadFiles $myenv | Where-Object {$_ -match "-common-\d+.*rpm$"}
+    Get-UploadFiles $myenv | Where-Object {$_ -match "-libs-\d+.*rpm$"}
+    Get-UploadFiles $myenv | Where-Object {$_ -match "-client-\d+.*rpm$"}
+    Get-UploadFiles $myenv | Where-Object {$_ -match "-server-\d+.*rpm$"}
 }
 
 
@@ -325,7 +325,7 @@ function Install-Mysql {
     if ($mariadblibs) {
         $mariadblibs -split "\s+" | Select-Object -First 1 | % {yum -y remove $_}
     }
-    Get-MysqlRpms $myenv | % {yum -y install $_} | Out-Null
+    Get-MysqlRpms $myenv | foreach {yum -y install $_} | Out-Null
 
     $rsum = Get-MysqlRoleSum $myenv
 
@@ -341,7 +341,7 @@ function Install-Mysql {
     $socket = Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "socket"
     $port = Select-FirstTrueValue (Get-SectionValueByKey -parsedSectionFile $mycnf -section $mysqlds -key "port") "3306"
 
-    Centos7-FileWall -ports $port
+    Update-FirewallItem -ports $port
 
     # first comment out log-bin and server-id item.
     Disable-SectionKeyValue -parsedSectionFile $mycnf -section $mysqlds -key "log-bin"
@@ -403,12 +403,12 @@ switch ($action) {
         install-replica $myenv (ConvertFrom-Base64Parameter $remainingArguments)
     }
     "start" {
-        if (!(Centos7-IsServiceRunning "mysqld")) {
+        if (!(Test-ServiceRunning "mysqld")) {
             systemctl start mysqld
         }
     }
     "stop" {
-        if (Centos7-IsServiceRunning mysqld) {
+        if (Test-ServiceRunning mysqld) {
             systemctl stop mysqld
         }
     }

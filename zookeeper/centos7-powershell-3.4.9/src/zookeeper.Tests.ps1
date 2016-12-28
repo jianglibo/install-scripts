@@ -67,7 +67,7 @@ Describe "code" {
         Join-Path -Path $decorated.envvs.ZOOCFGDIR -ChildPath $decorated.envvs.ZOOCFG | Test-Path -PathType Leaf| Should Be $True
 
         
-        $allports = Centos7-GetOpenPorts
+        $allports = Get-FirewallOpenPorts
 
         "2888/tcp","3888/tcp","2181/tcp" | Where-Object {$_ -notin $allports} | Should Be $null
 

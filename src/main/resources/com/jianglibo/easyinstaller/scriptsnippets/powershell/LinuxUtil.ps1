@@ -6,7 +6,7 @@ stop NetworkManager, disable NetworkManager service,
 4. cat /etc/sysconfig/network-scripts/ifcfg-enp0s3 er interface Configuration. add GATEWAY="xx.xx.xxx.xx" directive.
 #>
 
-function Centos7-NetworkManager {
+function Update-NetworkManagerState {
     Param([ValidateSet("enable", "disable")][parameter(Mandatory=$True)][string]$action,
         [ValidateSet("centos7", "unbuntu")][string]$ostype="centos7")
     $nm = "NetworkManager"
@@ -53,7 +53,7 @@ function Install-Alternatives {
 
 }
 
-function Centos7-SetHostName {
+function Set-HostName {
     Param([String]$hostname)
     hostnamectl --static set-hostname $hostname
 }
@@ -65,31 +65,31 @@ function Centos7-InstallNtp {
     systemctl start ntpd
 }
 
-function Centos7-IsServiceRunning {
+function Test-ServiceRunning {
     Param([parameter(Mandatory=$True)][String]$serviceName)
     $r = systemctl status $serviceName | Select-Object -First 6 | Where-Object {$_ -match "\s+Loaded:.*\(running\)"} | Select-Object -First 1 | measure
     $r.Count -eq 1
 }
 
-function Centos7-IsServiceExists {
+function Test-ServiceExists {
     Param([parameter(Mandatory=$True)][String]$serviceName)
     $r = systemctl status $serviceName| Select-Object -First 6 | Where-Object {$_ -match "\s+Active:\s*not-found"} | Select-Object -First 1 | measure
     $r.Count -eq 1
 }
 
-function Centos7-IsServiceEnabled {
+function Test-ServiceEnabled {
     Param([parameter(Mandatory=$True)][String]$serviceName)
     (systemctl is-enabled $serviceName | Out-String) -match "enabled"
 }
 
-function Centos7-FileWall {
+function Update-FirewallItem {
     Param($ports, [String]$prot="tcp", [switch]$delete=$False)
     process {
         if ($ports -match ',') {
             $ports = $ports -split ','
         }
         $firewalld = "firewalld"
-        if (! (Centos7-IsServiceEnabled -serviceName $firewalld)) {
+        if (! (Test-ServiceEnabled -serviceName $firewalld)) {
             try {
                 systemctl enable $firewalld *>&1 | Write-Output -OutVariable fromBash | Out-Null
             }
@@ -101,7 +101,7 @@ function Centos7-FileWall {
             }
         }
 
-        if (! (Centos7-IsServiceRunning -serviceName $firewalld)) {
+        if (! (Test-ServiceRunning -serviceName $firewalld)) {
             systemctl start $firewalld *>&1 | Write-Output -OutVariable fromBash | Out-Null
         }
         if ($delete) {
@@ -127,8 +127,8 @@ function Centos7-FileWall {
     }
 }
 
-function Centos7-GetOpenPorts {
-    (firewall-cmd --list-all | Where-Object {$_ -match "^\s*ports:"} | Select-Object -First 1) -split "\s+" | ? {$_.length -gt 0} | Select-Object -Skip 1
+function Get-FirewallOpenPorts {
+    (firewall-cmd --list-all | Where-Object {$_ -match "^\s*ports:"} | Select-Object -First 1) -split "\s+" | Where-Object {$_.length -gt 0} | Select-Object -Skip 1
 }
 
 function Centos7-UserManager {
@@ -178,7 +178,7 @@ function Centos7-UserManager {
 # runuser -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 # su -s /bin/bash -c "/opt/tmp8TEpPH.sh 1 2 3" abc
 
-function Centos7-Run-User-String {
+function Start-RunUser-String {
     Param([string]$shell="/bin/bash", [string]$scriptcmd, [string]$user,[string]$group)
     $user = $user | Trim-All
     if (! $user) {
@@ -194,7 +194,7 @@ function Centos7-Run-User-String {
 function Centos7-Nohup {
     Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[int]$NICENESS, [string]$logfile,[string]$pidfile)
     $newcmd = "nohup nice -n $NICENESS $scriptcmd > `"$logfile`" 2>&1 < /dev/null &"
-    $newcmd = Centos7-Run-User-String -shell $shell -scriptcmd $newcmd -user $user -group $group
+    $newcmd = Start-RunUser-String -shell $shell -scriptcmd $newcmd -user $user -group $group
     $line2 = 'sleep 1'
     $line3 = 'echo $! >' + $pidfile
     $tmp = New-TemporaryFile
@@ -205,7 +205,7 @@ function Centos7-Nohup {
 #    Remove-Item $tmp -Force
 }
 
-function Centos7-Run-User {
+function Start-RunUser {
     Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[switch]$background)
     $user = $user | Trim-All
     if (! $user) {
@@ -225,7 +225,7 @@ function Centos7-Run-User {
     
 }
 
-function Centos7-Chown {
+function Invoke-Chown {
     Param([string]$user, [string]$group=$null, [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$Path)
     process {
         if (!$group) {
@@ -239,7 +239,7 @@ function Centos7-Chown {
     }
 }
 
-function Centos7-PersistExport {
+function Save-EnvToProfile {
     Param([parameter(Mandatory=$True)][string]$key, [parameter(Mandatory=$True)][string]$value)
     $f = "/etc/profile.d/easyinstaller.sh" 
     if ( $f | Test-Path) {

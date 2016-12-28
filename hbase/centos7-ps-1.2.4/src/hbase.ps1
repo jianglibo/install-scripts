@@ -125,7 +125,7 @@ function Write-ConfigFiles {
     # process regionservers
     $myenv.regionServerBoxes | Select-Object -ExpandProperty hostname | Out-File -FilePath $DirInfo.regionserversFile -Encoding ascii
 
-    $myenv.logdir,$myenv.piddir | New-Directory | Centos7-Chown -user $myenv.user.user -group $myenv.user.group
+    $myenv.logdir,$myenv.piddir | New-Directory | Invoke-Chown -user $myenv.user.user -group $myenv.user.group
 
     # write hostname to hosts.
     $hf = New-HostsFile
@@ -134,15 +134,15 @@ function Write-ConfigFiles {
 
     #change hostname
     if ($myenv.box.ip -ne $myenv.box.hostname) {
-        Centos7-SetHostName -hostname $myenv.box.hostname
+        Set-HostName -hostname $myenv.box.hostname
     }
 
     if("HbaseMaster" -in $myenv.myRoles) {
-        Centos7-FileWall -ports $myenv.software.configContent.firewall.Master
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.Master
     }
 
     if("RegionServer" -in $myenv.myRoles) {
-        Centos7-FileWall -ports $myenv.software.configContent.firewall.RegionServer
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.RegionServer
     }
 
     $resultHash.env.HBASE_LOG_DIR = $myenv.logdir
@@ -163,9 +163,9 @@ function start-hbase {
     Start-ExposeEnv $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
     } elseif ("RegionServer" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
     }
 }
 
@@ -174,9 +174,9 @@ function stop-hbase {
     Start-ExposeEnv $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
     } elseif ("RegionServer" -in $myenv.myRoles) {
-        Centos7-Run-User -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
     }
 }
 
