@@ -1,0 +1,2 @@
+install:
+  You should invoke install 2 times. First time will grab keys from server, then send to other clients.

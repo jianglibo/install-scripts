@@ -14,7 +14,9 @@ $I_AM_IN_TESTING = $True
 Describe "code" {
     It "should install chrony" {
         $myenv = New-EnvForExec $envfile
-        install-chrony $myenv
+        $result = install-chrony $myenv
+        $result | Should Be $True
+        $result | Write-HostIfInTesting
         Get-Content -Path "/etc/chrony.conf" | Where-Object {$_ -match "I should be sit at /etc/chrony.conf"} | Should Be $True
         Get-Content -Path "/etc/chrony.conf" | Where-Object {$_ -match "^\s*allow"} | Should Be "allow a1.host.name"
     }

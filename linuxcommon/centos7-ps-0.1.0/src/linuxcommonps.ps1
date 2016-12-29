@@ -30,8 +30,10 @@ switch ($action) {
         firewall-cmd --list-all
     }
     "kill-process" {
-        [string[]]$pns = (ConvertFrom-Base64Parameter $remainingArguments).Trim() -split "\s+"
-        Get-Process | Where-Object Name -In $pns | Where-Object {$_.Trim().Length -gt 0} | Stop-Process -Force
+        $remainingArguments | Write-Output
+        [string[]]$pns = ($remainingArguments | ConvertFrom-Base64Parameter).Trim() -split "\s+"
+        $pns | Write-HostIfInTesting
+        Get-Process | Where-Object Name -In $pns | Stop-Process -Force
     }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)

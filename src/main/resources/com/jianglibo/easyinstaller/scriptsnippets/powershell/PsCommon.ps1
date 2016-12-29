@@ -152,8 +152,17 @@ function Set-ResultFileItem {
 
 function ConvertTo-Base64String {
     Param([parameter(ValueFromPipeline=$True)][string]$str)
-    $bytes = [System.Text.Encoding]::ASCII.GetBytes($str)
-    [System.Convert]::ToBase64String($bytes)
+    Begin {
+        $lines = @()
+    }
+    Process {
+        $lines += $_
+    }
+    End {
+        $nstr = $lines -join "`n"
+        $bytes = [System.Text.Encoding]::ASCII.GetBytes($nstr)
+        [System.Convert]::ToBase64String($bytes)
+    }
 }
 
 function ConvertFrom-Base64String {

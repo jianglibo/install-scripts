@@ -55,11 +55,29 @@ proc enableNtpd {} {
   exec systemctl start ntpd 2>@1
 }
 
+proc killProcess {extraParam} {
+    set pnames [regexp -inline -all -- {[^\s]+} $extraParam]
+    set results [open "|ps aux" r]
+    set rpre {^[^\s]+\s+([^\s]+).*}
+    while { [gets $results line] >= 0 } {
+      foreach tokill $pnames {
+        if {[regexp "${rpre}${tokill}" $line whole mypid]} {
+          exec kill -9 $mypid
+        }
+      }
+    }
+    if {[catch {close $results} err]} {
+        puts "ps failed: $err"
+        exit 1
+    }
+}
+
 switch -exact -- $action {
   change-resolv {setupResolver $extraParam}
   delete-folder {deleteFolder $extraParam}
   enable-ntpd {enableNtpd}
   any-cmd {anyCmd $extraParam}
+  kill-process {killProcess $extraParam}
   t {}
   default {}
 }

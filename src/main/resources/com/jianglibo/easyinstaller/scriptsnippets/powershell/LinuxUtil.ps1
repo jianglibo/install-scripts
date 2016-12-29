@@ -89,7 +89,7 @@ function Test-ServiceEnabled {
 }
 
 function Update-FirewallItem {
-    Param($ports, [String]$prot="tcp", [switch]$delete=$False)
+    Param($ports, [ValidateSet("tcp", "udp")][String]$prot="tcp", [switch]$delete=$False)
     process {
         if ($ports -match ',') {
             $ports = $ports -split ','

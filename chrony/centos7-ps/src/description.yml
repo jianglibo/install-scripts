@@ -6,8 +6,9 @@ possibleRoles: CHRONY_SERVER,CHRONY_CLIENT
 preferredFormat: JSON
 codeToExecute: chrony.ps1
 configContent: config.yml
-codeFileExt:
+codeFileExt: ps1
 codeLineSeperator: LF
 runas:
 actions: install,start,stop
+actionDescriptions: actions.yml
 filesToUpload: []
