@@ -34,9 +34,9 @@ function install-java {
         $myenv.tgzFile + " doesn't exists!" | Write-Error
     }
     $DirInfo = Get-DirInfomation -myenv $myenv
-
+    $DirInfo.javaBin | Write-Output
     Install-Alternatives -link "/usr/bin/java" -path $DirInfo.javaBin -name "java" -priority 100
-    Save-JavaHomeToEasyinstallerProfile
+    Save-JavaHomeToEasyinstallerProfile -jp $DirInfo.javaBin
 }
 
 $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv

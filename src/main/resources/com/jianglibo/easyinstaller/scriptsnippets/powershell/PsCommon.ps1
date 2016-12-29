@@ -260,6 +260,11 @@ function New-IpUtil {
 
 }
 
+function Stop-LinuxProcessByKill {
+    Param([string]$namePtn)
+    ps aux | Where-Object {$_ -match "^[^\s]+\s+([^\s]+).*${namePtn}.*"} | ForEach-Object {$Matches[1]} | ForEach-Object {kill -9 $_}
+}
+
 function Add-Lines {
     Param([String]$FilePath, [String]$ptn, $lines, [switch]$after)
     if ($FilePath -is [System.IO.FileInfo]) {

@@ -227,21 +227,10 @@ function stop-hiveserver {
     }
     if (!$done) {
         $rh.pidFile + " doesn't exists"
-        Stop-HiveServerByKill HiveServer2
+        Stop-LinuxProcessByKill -namePtn "HiveServer2"
     }
 }
 
-function Stop-HiveServerByKill {
-    Param($ptn)
-    try {
-        $c = "kill -s 9 `$(ps aux | grep '$ptn' | awk '{print `$2}')"
-        Invoke-BashContent -content $c
-    }
-    catch {
-        $Error[0].Message | Write-HostIfInTesting
-        $Error.Clear()
-    }
-}
 
 function remove-metadb {
     Param($myenv)
