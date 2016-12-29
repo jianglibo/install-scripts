@@ -1,3 +1,5 @@
+install:
+  You Should create the /tmp and /user/hive/houseware folder in the hdfs, and execute "chmod g+w /tmp" and "chmod g+w /user/hive/houseware".
 start-hiveserver:
   HiveServer should listening on port 10000, and web ui port is 10002
 remove-metadb:

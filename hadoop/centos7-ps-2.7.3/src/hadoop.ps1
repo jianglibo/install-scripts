@@ -1,6 +1,4 @@
-﻿# how to run this script. powershell -File /path/to/this/file.
-
-Param(
+﻿Param(
     [parameter(Mandatory=$true)]$envfile,
     [parameter(Mandatory=$true)]$action,
     [string]$remainingArguments

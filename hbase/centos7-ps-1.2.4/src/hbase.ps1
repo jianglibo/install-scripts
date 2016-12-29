@@ -1,9 +1,4 @@
-﻿# how to run this script. powershell -File /path/to/this/file.
-# ParamTest.ps1 - Show some parameter features
-# Param statement must be first non-comment, non-blank line in the script
-# server must has a hostname
-
-Param(
+﻿Param(
     [parameter(Mandatory=$true)]$envfile,
     [parameter(Mandatory=$true)] $action,
     [string]$remainingArguments
@@ -31,7 +26,7 @@ function ConvertTo-DecoratedEnv {
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("hbase-.*\.tar\.gz"))
 
-         # piddir and logdir
+    # piddir and logdir
     $envvs = $myenv.software.configContent.asHt("envvs")
 
     $myenv | Add-Member -MemberType NoteProperty -Name user -Value $myenv.software.runas
@@ -215,71 +210,3 @@ switch ($action) {
 }
 
 Write-SuccessResult
-
-<#
-function Add-TagWithTextValue {
-    Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
-    [System.Xml.XmlElement]$elem = $parent.OwnerDocument.CreateElement($tag)
-    [System.Xml.XmlText]$text = $parent.OwnerDocument.CreateTextNode($value)
-    $elem.AppendChild($text) | Out-Null  # The node added.
-    $parent.AppendChild($elem)
-}
-
-function Add-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
-    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
-    Add-TagWithTextValue -parent $property -tag "name" -value $name
-    Add-TagWithTextValue -parent $property -tag "value" -value $value
-    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
-    $parent.AppendChild($property)
-}
-
-function Test-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name)
-    if (! $doc) {
-        $doc = $parent.OwnerDocument
-    }
-    if (! $parent) {
-        if ($doc.configuration) {
-            $parent = $doc.configuration
-        } else {
-            $parent = $doc.DocumentElement
-        }
-    }
-    $node = $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
-
-    if ($node) {
-        if ($node.Value -and $node.Value.trim()) {
-            $True
-        } else {
-            $False
-        }
-    } else {
-        $False
-    }
-}
-
-function Set-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
-    if (! $doc) {
-        $doc = $parent.OwnerDocument
-    }
-    if (! $parent) {
-        if ($doc.configuration) {
-            $parent = $doc.configuration
-        } else {
-            $parent = $doc.DocumentElement
-        }
-    }
-
-    # exists item.
-    $node =  $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
-    if ($node) {
-        $node.Name = $name
-        $node.Value = $value
-        $node.Description = $descprition
-    } else {
-        Add-HadoopProperty -doc $doc -parent $parent -name $name -value $value -descprition $descprition
-    }
-}
-#>
