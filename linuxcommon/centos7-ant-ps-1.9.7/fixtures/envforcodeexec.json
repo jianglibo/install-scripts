@@ -1,0 +1,49 @@
+{
+    "remoteFolder": "/easy-installer/",
+    "box": {
+        "id": 1998850,
+        "ip": "192.168.33.110",
+        "name": "box1",
+        "hostname": "a0.host.name",
+        "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+        "dnsServer": "",
+        "ips": "",
+        "ports": "",
+        "boxRoleConfig": ""
+    },
+    "boxGroup": {
+        "id": 2031618,
+        "name": "maven",
+        "configContent": "# place holder\r\n",
+        "installResults": null,
+        "boxes": [
+            {
+                "id": 1998850,
+                "ip": "192.168.33.110",
+                "name": "box1",
+                "hostname": "a0.host.name",
+                "roles": "HIVE_SERVER,HBASEMASTER,NAMENODE,OOZIE_SERVER,RESOURCEMANAGER",
+                "dnsServer": "192.168.2.60",
+                "ips": "",
+                "ports": "",
+                "boxRoleConfig": null
+            }
+        ]
+    },
+    "software": {
+        "name": "maven",
+        "sversion": "ps-3.3.9",
+        "ostype": "CentOs7",
+        "runas": "",
+        "timeouts": null,
+        "runner": "powershell -File {code} -envfile {envfile} -action {action}",
+        "possibleRoles": null,
+        "textfiles": [],
+        "filesToUpload": [
+            "http://apache.communilink.net/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz"
+        ],
+        "configContent": "{\"installDir\":\"/opt/maven\"}",
+        "actions": "install",
+        "preferredFormat": "JSON"
+    }
+}

@@ -26,6 +26,14 @@ function ConvertTo-DecoratedEnv {
     $myenv
 }
 
+function Get-ZookeeperDirInfomation {
+    Param($myenv)
+    $h = @{}
+    $h.zkCli = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/zkCli.sh$"} | Select-Object -First 1 -ExpandProperty FullName
+    $h.zkHome = $h.zkCli | Split-Path -Parent | Split-Path -Parent
+    $h
+}
+
 function Uninstall-Zk {
     Param($myenv)
 }
@@ -33,6 +41,8 @@ function Uninstall-Zk {
 function Install-Zk {
     Param($myenv)
     $myenv.InstallDir | New-Directory | Out-Null
+
+    Invoke-ZookeeperExecutable -myenv $myenv -action stop
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
@@ -106,20 +116,25 @@ function Write-ConfigFiles {
         New-LinuxUser -username $myenv.software.runas
         $myenv.dataDir, $logDir, $pidFolder | Invoke-Chown -user $myenv.software.runas
     }
+
+    $DirInfo = Get-ZookeeperDirInfomation $myenv
+    "ZOOKEEPER_HOME=" + $DirInfo.zkHome, "export ZOOKEEPER_HOME" | Out-File -FilePath "/etc/profile.d/zookeeper.sh" -Encoding ascii
 }
 
 function Invoke-ZookeeperExecutable {
     Param($myenv, [ValidateSet("start","start-foreground","stop", "restart", "status", "upgrade", "print-cmd")][String]$action)
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json | Add-AsHtScriptMethod
-    # expose environment variables.
-    $rh.asHt("env").GetEnumerator() | ForEach-Object {
-        Set-Content -Path "env:$($_.Key)" -Value $_.Value
-    }
-    if ((Test-Path $myenv.envvs.ZOOPIDFILE) -and ($action -eq "start")) {
-        Start-RunUser -scriptcmd ($rh.executable + " stop") -user $myenv.software.runas
-    }
+    if (Test-Path $myenv.resultFile) {
+        $rh = Get-Content $myenv.resultFile | ConvertFrom-Json | Add-AsHtScriptMethod
+        # expose environment variables.
+        $rh.asHt("env").GetEnumerator() | ForEach-Object {
+            Set-Content -Path "env:$($_.Key)" -Value $_.Value
+        }
+        if ((Test-Path $myenv.envvs.ZOOPIDFILE) -and ($action -eq "start")) {
+            Start-RunUser -scriptcmd ($rh.executable + " stop") -user $myenv.software.runas
+        }
 
-    Start-RunUser -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
+        Start-RunUser -scriptcmd ($rh.executable + " $action") -user $myenv.software.runas
+    }
 }
 
 $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv

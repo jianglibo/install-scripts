@@ -69,6 +69,8 @@ function Install-Hbase {
     Param($myenv)
     $myenv.InstallDir | New-Directory | Out-Null
 
+    stop-hbase $myenv
+
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {

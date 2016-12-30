@@ -1,0 +1,14 @@
+name: ant
+ostype: CentOs7
+sversion: ps-1.9.7
+runner: powershell -File {code} -envfile {envfile} -action {action}
+preferredFormat: JSON
+codeToExecute: ant.ps1
+configContent: config.yml
+codeFileExt: .ps1
+codeLineSeperator: LF
+runas:
+actions: install
+actionDescriptions: actions.yaml
+filesToUpload: 
+  - http://mirrors.hust.edu.cn/apache//ant/binaries/apache-ant-1.9.7-bin.tar.gz

@@ -8,4 +8,8 @@ Describe "ooaddtype" {
         $nob.MyProperty = 66;
         $nob.MyProperty | Should Be 66
     }
+
+    It "should write newline" {
+        "a","b" | Out-File -FilePath "akk"
+    }
 }

@@ -39,7 +39,7 @@ boxes:
     ports:
   - ip: 10.74.111.65
     name: box65
-    roles: DataNode,NodeManager,RegionServer,CHRONY_CLIENT
+    roles: DataNode,NodeManager,RegionServer,CHRONY_CLIENT,Zookeeper
     ostype: centos7
     description: a description
     keyFilePath:
@@ -51,7 +51,7 @@ boxes:
     ports:
   - ip: 10.74.111.66
     name: box66
-    roles: NodeManager,RegionServer,OOZIE_BUILD_SERVER, OOZIE_SERVER, CHRONY_CLIENT
+    roles: NodeManager,RegionServer,OOZIE_BUILD_SERVER, OOZIE_SERVER, CHRONY_CLIENT,Zookeeper
     ostype: centos7
     description: a description
     keyFilePath:
