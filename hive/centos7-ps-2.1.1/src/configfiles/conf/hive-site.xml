@@ -80,6 +80,21 @@
   </description>
 </property>
 
+  <property>
+    <name>hive.security.authorization.enabled</name>
+    <value>false</value>
+    <description>enable or disable the Hive client authorization</description>
+  </property>
+
+  <property>
+    <name>hive.server2.enable.doAs</name>
+    <value>false</value>
+    <description>
+      Setting this property to true will have HiveServer2 execute
+      Hive operations as the user making the calls to it.
+    </description>
+  </property>
+
 <property>
   <name>hive.metastore.port</name>
   <value>9083</value>

@@ -149,6 +149,11 @@ function Find-LinuxGroup {
 
 function New-LinuxUser {
     Param([parameter(Mandatory=$True)][String]$username,[string]$groupname,[switch]$createHome)
+    if ($groupname) {
+        if (-not (Find-LinuxGroup $groupname)) {
+            groupadd -f $groupname
+        }
+    }
     if (Find-LinuxUser $username) {
         if ($groupname) {
             $inGroup = ((groups $username) -split "\s*:\s*") -contains $groupname

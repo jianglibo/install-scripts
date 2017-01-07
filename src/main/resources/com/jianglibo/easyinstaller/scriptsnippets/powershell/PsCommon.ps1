@@ -262,7 +262,11 @@ function New-IpUtil {
 
 function Stop-LinuxProcessByKill {
     Param([string]$namePtn)
-    ps aux | Where-Object {$_ -match "^[^\s]+\s+([^\s]+).*${namePtn}.*"} | ForEach-Object {$Matches[1]} | ForEach-Object {kill -9 $_}
+    [array]$hivepids = ps aux | Where-Object {$_ -match "^[^\s]+\s+([^\s]+).*${namePtn}.*"} | ForEach-Object {$Matches[1]} | Where-Object {$_}
+    $hivepids | Write-HostIfInTesting
+    if ($hivepids.Count -gt 0) {
+        $hivepids | ForEach-Object {Stop-Process -Id $_}
+    }
 }
 
 function Add-Lines {
