@@ -1,0 +1,40 @@
+name: hadoop
+boxes:
+  - ip: 192.168.33.110
+    name: box110
+    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster,HIVE_SERVER,CHRONY_SERVER #has more memory.
+    ostype: centos7
+    description:
+    keyFilePath:
+    port:
+    sshUser:
+    hostname: s110.host.name
+    dnsServer:
+    ips:
+    ports:
+  - ip: 192.168.33.111
+    name: box111
+    roles: DataNode,Zookeeper,NodeManager,RegionServer,CHRONY_CLIENT
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s111.host.name
+    dnsServer:
+    ips:
+    ports:
+  - ip: 192.168.33.112
+    name: box112
+    roles: DataNode,Zookeeper,NodeManager,RegionServer,CHRONY_CLIENT
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s112.host.name
+    dnsServer:
+    ips:
+    ports:
+dnsServer:
+configContent:

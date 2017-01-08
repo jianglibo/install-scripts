@@ -14,6 +14,7 @@ $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/
 
 $resutl = . "$here\$sut" -envfile $envfile -action t
 
+$I_AM_IN_TESTING = $True
 
 Describe "code" {
     It "should handle core-default.xml" {

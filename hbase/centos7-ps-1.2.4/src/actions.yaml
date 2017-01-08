@@ -1,4 +1,5 @@
 start-hbase:
-  before start, you should use hadoop install script to create hbase(depends on your configuration.) folder in the hdfs.
+  before start, you should use hadoop install script to create hbase folder in the hdfs.
   mkdir -p /user/hbase
-  chown -R hbase:hbase /user/hbase
+  chown -R hbase /user/hbase
+  After start, Hbase web ui should listen at port 16010

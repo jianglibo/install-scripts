@@ -14,11 +14,13 @@ $envfile = Join-Path -Path (Split-Path -Path $here -Parent) -ChildPath fixtures/
 
 $resutl = . "$here\$sut" -envfile $envfile -action t
 
+$I_AM_IN_TESTING = $True
 
 Describe "code" {
     It  "should install hbase" {
         $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
-        $myenv.user | Should Be "hbase"
+        $myenv.user.user | Should Be "hbase"
+        $myenv.user.group | Should Be "hadoop"
         $envvs = $myenv.software.configContent.asHt("envvs")
 
         if ($envvs.HBASE_PID_DIR) {

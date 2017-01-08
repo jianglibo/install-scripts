@@ -28,9 +28,7 @@ function ConvertTo-DecoratedEnv {
 
     # piddir and logdir
     $envvs = $myenv.software.configContent.asHt("envvs")
-
     $myenv | Add-Member -MemberType NoteProperty -Name user -Value $myenv.software.runas
-
     if ($envvs.HBASE_PID_DIR) {
         if ($envvs.HBASE_PID_DIR | Test-AbsolutePath) {
             $piddir = $envvs.HBASE_PID_DIR
@@ -71,10 +69,11 @@ function Install-Hbase {
 
     stop-hbase $myenv
 
+    $myenv.tgzFile | Write-HostIfInTesting
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
+        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Write-HostIfInTesting
     } else {
-        return
+        $myenv.tgzFile + " Doesn't exists." | Write-Error
     }
     Write-ConfigFiles -myenv $myenv | Out-Null
 }
@@ -168,26 +167,30 @@ function start-hbase {
 
 function stop-hbase {
     Param($myenv)
-    Start-ExposeEnv $myenv
-    $h = Get-HbaseDirInfomation $myenv
-    if ("HbaseMaster" -in $myenv.myRoles) {
-        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
-    } elseif ("RegionServer" -in $myenv.myRoles) {
-        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
+    if (Test-Path $myenv.resultFile) {
+        Start-ExposeEnv $myenv
+        $h = Get-HbaseDirInfomation $myenv
+        if ("HbaseMaster" -in $myenv.myRoles) {
+            Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+        } elseif ("RegionServer" -in $myenv.myRoles) {
+            Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
+        }
     }
 }
 
 function Start-ExposeEnv {
     Param($myenv)
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
-    Add-AsHtScriptMethod $rh
-    $envhash =  $rh.asHt("env")
-    $envhash.GetEnumerator() | ForEach-Object {
-        Set-Content -Path "env:$($_.Key)" -Value $_.Value
-    }
+    if (Test-Path $myenv.resultFile) {
+        $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+        Add-AsHtScriptMethod $rh
+        $envhash =  $rh.asHt("env")
+        $envhash.GetEnumerator() | ForEach-Object {
+            Set-Content -Path "env:$($_.Key)" -Value $_.Value
+        }
 
-    if (!$envhash.javahome) {
-        Set-Content -Path "env:JAVA_HOME" -Value (Get-JavaHome)
+        if (!$envhash.javahome) {
+            Set-Content -Path "env:JAVA_HOME" -Value (Get-JavaHome)
+        }
     }
 }
 
