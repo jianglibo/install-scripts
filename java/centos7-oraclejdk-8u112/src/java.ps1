@@ -28,6 +28,9 @@ function Get-DirInfomation {
 
 function install-java {
     $myenv.InstallDir | New-Directory
+    if ($myenv.box.hostname -ne $myenv.box.ip) {
+        Set-HostName -hostname $myenv.box.hostname
+    }
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Out-Null
     } else {

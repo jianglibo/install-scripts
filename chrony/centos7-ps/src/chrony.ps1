@@ -10,6 +10,12 @@ Param(
 function install-chrony {
     Param($myenv)
     Uninstall-NtpService
+    
+    # write hostname to hosts.
+    $hf = New-HostsFile
+    $myenv.boxGroup.boxes | Where-Object {$_.ip -ne $_.hostname} | ForEach-Object {$hf.addHost($_.ip, $_.hostname)}
+    $hf.writeToFile()
+
     if (Test-ServiceRunning -serviceName "chronyd") {
         systemctl stop chronyd
     }

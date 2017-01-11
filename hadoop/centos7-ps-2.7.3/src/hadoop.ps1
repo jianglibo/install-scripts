@@ -91,8 +91,11 @@ function Get-HadoopDirInfomation {
 function Install-Hadoop {
     Param($myenv)
 
-    start-dfs $myenv stop
-    start-yarn $myenv stop
+    # only after installation, can these actions to be done.
+    if (Test-Path $myenv.resultFile) {
+        start-dfs $myenv stop
+        start-yarn $myenv stop
+    }
 
     $myenv.InstallDir | New-Directory
 
@@ -312,11 +315,13 @@ function start-yarn {
 
 function Start-ExposeEnv {
     Param($myenv)
-    $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
-    Add-AsHtScriptMethod $rh
-    $envhash =  $rh.asHt("env")
-    $envhash.GetEnumerator() | ForEach-Object {
-        Set-Content -Path "env:$($_.Key)" -Value $_.Value
+    if (Test-Path $myenv.resultFile) {
+        $rh = Get-Content $myenv.resultFile | ConvertFrom-Json
+        Add-AsHtScriptMethod $rh
+        $envhash =  $rh.asHt("env")
+        $envhash.GetEnumerator() | ForEach-Object {
+            Set-Content -Path "env:$($_.Key)" -Value $_.Value
+        }
     }
 
     if (!$envhash.javahome) {
