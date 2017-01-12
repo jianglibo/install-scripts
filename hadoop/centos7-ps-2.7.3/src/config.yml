@@ -40,3 +40,8 @@ ports:
     resourceTracker: 8031
     admin: 8033
     webapp: 8042
+serverToRun:
+    Invoke-DfsCmd:
+        number: one
+        roles:
+            - NameNode
