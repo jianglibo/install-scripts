@@ -53,7 +53,8 @@ function ConvertTo-DecoratedEnv {
 function Get-HbaseDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hbaseDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/hbase-daemon.sh$"} | Select-Object -First 1 -ExpandProperty FullName
+    $hbversion = $myenv.tgzFile -replace ".*?(\d+\.\d+\.\d+).*",'$1'
+    $h.hbaseDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "${hbversion}.*/bin/hbase-daemon.sh$"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hbasebin = $h.hbaseDaemon | Split-Path -Parent | Join-Path -ChildPath hbase
 
     $h.hbaseDir = $h.hbaseDaemon | Split-Path -Parent | Split-Path -Parent
