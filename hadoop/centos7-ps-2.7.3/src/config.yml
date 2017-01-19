@@ -45,3 +45,7 @@ serverToRun:
         number: one
         roles:
             - NameNode
+    download-config:
+        number: one
+        roles:
+            - NameNode

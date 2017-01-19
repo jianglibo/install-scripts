@@ -7,3 +7,5 @@ start-dfs:
   Hdfs web ui should listening on port 50070.
 start-yarn:
   Yarn web ui should listening on port 8042
+download-config:
+  Download Hadoop's etc/hadoop folder. 

@@ -86,7 +86,14 @@ function Write-ConfigFiles {
     $resultHash.env = @{}
     $resultHash.info = @{}
 
+    $returnToClient = @{}
+    $returnToClient.hbase = @{}
+
     $DirInfo = Get-HbaseDirInfomation -myenv $myenv
+
+    
+    $returnToClient.hbase.dirInfo = $DirInfo
+    $returnToClient.hbase.user = $myenv.software.runas
 
     $myenv.software.textfiles | ForEach-Object {
         $_.content -split '\r?\n|\r\n?' | Out-File -FilePath ($DirInfo.hbaseDir | Join-Path -ChildPath $_.name) -Encoding ascii
@@ -136,6 +143,7 @@ function Write-ConfigFiles {
 
     if("HbaseMaster" -in $myenv.myRoles) {
         Update-FirewallItem -ports $myenv.software.configContent.firewall.Master
+        Write-ReturnToClient -returnToClient $returnToClient
     }
 
     if("RegionServer" -in $myenv.myRoles) {
@@ -195,6 +203,19 @@ function Start-ExposeEnv {
     }
 }
 
+function Get-HbaseConfiguration {
+    Param($myenv)
+    if("HbaseMaster" -in $myenv.myRoles) {
+        $DirInfo = Get-HbaseDirInfomation -myenv $myenv
+        $returnToDownload = @{}
+        $zipedFile = $DirInfo.hbaseDir | Split-Path -Parent | Join-Path -ChildPath "hbaseConfig.zip"
+        Compress-Archive -Path $DirInfo.hbaseConfDir -DestinationPath $zipedFile -CompressionLevel Fastest -Force
+        $files = @()
+        $files += @{name=(Split-Path $zipedFile -Leaf);fullName="$zipedFile"}
+        $returnToDownload.files = $files
+        Write-DownloadToClient -returnToDownload $returnToDownload
+    }
+}
 $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
@@ -206,6 +227,9 @@ switch ($action) {
     }
     "stop-hbase" {
         stop-hbase $myenv
+    }
+    "download-config" {
+        Get-HbaseConfiguration $myenv
     }
     "t" {
         # do nothing

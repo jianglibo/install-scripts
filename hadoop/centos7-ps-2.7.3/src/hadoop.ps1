@@ -340,6 +340,20 @@ $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 Save-JavaHomeToEasyinstallerProfile
 
+function Get-HadoopConfiguration {
+    Param($myenv)
+    if ("NameNode" -in $myenv.myRoles) {
+        $DirInfo = Get-HadoopDirInfomation -myenv $myenv
+        $returnToDownload = @{}
+        $zipedFile = $DirInfo.hadoopDir | Split-Path -Parent | Join-Path -ChildPath "hadoopConfig.zip"
+        Compress-Archive -Path ($DirInfo.hadoopDir | Join-Path -ChildPath "etc") -DestinationPath $zipedFile -CompressionLevel Fastest -Force
+        $files = @()
+        $files += @{name=(Split-Path $zipedFile -Leaf);fullName="$zipedFile"}
+        $returnToDownload.files = $files
+        Write-DownloadToClient -returnToDownload $returnToDownload
+    }
+}
+
 switch ($action) {
     "install" {
         Install-Hadoop $myenv
@@ -362,6 +376,9 @@ switch ($action) {
     "kill-alljava" {
         Get-Process | Where-Object Name -EQ java | Stop-Process -Force
     }
+    "download-config" {
+        Get-HadoopConfiguration $myenv
+    }
     "t" {
         # do nothing
     }
@@ -370,81 +387,4 @@ switch ($action) {
     }
 }
 
-Write-SuccessResult
-
-<#
-
-function Add-TagWithTextValue {
-    Param([System.Xml.XmlElement]$parent, [String]$tag, $value)
-    [System.Xml.XmlElement]$elem = $parent.OwnerDocument.CreateElement($tag)
-    [System.Xml.XmlText]$text = $parent.OwnerDocument.CreateTextNode($value)
-    $elem.AppendChild($text) | Out-Null  # The node added.
-    $parent.AppendChild($elem)
-}
-
-function Add-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, $descprition)
-    [System.Xml.XmlElement]$property = $doc.CreateElement("property")
-    Add-TagWithTextValue -parent $property -tag "name" -value $name
-    Add-TagWithTextValue -parent $property -tag "value" -value $value
-    Add-TagWithTextValue -parent $property -tag "description" -value $descprition
-    $parent.AppendChild($property)
-}
-
-function Test-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name)
-    if (! $doc) {
-        $doc = $parent.OwnerDocument
-    }
-    if (! $parent) {
-        if ($doc.configuration) {
-            $parent = $doc.configuration
-        } else {
-            $parent = $doc.DocumentElement
-        }
-    }
-    $node = $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
-
-    if ($node) {
-        if ($node.Value -and $node.Value.trim()) {
-            $True
-        } else {
-            $False
-        }
-    } else {
-        $False
-    }
-}
-
-function Set-HadoopProperty {
-    Param([xml]$doc, [System.Xml.XmlElement]$parent, [String]$name, $value, [string]$descprition)
-    if (! $doc) {
-        $doc = $parent.OwnerDocument
-    }
-    if (! $parent) {
-        if ($doc.configuration) {
-            $parent = $doc.configuration
-        } else {
-            $parent = $doc.DocumentElement
-        }
-    }
-
-    # exists item.
-    $node =  $parent.ChildNodes | Where-Object {$_.Name -eq $name} | Select-Object -First 1
-    if ($node) {
-        $node.Name = $name
-        $node.Value = $value
-        $node.Description = $descprition
-    } else {
-        Add-HadoopProperty -doc $doc -parent $parent -name $name -value $value -descprition $descprition
-    }
-}
-#>
-
-# try {
-#     . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\PsCommon.ps1
-#     . .\src\main\resources\com\jianglibo\easyinstaller\scriptsnippets\powershell\LinuxUtil.ps1
-# }
-# catch {
-#     $Error.Clear()
-# }
+Write-SuccessResult 

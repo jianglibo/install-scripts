@@ -12,3 +12,8 @@ envvs:
 firewall:
   master: 16000,16010
   regionserver: 16020,16030
+serverToRun:
+    download-config:
+        number: one
+        roles:
+            - HbaseMaster
