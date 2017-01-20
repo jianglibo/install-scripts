@@ -228,8 +228,8 @@ function Write-ConfigFiles {
     Save-Xml -doc $hdfsSiteDoc -FilePath $DirInfo.hdfsSite -encoding ascii
 
     # write profile.d
-    $lineary = @('HADOOP_PREFIX=' + $DirInfo.hadoopDir,"export HADOOP_PREFIX","HADOOP_HOME=" + $DirInfo.hadoopDir, "export HADOOP_HOME")
-    $lineary -join "`n" | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
+    $lineary = @(('HADOOP_PREFIX=' + $DirInfo.hadoopDir), "export HADOOP_PREFIX",("HADOOP_HOME=" + $DirInfo.hadoopDir), "export HADOOP_HOME", 'PATH=$PATH:$HADOOP_HOME/bin', 'export PATH')
+    $lineary | Out-File -FilePath "/etc/profile.d/hadoop.sh" -Encoding ascii
 
     $myenv.dfspiddir | New-Directory | Invoke-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
     $myenv.dfslogdir | New-Directory | Invoke-Chown -user $myenv.hdfsuser.user -group $myenv.hdfsuser.group
