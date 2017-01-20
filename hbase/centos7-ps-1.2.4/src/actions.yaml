@@ -3,3 +3,5 @@ start-hbase:
   mkdir -p /user/hbase
   chown -R hbase /user/hbase
   After start, Hbase web ui should listen at port 16010
+download-config:
+  Download hbase configuration folder.
