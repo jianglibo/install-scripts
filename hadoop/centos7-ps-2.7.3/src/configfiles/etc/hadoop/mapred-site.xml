@@ -26,4 +26,13 @@
     </description>
   </property>
 
+  <property>
+    <description>If enabled, user can submit an application cross-platform
+    i.e. submit an application from a Windows client to a Linux/Unix server or
+    vice versa.
+    </description>
+    <name>mapreduce.app-submission.cross-platform</name>
+    <value>true</value>
+  </property>
+
 </configuration>
