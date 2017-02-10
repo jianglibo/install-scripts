@@ -6,6 +6,7 @@ envvs:
   HADOOP_LOG_DIR: dfslogdir
   YARN_LOG_DIR: yarnlogdir
   YARN_PID_DIR: yarnpiddir
+  JOBHISTORY_DIR: jobhistorydir
 # YARN_CONF_DIR  Alternate conf dir. Default is ${HADOOP_YARN_HOME}/conf.
 # YARN_MASTER    host:path where hadoop code should be rsync'd from
 # YARN_IDENT_STRING   A string representing this instance of hadoop. $USER by default
@@ -15,6 +16,7 @@ firewall:
   DataNode: 50010,50075,50020,50475
   ResourceManager: 8032,8033,8042,8030,8031
   NodeManager: 8042,30000-65535
+  JobHistory: 10020,19888
 ports:
   namenode:
     api: 8020
@@ -22,6 +24,9 @@ ports:
     https: 50470
     backup: 50100
     backuphttp: 50105
+  jobhistory:
+    api: 10020
+    http: 19888
   journalnode:
     rpc: 8485
     http: 8480
@@ -49,3 +54,7 @@ serverToRun:
         number: one
         roles:
             - NameNode
+    start-jobhistory:
+        number: one
+        roles:
+            - JobHistory

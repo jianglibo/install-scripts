@@ -35,4 +35,58 @@
     <value>true</value>
   </property>
 
+<property>
+  <name>mapreduce.map.log.level</name>
+  <value>DEBUG</value>
+  <description>The logging level for the map task. The allowed levels are:
+  OFF, FATAL, ERROR, WARN, INFO, DEBUG, TRACE and ALL.
+  The setting here could be overridden if "mapreduce.job.log4j-properties-file"
+  is set.
+  </description>
+</property>
+
+<property>
+  <name>mapreduce.reduce.log.level</name>
+  <value>DEBUG</value>
+  <description>The logging level for the reduce task. The allowed levels are:
+  OFF, FATAL, ERROR, WARN, INFO, DEBUG, TRACE and ALL.
+  The setting here could be overridden if "mapreduce.job.log4j-properties-file"
+  is set.
+  </description>
+</property>
+
+<property>
+  <name>mapreduce.jobtracker.jobhistory.location</name>
+  <value></value>
+  <description> If job tracker is static the history files are stored 
+  in this single well known place. If No value is set here, by default,
+  it is in the local file system at ${hadoop.log.dir}/history.
+  </description>
+</property>
+
+  <property>
+    <name>mapreduce.job.log4j-properties-file</name>
+    <value></value>
+    <description>Used to override the default settings of log4j in container-log4j.properties
+    for NodeManager. Like container-log4j.properties, it requires certain
+    framework appenders properly defined in this overriden file. The file on the
+    path will be added to distributed cache and classpath. If no-scheme is given
+    in the path, it defaults to point to a log4j file on the local FS.
+    </description>
+
+
+<property>
+  <name>mapreduce.jobhistory.address</name>
+  <value>0.0.0.0:10020</value>
+  <description>MapReduce JobHistory Server IPC host:port</description>
+</property>
+
+<property>
+  <name>mapreduce.jobhistory.webapp.address</name>
+  <value>0.0.0.0:19888</value>
+  <description>MapReduce JobHistory Server Web UI host:port</description>
+</property>
+
+  </property>
+
 </configuration>

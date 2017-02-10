@@ -14,9 +14,11 @@ function ConvertTo-DecoratedEnv {
 
     $nameNodeBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "NameNode"} | Select-Object -First 1
     $resourceManagerBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "ResourceManager"} | Select-Object -First 1
+    $jobHistoryBox = $myenv.boxGroup.boxes | Where-Object {($_.roles -split ",") -contains "JobHistory"} | Select-Object -First 1
 
     $myenv | Add-Member -MemberType NoteProperty -Name defaultFS -Value ("hdfs://{0}:{1}" -f $nameNodeBox.hostname, $myenv.software.configContent.ports.namenode.api)
     $myenv | Add-Member -MemberType NoteProperty -Name resourceManagerHostName -Value $resourceManagerBox.hostname
+    $myenv | Add-Member -MemberType NoteProperty -Name jobHistoryHostName -Value $jobHistoryBox.hostname
 
     $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("hadoop-.*\.tar\.gz"))
@@ -53,6 +55,14 @@ function ConvertTo-DecoratedEnv {
         }
     }
 
+    if ($envvs.JOBHISTORY_DIR) {
+        if ($envvs.JOBHISTORY_DIR | Test-AbsolutePath) {
+            $jobhistorydir = $envvs.JOBHISTORY_DIR
+        } else {
+            $jobhistorydir = $myenv.installDir | Join-Path -ChildPath $envvs.JOBHISTORY_DIR
+        }
+    }
+
     if ($envvs.YARN_PID_DIR) {
         if ($envvs.YARN_PID_DIR | Test-AbsolutePath) {
             $yarnpiddir = $envvs.YARN_PID_DIR
@@ -65,6 +75,7 @@ function ConvertTo-DecoratedEnv {
     $myenv | Add-Member -MemberType NoteProperty -Name dfspiddir -Value $dfspiddir
     $myenv | Add-Member -MemberType NoteProperty -Name yarnlogdir -Value $yarnlogdir
     $myenv | Add-Member -MemberType NoteProperty -Name yarnpiddir -Value $yarnpiddir
+    $myenv | Add-Member -MemberType NoteProperty -Name jobhistorydir -Value $jobhistorydir
     $myenv
 }
 
@@ -74,6 +85,7 @@ function Get-HadoopDirInfomation {
     $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hadoopDir = $h.hadoopDaemon | Split-Path -Parent | Split-Path -Parent
     $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
+    $h.jobhistoryDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/mr-jobhistory-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hdfsCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hdfs"
     $h.hadoopCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hadoop"
     $h.etcHadoop = Join-Path -Path $h.hadoopDir -ChildPath "etc/hadoop"
@@ -189,6 +201,9 @@ function Write-ConfigFiles {
         Update-FirewallItem -ports $myenv.software.configContent.firewall.NodeManager
     }
 
+    if("JobHistory" -in $myenv.myRoles) {
+        Update-FirewallItem -ports $myenv.software.configContent.firewall.JobHistory
+    }
 
     Save-Xml -doc $yarnSiteDoc -FilePath $DirInfo.yarnSite -encoding ascii
 
@@ -226,6 +241,16 @@ function Write-ConfigFiles {
     }
 
     Save-Xml -doc $hdfsSiteDoc -FilePath $DirInfo.hdfsSite -encoding ascii
+
+    # process mapred-site.xml
+    [xml]$mapredSiteDoc = Get-Content $DirInfo.mapredSite
+
+    Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobhistory.address" -value ("{0}:{1}" -f $myenv.jobHistoryHostName, $myenv.software.configContent.ports.jobhistory.api)
+    Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobhistory.webapp.address" -value ("{0}:{1}" -f $myenv.jobHistoryHostName, $myenv.software.configContent.ports.jobhistory.http)
+    Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobtracker.jobhistory.location" -value $myenv.jobhistorydir
+    $myenv.jobhistorydir -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+
+    Save-Xml -doc $mapredSiteDoc -FilePath $DirInfo.mapredSite -encoding ascii
 
     # write profile.d
     $lineary = @(('HADOOP_PREFIX=' + $DirInfo.hadoopDir), "export HADOOP_PREFIX",("HADOOP_HOME=" + $DirInfo.hadoopDir), "export HADOOP_HOME", 'PATH=$PATH:$HADOOP_HOME/bin', 'export PATH')
@@ -313,6 +338,16 @@ function start-yarn {
     }
 }
 
+function start-jobhistory {
+    Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
+    Start-ExposeEnv $myenv
+    $h = Get-HadoopDirInfomation $myenv
+    if ("JobHistory" -in $myenv.myRoles) {
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} $action historyserver" -f $h.jobhistoryDaemon,$h.etcHadoop) -user "yarn"
+#        $HADOOP_PREFIX/sbin/mr-jobhistory-daemon.sh --config $HADOOP_CONF_DIR start historyserver
+    }
+}
+
 function Start-ExposeEnv {
     Param($myenv)
     if (Test-Path $myenv.resultFile) {
@@ -369,6 +404,12 @@ switch ($action) {
     }
     "stop-yarn" {
         start-yarn $myenv stop
+    }
+    "stop-jobhistory" {
+        start-jobhistory $myenv stop
+    }
+    "start-jobhistory" {
+        start-jobhistory $myenv start
     }
     "Invoke-DfsCmd" {
         Invoke-MyDfs $myenv (ConvertFrom-Base64Parameter $remainingArguments)

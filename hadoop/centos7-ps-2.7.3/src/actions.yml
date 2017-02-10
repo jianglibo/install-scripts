@@ -7,5 +7,7 @@ start-dfs:
   Hdfs web ui should listening on port 50070.
 start-yarn:
   Yarn web ui should listening on port 8042
+start-jobhistory:
+  jobhistory server should listening on port 10020(api) 19888(web)
 download-config:
   Download Hadoop's etc/hadoop folder. 

@@ -2,14 +2,14 @@ name: hadoop
 ostype: CentOs7
 sversion: ps-2.7.3
 runner: powershell -File {code} -envfile {envfile} -action {action}
-possibleRoles: NameNode,ResourceManager,DataNode,NodeManager
+possibleRoles: NameNode,ResourceManager,DataNode,NodeManager,JobHistory
 preferredFormat: JSON
 codeToExecute: hadoop.ps1
 configContent: config.yml # content of this file will insert into software configContent field.
 codeFileExt: .ps1
 codeLineSeperator: LF
 runas: '{hdfs: {user: "hdfs",group: "hadoop"},yarn:{user: "yarn", group: "hadoop"}}'
-actions: install,start-dfs,stop-dfs,start-yarn,stop-yarn,Invoke-DfsCmd,kill-alljava,download-config
+actions: install,start-dfs,stop-dfs,start-yarn,stop-yarn,Invoke-DfsCmd,kill-alljava,start-jobhistory,stop-jobhistory,download-config
 actionDescriptions: actions.yml
 filesToUpload:
   - http://apache.01link.hk/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz
