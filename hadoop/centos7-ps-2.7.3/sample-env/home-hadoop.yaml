@@ -2,7 +2,7 @@ name: hadoop
 boxes:
   - ip: 192.168.33.110
     name: box110
-    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster,HIVE_SERVER,CHRONY_SERVER #has more memory.
+    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster,HIVE_SERVER,CHRONY_SERVER,JobHistory #has more memory.
     ostype: centos7
     description:
     keyFilePath:

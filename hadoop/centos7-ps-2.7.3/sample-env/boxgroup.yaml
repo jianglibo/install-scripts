@@ -1,41 +1,40 @@
-name: boxgroup1
+name: hadoop
 boxes:
   - ip: 192.168.33.110
-    name: box1
-# this a so called master node
-    roles: NameNode,ResourceManager,HbaseMaster
+    name: box110
+    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster,HIVE_SERVER,CHRONY_SERVER,JobHistory #has more memory.
     ostype: centos7
     description:
     keyFilePath:
     port:
     sshUser:
-    hostname: a0.host.name
+    hostname: s110.host.name
     dnsServer:
     ips:
     ports:
   - ip: 192.168.33.111
-    name: box2
-    roles: DataNode,NodeManager,RegionServer
+    name: box111
+    roles: DataNode,Zookeeper,NodeManager,RegionServer,CHRONY_CLIENT
     ostype: centos7
     description: a description
     keyFilePath:
     port: 22
     sshUser: root
-    hostname: a1.host.name
-    dnsServer: 192.168.2.60
-    ips: 192.168.2.12,192.168.2.13
-    ports: 80,8080
-  - ip: 192.168.33.112
-    name: box3
-    roles: DataNode,NodeManager,RegionServer
-    ostype: centos7
-    description: a description
-    keyFilePath:
-    port: 22
-    sshUser: root
-    hostname: a2.host.name
+    hostname: s111.host.name
     dnsServer:
-    ips: 192.168.2.15,192.168.2.16
-    ports: 80,8080
-dnsServer: 192.168.2.60
-configContent: configContent.yaml
+    ips:
+    ports:
+  - ip: 192.168.33.112
+    name: box112
+    roles: DataNode,Zookeeper,NodeManager,RegionServer,CHRONY_CLIENT
+    ostype: centos7
+    description: a description
+    keyFilePath:
+    port: 22
+    sshUser: root
+    hostname: s112.host.name
+    dnsServer:
+    ips:
+    ports:
+dnsServer:
+configContent:

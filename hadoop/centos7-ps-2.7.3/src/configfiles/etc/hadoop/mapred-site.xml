@@ -73,7 +73,7 @@
     path will be added to distributed cache and classpath. If no-scheme is given
     in the path, it defaults to point to a log4j file on the local FS.
     </description>
-
+ </property>
 
 <property>
   <name>mapreduce.jobhistory.address</name>
@@ -86,7 +86,4 @@
   <value>0.0.0.0:19888</value>
   <description>MapReduce JobHistory Server Web UI host:port</description>
 </property>
-
-  </property>
-
 </configuration>

@@ -247,7 +247,8 @@ function Write-ConfigFiles {
 
     Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobhistory.address" -value ("{0}:{1}" -f $myenv.jobHistoryHostName, $myenv.software.configContent.ports.jobhistory.api)
     Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobhistory.webapp.address" -value ("{0}:{1}" -f $myenv.jobHistoryHostName, $myenv.software.configContent.ports.jobhistory.http)
-    Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobtracker.jobhistory.location" -value $myenv.jobhistorydir
+    $myenv.jobhistorydir | Write-HostIfInTesting
+    Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobtracker.jobhistory.location" -value ($myenv.jobhistorydir + "")
     $myenv.jobhistorydir -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
 
     Save-Xml -doc $mapredSiteDoc -FilePath $DirInfo.mapredSite -encoding ascii

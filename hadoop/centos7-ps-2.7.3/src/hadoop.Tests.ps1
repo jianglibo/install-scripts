@@ -126,7 +126,7 @@ Describe "code" {
 
         $installResutltsDownload = $installResutlts | ConvertFrom-ReturnToClientToDownload
 
-        $installResutltsDownload.files[0].Name | Should be "configuratedHadoopFolder.zip"
+        $installResutltsDownload.files[0].Name | Should be "hadoopConfig.zip"
 
         $resultJson = Get-Content $myenv.resultFile | ConvertFrom-Json
 
@@ -141,10 +141,15 @@ Describe "code" {
         $mapredSite = Get-Item $di.mapredSite
         
         [xml]$coreSiteDoc = Get-Content $coreSite
+        $ddfs = Get-HadoopProperty -doc $coreSiteDoc -name "fs.defaultFS" 
+        $ddfs | Write-Host
+        $ddfs | Should Be $myenv.defaultFS
 
-        $pnames = $coreSiteDoc.configuration.property | Select-Object -ExpandProperty Name | Write-Output -NoEnumerate
-        $pnames | Write-Host
-        $pnames | Should Be "fs.defaultFS", "io.file.buffer.size", "ha.zookeeper.quorum", "ha.zookeeper.session-timeout.ms", "hadoop.proxyuser.hive.hosts", "hadoop.proxyuser.hive.groups"
+
+        [xml]$mapredSiteDoc = Get-Content $mapredSite
+        $ddfs = Get-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobhistory.address" 
+        $ddfs | Write-Host
+        $ddfs -split ":" |Select-Object -First 1 | Should Be $myenv.jobHistoryHostName
 
         if ($myenv.yarnpiddir | Join-Path  -ChildPath "yarn-yarn-resourcemanager.pid" | Test-Path) {
             start-yarn $myenv stop

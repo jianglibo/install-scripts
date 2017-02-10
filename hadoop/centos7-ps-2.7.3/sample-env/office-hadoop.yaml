@@ -3,7 +3,7 @@ boxes:
   - ip: 10.74.111.62
     name: box62
 # this a so called master node
-    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster,HIVE_SERVER,CHRONY_SERVER #has more memory.
+    roles: NameNode,Zookeeper,ResourceManager,HbaseMaster,HIVE_SERVER,CHRONY_SERVER,JobHistory #has more memory.
     ostype: centos7
     description:
     keyFilePath:

@@ -43,3 +43,4 @@ _site/
 tgzFolder/
 *.rpm
 **.gz
+/hadoop/**/envforcodeexec.json
