@@ -54,7 +54,14 @@ function Get-HbaseDirInfomation {
     Param($myenv)
     $h = @{}
     $hbversion = $myenv.tgzFile -replace ".*?(\d+\.\d+\.\d+).*",'$1'
-    $h.hbaseDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "${hbversion}.*/bin/hbase-daemon.sh$"} | Select-Object -First 1 -ExpandProperty FullName
+
+    [array]$hdaemons = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "${hbversion}.*/bin/hbase-daemon.sh$"}
+
+    if ($hdaemons.Count -ne 1) {
+        "Expected exactly 1 hbase-daemon.sh in installing directory, But found " + $hdaemons.Count | Write-Error
+    }
+    $h.hbaseDaemon = $hdaemons | Select-Object -First 1 -ExpandProperty FullName
+
     $h.hbasebin = $h.hbaseDaemon | Split-Path -Parent | Join-Path -ChildPath hbase
 
     $h.hbaseDir = $h.hbaseDaemon | Split-Path -Parent | Split-Path -Parent

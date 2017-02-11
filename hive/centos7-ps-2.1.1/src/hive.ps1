@@ -34,7 +34,11 @@ function ConvertTo-DecoratedEnv {
 function Get-HiveDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hiveExecutable = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/hive$"} | Select-Object -First 1 -ExpandProperty FullName
+    [array]$hiveExecutables = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/bin/hive$"} 
+    if ($hiveExecutables.Count -ne 1) {
+        "Expected exactly 1 hive executable in installing directory, But found " + $hiveExecutables.Count | Write-Error
+    }
+    $h.hiveExecutable = $hiveExecutables | Select-Object -First 1 -ExpandProperty FullName
     $h.hiveHome = $h.hiveExecutable | Split-Path -Parent | Split-Path -Parent
     $h.hiveSite = $h.hiveHome | Join-Path -ChildPath "conf/hive-site.xml"
     $h

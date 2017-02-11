@@ -63,7 +63,7 @@
   it is in the local file system at ${hadoop.log.dir}/history.
   </description>
 </property>
-
+<!--
   <property>
     <name>mapreduce.job.log4j-properties-file</name>
     <value></value>
@@ -74,7 +74,7 @@
     in the path, it defaults to point to a log4j file on the local FS.
     </description>
  </property>
-
+-->
 <property>
   <name>mapreduce.jobhistory.address</name>
   <value>0.0.0.0:10020</value>

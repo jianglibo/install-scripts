@@ -82,8 +82,13 @@ function ConvertTo-DecoratedEnv {
 function Get-HadoopDirInfomation {
     Param($myenv)
     $h = @{}
-    $h.hadoopDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
+    [array]$hdaemons = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/hadoop-daemon.sh"}
+    if ($hdaemons.Count -ne 1) {
+        "Expected exactly 1 hadoop-daemon.sh in installing directory, But found " + $hdaemons.Count | Write-Error
+    }
+    $h.hadoopDaemon = $hdaemons | Select-Object -First 1 -ExpandProperty FullName
     $h.hadoopDir = $h.hadoopDaemon | Split-Path -Parent | Split-Path -Parent
+    $h.hadoopDefaultLogDir = Join-Path -Path $h.hadoopDir -ChildPath "logs"
     $h.yarnDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/yarn-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.jobhistoryDaemon = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {($_.FullName -replace "\\", "/") -match "/sbin/mr-jobhistory-daemon.sh"} | Select-Object -First 1 -ExpandProperty FullName
     $h.hdfsCmd = Join-Path -Path $h.hadoopDir -ChildPath "bin/hdfs"
@@ -94,7 +99,8 @@ function Get-HadoopDirInfomation {
     $h.yarnSite = Join-Path $h.etcHadoop -ChildPath "yarn-site.xml"
     $h.mapredSite = Join-Path $h.etcHadoop -ChildPath "mapred-site.xml"
 
-    if (! (Test-Path $h.mapredSite)) {
+    if (-not (Test-Path $h.mapredSite)) {
+        "copy " + $h.mapredSite | Write-Output
         Join-Path $h.etcHadoop -ChildPath "mapred-site.xml.template" | Copy-Item -Destination $h.mapredSite | Out-Null
     }
     $h
@@ -107,6 +113,7 @@ function Install-Hadoop {
     if (Test-Path $myenv.resultFile) {
         start-dfs $myenv stop
         start-yarn $myenv stop
+        start-jobhistory $myenv stop
     }
 
     $myenv.InstallDir | New-Directory
@@ -251,6 +258,8 @@ function Write-ConfigFiles {
     Set-HadoopProperty -doc $mapredSiteDoc -name "mapreduce.jobtracker.jobhistory.location" -value ($myenv.jobhistorydir + "")
     $myenv.jobhistorydir -replace ".*///", "/" | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
 
+    $DirInfo.hadoopDefaultLogDir | New-Directory | Invoke-Chown -user $myenv.yarnuser.user -group $myenv.yarnuser.group
+    "Start write " + $DirInfo.mapredSite | Write-Output
     Save-Xml -doc $mapredSiteDoc -FilePath $DirInfo.mapredSite -encoding ascii
 
     # write profile.d
@@ -264,6 +273,7 @@ function Write-ConfigFiles {
     $resultHash.env.HADOOP_PID_DIR = $myenv.dfspiddir
     $resultHash.env.YARN_LOG_DIR = $myenv.yarnlogdir
     $resultHash.env.YARN_PID_DIR = $myenv.yarnpiddir
+    $resultHash.env.JOBHISTORY_DIR = $myenv.jobhistorydir
 
     $resultHash.dirInfo = $DirInfo
 
