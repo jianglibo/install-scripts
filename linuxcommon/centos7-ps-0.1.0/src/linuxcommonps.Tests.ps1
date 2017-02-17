@@ -14,4 +14,10 @@ Describe "code" {
     It "should work" {
         $resutl = . "$here\$sut" -envfile $envfile -action kill-process ("powershell" | ConvertTo-Base64String)
     }
+
+    It "should delete file" {
+        $tmp = New-TemporaryFile 
+        "abc" | Out-File -FilePath $tmp -Encoding ascii
+        $resutl = . "$here\$sut" -envfile $envfile -action "delete-from-server" ($tmp | ConvertTo-Base64String)
+    }
 }

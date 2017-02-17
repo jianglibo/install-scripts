@@ -5,3 +5,7 @@ openfirewall:
   30000-65535/tcp
 kill-process:
   java yum
+delete-from-server:
+  enter absolute file path line by line.
+run-onecmd:
+  be careful, it executes anyway.

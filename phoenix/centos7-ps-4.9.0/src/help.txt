@@ -1,0 +1,1 @@
+install phoenix is just copy jars to hbase lib folder.

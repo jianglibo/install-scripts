@@ -1,0 +1,4 @@
+installDir: /opt/tmp
+envvs:
+firewall:
+serverToRun:

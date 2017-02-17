@@ -82,4 +82,14 @@
     <value>org.apache.hadoop.mapred.ShuffleHandler</value>
   </property>
 
+  <property>
+    <description>Ratio between virtual memory to physical memory when
+    setting memory limits for containers. Container allocations are
+    expressed in terms of physical memory, and virtual memory usage
+    is allowed to exceed this allocation by this ratio.
+    </description>
+    <name>yarn.nodemanager.vmem-pmem-ratio</name>
+    <value>3.1</value>
+  </property>
+
 </configuration>

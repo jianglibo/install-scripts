@@ -781,10 +781,17 @@ function Write-TextFile {
     $content -split '\r?\n|\r\n?' | Out-File -FilePath $name -Encoding utf8 -Force
 }
 
+# function Test-AbsolutePath {
+#     Param([parameter(ValueFromPipeline=$True)][string]$Path)
+#     process {
+#         $Path.StartsWith("/") -or ($Path -match ":")
+#     }
+# }
+
 function Test-AbsolutePath {
     Param([parameter(ValueFromPipeline=$True)][string]$Path)
     process {
-        $Path.StartsWith("/") -or ($Path -match ":")
+        [System.IO.Path]::IsPathRooted($Path)
     }
 }
 

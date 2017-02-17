@@ -35,6 +35,18 @@ switch ($action) {
         $pns | Write-HostIfInTesting
         Get-Process | Where-Object Name -In $pns | Stop-Process -Force
     }
+    "delete-from-server" {
+        $pns = ($remainingArguments | ConvertFrom-Base64Parameter).Trim() -split "\r?\n" |
+         ForEach-Object {$_.trim()} |
+         Where-Object {$_.length -gt 0} |
+         Where-Object {Test-Path -Type Leaf $_} |
+         Where-Object {[System.IO.Path]::IsPathRooted($_)} |
+         ForEach-Object {Remove-Item -Path $_}
+    }
+    "run-onecmd" {
+        $pn = ($remainingArguments | ConvertFrom-Base64Parameter).Trim()
+        Invoke-Expression $pn
+    }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)
     }

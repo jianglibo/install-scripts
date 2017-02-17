@@ -76,6 +76,38 @@
  </property>
 -->
 <property>
+  <name>mapreduce.map.memory.mb</name>
+  <value>4096</value>
+  <description>The amount of memory to request from the scheduler for each
+  map task.
+  </description>
+</property>
+
+<property>
+  <name>mapreduce.map.cpu.vcores</name>
+  <value>1</value>
+  <description>The number of virtual cores to request from the scheduler for
+  each map task.
+  </description>
+</property>
+
+<property>
+  <name>mapreduce.reduce.memory.mb</name>
+  <value>4096</value>
+  <description>The amount of memory to request from the scheduler for each
+  reduce task.
+  </description>
+</property>
+
+<property>
+  <name>mapreduce.reduce.cpu.vcores</name>
+  <value>1</value>
+  <description>The number of virtual cores to request from the scheduler for
+  each reduce task.
+  </description>
+</property>
+
+<property>
   <name>mapreduce.jobhistory.address</name>
   <value>0.0.0.0:10020</value>
   <description>MapReduce JobHistory Server IPC host:port</description>
