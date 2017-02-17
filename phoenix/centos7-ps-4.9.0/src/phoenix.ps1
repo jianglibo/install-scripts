@@ -23,20 +23,29 @@ function ConvertTo-DecoratedEnv {
     $myenv | Add-Member -MemberType NoteProperty -Name masterBox -Value $masterBox
     $myenv | Add-Member -MemberType NoteProperty -Name regionServerBoxes -Value $regionServerBoxes
     $myenv | Add-Member -MemberType NoteProperty -Name tgzFile -Value ($myenv.getUploadedFile("apache-phoenix-.*\.tar\.gz"))
+    $myenv | Add-Member -MemberType NoteProperty -Name InstallDir -Value ($myenv.software.configContent.installDir)
     $myenv
 }
+
 
 function Install-Phoenix {
     Param($myenv)
     if (("HbaseMaster" -in $myenv.myRoles) -or ("RegionServer" -in $myenv.myRoles)) {
-        $hdir = $myenv.boxGroup.installResults.hbase.dirInfo.hbaseDir | Join-Path -ChildPath "lib"
+        $hbaseDir = $myenv.boxGroup.installResults.hbase.dirInfo.hbaseDir
+        if (-not $hbaseDir) {
+            "`$myenv.boxGroup.installResults.hbase.dirInfo.hbaseDir is null." | Write-Error
+        }
+        $hdir = $hbaseDir | Join-Path -ChildPath "lib"
         if (-not (Test-Path $hdir)) {
             "cannot find hbase lib directory" | Write-Error
         }
         if (Test-Path $myenv.tgzFile -PathType Leaf) {
-            Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Write-HostIfInTesting
-            # found server-jar from unziped folder.
-            # copy to hbase lib folder.
+            Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir
+            $serverJars = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {$_ -match "-server.jar$"}
+            if ($serverJars.Count -ne 1) {
+                "expect exactly one server.jar in extracted folder. But {0}" -f $serverJars.Count | Write-Error
+            }
+            $serverJars | Copy-Item -Destination $hdir
         } else {
             $myenv.tgzFile + " Doesn't exists." | Write-Error
         }

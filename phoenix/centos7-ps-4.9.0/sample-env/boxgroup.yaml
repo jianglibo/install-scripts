@@ -1,4 +1,4 @@
-name: boxgroup1
+name: phoenix
 boxes:
   - ip: 192.168.33.110
     name: box1
@@ -9,7 +9,7 @@ boxes:
     keyFilePath:
     port:
     sshUser:
-    hostname: a0.host.name
+    hostname: s110.host.name
     dnsServer:
     ips:
     ports:
@@ -21,7 +21,7 @@ boxes:
     keyFilePath:
     port: 22
     sshUser: root
-    hostname: a1.host.name
+    hostname: s111.host.name
     dnsServer: 192.168.2.60
     ips: 192.168.2.12,192.168.2.13
     ports: 80,8080
@@ -33,7 +33,7 @@ boxes:
     keyFilePath:
     port: 22
     sshUser: root
-    hostname: a2.host.name
+    hostname: s112.host.name
     dnsServer:
     ips: 192.168.2.15,192.168.2.16
     ports: 80,8080

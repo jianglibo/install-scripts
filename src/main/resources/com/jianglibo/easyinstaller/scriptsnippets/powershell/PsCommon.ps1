@@ -8,10 +8,9 @@ $_DOWNLOAD_END_ = "------DOWNLOAD_TO_CLIENT_END------"
 
 function Start-Untgz {
  Param([parameter(Position=0, Mandatory=$True)][String]$TgzFileName,
-       [parameter(Mandatory=$False)][String]$DestFolder)
+       [parameter(Mandatory=$True)][String]$DestFolder)
     if ($DestFolder) { # had destFolder parameter
-        if (!(Test-Path $DestFolder)) { # if not exists.
-#            if ((Get-Item $DestFolder).PSIsContainer) {
+        if (-not (Test-Path $DestFolder)) { # if not exists.
             New-Item $DestFolder -ItemType Directory | Out-Null
         }
     }
@@ -942,4 +941,26 @@ function Set-HadoopProperty {
     } else {
         Add-HadoopProperty -doc $doc -parent $parent -name $name -value $value -descprition $descprition
     }
+}
+
+function Get-ChainedHashTable {
+    Param([string]$VaribleToBeSet, $VariableToSet)
+    if ($VaribleToBeSet.StartsWith("$")) {
+        $VaribleToBeSet = $VaribleToBeSet.Substring(1)
+    }
+    [array]$all = $VaribleToBeSet -split "\."
+    $allSize = $all.Count
+    if ($allSize -gt 1) {
+        $remainder = $all[0..($allSize - 2)]
+    } else {
+        $remainder = @()
+    }
+    $o =  @{}
+    $tmpo = $o
+    foreach ($n in $remainder) {
+        $tmpo.$n = @{}
+        $tmpo = $tmpo.$n
+    }
+    $tmpo[$all[-1]] = $VariableToSet
+    $o
 }
