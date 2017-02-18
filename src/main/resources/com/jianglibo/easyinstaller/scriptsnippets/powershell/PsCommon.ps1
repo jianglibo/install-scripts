@@ -824,7 +824,7 @@ function Write-SuccessResult {
     if ($Error.Count -gt 0) {
         $Error | ForEach-Object {$_.ToString(),$_.ScriptStackTrace}
     } else {
-        "@@success@@"
+        "`n@@success@@`n"
     }
 }
 

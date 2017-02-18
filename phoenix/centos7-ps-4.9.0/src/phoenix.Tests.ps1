@@ -35,7 +35,7 @@ Describe "code" {
         $fakeLibDir = $fakeHbaseDir | Join-Path -ChildPath "lib"
 
         if (Test-Path -Type Container $fakeLibDir) {
-            Remove-Item -Path $fakeLibDir -Force
+            Remove-Item -Path $fakeLibDir -Force -Recurse
         }
         $v = Get-ChainedHashTable "installResults.hbase.dirInfo.hbaseDir" -VariableToSet $fakeHbaseDir
 
@@ -61,5 +61,10 @@ Describe "code" {
          "a" | Should beoftype "string"
          "a" | Should beexactly "a"
          # throw { abc } | Should Throw
+     }
+
+     It "cmd output should be array" {
+        $a = chronyc -a sources -v
+        $a -is [array] | Should Be $True
      }
 }

@@ -1,4 +1,4 @@
-start-hbase:
+start:
   before start, you should use hadoop install script to create hbase folder in the hdfs.
   mkdir -p /user/hbase
   chown -R hbase /user/hbase

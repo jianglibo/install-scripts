@@ -74,7 +74,7 @@ $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "install" {
-        Install-Hbase $myenv
+        Install-Phoenix $myenv
     }
     "t" {
         # do nothing

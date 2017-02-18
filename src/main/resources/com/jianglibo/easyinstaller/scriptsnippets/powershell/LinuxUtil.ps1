@@ -262,10 +262,10 @@ function Start-Nohup {
 function Start-RunUser {
     Param([string]$shell="/bin/bash", [parameter(ValueFromPipeline=$True, Mandatory=$True)][string]$scriptcmd, [string]$user,[string]$group,[switch]$background)
     $user = $user | Trim-All
-    if (! $user) {
+    if (-not $user) {
         $user = $env:USER
     }
-    if (!$group) {
+    if (-not $group) {
         $group = $user
     }
     New-LinuxUser -username $user -groupname $group

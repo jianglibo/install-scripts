@@ -7,7 +7,7 @@
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/LinuxUtil.ps1
 
-Get-Command java
+Get-Command java | Out-Null
 
 function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
@@ -77,13 +77,12 @@ function Install-Hbase {
 
     stop-hbase $myenv
 
-    $myenv.tgzFile | Write-HostIfInTesting
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
-        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir | Write-HostIfInTesting
+        Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir
     } else {
         $myenv.tgzFile + " Doesn't exists." | Write-Error
     }
-    Write-ConfigFiles -myenv $myenv | Out-Null
+    Write-ConfigFiles -myenv $myenv
 }
 
 
@@ -170,29 +169,36 @@ function Write-ConfigFiles {
     chmod u+x $myenv.appFile
 }
 
-function start-hbase {
-    Param($myenv)
+function Switch-HbaseStatus {
+    Param($myenv,$action="start")
     Start-ExposeEnv $myenv
     $h = Get-HbaseDirInfomation $myenv
     if ("HbaseMaster" -in $myenv.myRoles) {
-        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} start master" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} {2} master" -f $h.hbaseDaemon,$h.hbaseConfDir,$action) -user $myenv.user.user -group $myenv.user.group
     } elseif ("RegionServer" -in $myenv.myRoles) {
-        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} start regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+        Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} {2} regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir,$action) -user $myenv.user.user -group $myenv.user.group
     }
 }
 
-function stop-hbase {
-    Param($myenv)
-    if (Test-Path $myenv.resultFile) {
-        Start-ExposeEnv $myenv
-        $h = Get-HbaseDirInfomation $myenv
-        if ("HbaseMaster" -in $myenv.myRoles) {
-            Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} master stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
-        } elseif ("RegionServer" -in $myenv.myRoles) {
-            Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} regionserver stop" -f $h.hbasebin,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
-        }
-    }
-}
+# function stop-hbase {
+#     Param($myenv)
+#     if (Test-Path $myenv.resultFile) {
+#         Start-ExposeEnv $myenv
+#         $h = Get-HbaseDirInfomation $myenv
+        
+#         if ("HbaseMaster" -in $myenv.myRoles) {
+#             $runUserResult = Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} stop master stop" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.user -group $myenv.user.group
+#         } elseif ("RegionServer" -in $myenv.myRoles) {
+#             $runUserResult = Start-RunUser -shell "/bin/bash" -scriptcmd ("{0} --config {1} stop regionserver" -f $h.hbaseDaemon,$h.hbaseConfDir) -user $myenv.user.usre -group $myenv.user.group
+#         }
+#         $notrunning = $runUserResult | Where-Object {$_ -match "org.apache.hadoop.hbase.MasterNotRunningException"} | Select-Object -First 1
+#         if ($notrunning) {
+#             "Hbase didn't run on this server."
+#         } else {
+#             $runUserResult
+#         }
+#     }
+# }
 
 function Start-ExposeEnv {
     Param($myenv)
@@ -229,11 +235,14 @@ switch ($action) {
     "install" {
         Install-Hbase $myenv
     }
-    "start-hbase" {
-        start-hbase $myenv
+    "restart" {
+        Switch-HbaseStatus $myenv -action "restart"
     }
-    "stop-hbase" {
-        stop-hbase $myenv
+    "start" {
+        Switch-HbaseStatus $myenv -action "start"
+    }
+    "stop" {
+        Switch-HbaseStatus $myenv -action "stop"
     }
     "download-config" {
         Get-HbaseConfiguration $myenv
