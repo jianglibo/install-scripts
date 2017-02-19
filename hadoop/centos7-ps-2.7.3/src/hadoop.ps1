@@ -7,7 +7,7 @@
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/LinuxUtil.ps1
 
-Get-Command java
+Get-Command java | Out-Null
 
 function ConvertTo-DecoratedEnv {
     Param([parameter(ValueFromPipeline=$True)]$myenv)
@@ -111,9 +111,9 @@ function Install-Hadoop {
 
     # only after installation, can these actions to be done.
     if (Test-Path $myenv.resultFile) {
-        start-dfs $myenv stop
-        start-yarn $myenv stop
-        start-jobhistory $myenv stop
+        Switch-DfsStatus $myenv stop
+        Switch-YarnStatus $myenv stop
+        Switch-JobhistoryStatus $myenv stop
     }
 
     $myenv.InstallDir | New-Directory
@@ -319,7 +319,7 @@ function Format-Hdfs {
 }
 
 # in /sbin/hadoop-daemon.sh there has code block calling hadoop-env.sh, we can do so
-function start-dfs {
+function Switch-DfsStatus {
     Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
     Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
@@ -334,7 +334,7 @@ function start-dfs {
     }
 }
 
-function start-yarn {
+function Switch-YarnStatus {
     Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
     Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
@@ -349,7 +349,7 @@ function start-yarn {
     }
 }
 
-function start-jobhistory {
+function Switch-JobhistoryStatus {
     Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop")][string]$action)
     Start-ExposeEnv $myenv
     $h = Get-HadoopDirInfomation $myenv
@@ -358,6 +358,28 @@ function start-jobhistory {
 #        $HADOOP_PREFIX/sbin/mr-jobhistory-daemon.sh --config $HADOOP_CONF_DIR start historyserver
     }
 }
+
+function Switch-WholeHadoopStatus {
+    Param($myenv, [parameter(Mandatory=$True)][ValidateSet("start","stop", "restart")][string]$action)
+    if ($action -eq "start") {
+        Switch-DfsStatus $myenv -action $action
+        Switch-YarnStatus $myenv -action $action
+        Switch-JobhistoryStatus $myenv -action $action
+    } elseif($action -eq "stop") {
+        Switch-JobhistoryStatus $myenv -action $action
+        Switch-YarnStatus $myenv -action $action
+        Switch-DfsStatus $myenv -action $action
+    } else {
+        Switch-JobhistoryStatus $myenv -action "stop"
+        Switch-YarnStatus $myenv -action "stop"
+        Switch-DfsStatus $myenv -action "stop"
+
+        Switch-DfsStatus $myenv -action "start"
+        Switch-YarnStatus $myenv -action "start"
+        Switch-JobhistoryStatus $myenv -action "start"
+    }
+}
+
 
 function Start-ExposeEnv {
     Param($myenv)
@@ -405,22 +427,31 @@ switch ($action) {
         Install-Hadoop $myenv
     }
     "start-dfs" {
-        start-dfs $myenv start
+        Switch-DfsStatus $myenv -action start
     }
     "start-yarn" {
-        start-yarn $myenv start
+        Switch-YarnStatus $myenv -action start
     }
     "stop-dfs" {
-        start-dfs $myenv stop
+        Switch-DfsStatus $myenv -action stop
     }
     "stop-yarn" {
-        start-yarn $myenv stop
+        Switch-YarnStatus $myenv -action stop
     }
     "stop-jobhistory" {
-        start-jobhistory $myenv stop
+        Switch-JobhistoryStatus $myenv -action stop
     }
     "start-jobhistory" {
-        start-jobhistory $myenv start
+        Switch-JobhistoryStatus $myenv -action start
+    }
+    "stop-wholehadoop" {
+        Switch-WholeHadoopStatus $myenv -action stop
+    }
+    "start-wholehadoop" {
+        Switch-WholeHadoopStatus $myenv -action start
+    }
+    "restart-wholehadoop" {
+        Switch-WholeHadoopStatus $myenv -action restart
     }
     "Invoke-DfsCmd" {
         Invoke-MyDfs $myenv (ConvertFrom-Base64Parameter $remainingArguments)

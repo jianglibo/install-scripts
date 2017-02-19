@@ -390,12 +390,13 @@ function Add-AsHtScriptMethod {
         })
         if ($tob -is [PSCustomObject]) {
             $oht = [ordered]@{}
-            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.name]=$_.value}
+            $tob.psobject.Properties | Where-Object MemberType -eq "NoteProperty" | ForEach-Object {$oht[$_.name]=$_.value} | Out-Null
             $oht
         } else {
             $tob
         }
-    } -PassThru
+    }
+    # -PassThru
 }
 
 function Get-RandomPassword {

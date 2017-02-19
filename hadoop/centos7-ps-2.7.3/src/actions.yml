@@ -3,6 +3,8 @@ Invoke-DfsCmd:
   mkdir -p /user/hive/warehouse
   chmod g+w /tmp
   chmod g+w /user/hive/warehouse
+start-wholehadoop:
+  Will start dfs,yarn,jobhistory subsequently,Hdfs web ui port is 50070, Yarn webui port is 8042
 start-dfs:
   Hdfs web ui should listening on port 50070.
 start-yarn:
