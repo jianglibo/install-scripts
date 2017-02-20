@@ -75,7 +75,7 @@ function Install-Hbase {
     Param($myenv)
     $myenv.InstallDir | New-Directory | Out-Null
 
-    stop-hbase $myenv
+    Switch-HbaseStatus $myenv -action "stop"
 
     if (Test-Path $myenv.tgzFile -PathType Leaf) {
         Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir
