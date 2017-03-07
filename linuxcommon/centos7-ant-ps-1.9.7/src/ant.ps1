@@ -39,7 +39,7 @@ $myenv = New-EnvForExec $envfile | ConvertTo-DecoratedEnv
 
 switch ($action) {
     "install" {
-        install-mvn $myenv
+        install-ant $myenv
     }
     "t" {
         "t" | Write-Output
