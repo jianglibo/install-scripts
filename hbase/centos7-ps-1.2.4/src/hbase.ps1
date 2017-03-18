@@ -250,6 +250,9 @@ switch ($action) {
     "t" {
         # do nothing
     }
+    "reconfig" {
+        Write-ConfigFiles -myenv $myenv
+    }
     default {
         Write-Error -Message ("Unknown action {0}"  -f $action)
     }

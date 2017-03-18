@@ -462,6 +462,9 @@ switch ($action) {
     "download-config" {
         Get-HadoopConfiguration $myenv
     }
+    "reconfig" {
+        Write-ConfigFiles -myenv $myenv
+    }
     "t" {
         # do nothing
     }

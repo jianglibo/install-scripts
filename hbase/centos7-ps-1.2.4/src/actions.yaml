@@ -5,3 +5,5 @@ start:
   After start, Hbase web ui should listen at port 16010
 download-config:
   Download hbase configuration folder.
+reconfig:
+  to perform this action when adding new node.

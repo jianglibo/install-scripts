@@ -9,7 +9,7 @@ configContent: config.yml # content of this file will insert into software confi
 codeFileExt: .ps1
 codeLineSeperator: LF
 runas: '{hdfs: {user: "hdfs",group: "hadoop"},yarn:{user: "yarn", group: "hadoop"}}'
-actions: install,start-wholehadoop,stop-wholehadoop,restart-wholehadoop,start-dfs,stop-dfs,start-yarn,stop-yarn,Invoke-DfsCmd,kill-alljava,start-jobhistory,stop-jobhistory,download-config
+actions: install,start-wholehadoop,stop-wholehadoop,restart-wholehadoop,start-dfs,stop-dfs,start-yarn,stop-yarn,Invoke-DfsCmd,kill-alljava,start-jobhistory,stop-jobhistory,download-config,reconfig
 actionDescriptions: actions.yml
 filesToUpload:
   - http://apache.01link.hk/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz

@@ -13,3 +13,5 @@ start-jobhistory:
   jobhistory server should listening on port 10020(api) 19888(web)
 download-config:
   Download Hadoop's etc/hadoop folder. 
+reconfig:
+  to perform this action when adding new node.
