@@ -29,3 +29,17 @@ SMTP is a delivery protocol only. In normal use, mail is "pushed" to a destinati
 # Can't telnet 25 port
 
 In main.cf, alter the line inet_interfaces = localhost.
+firewall-cmd --permanent --zone=public --add-port 25/tcp
+
+# which port to open?
+Port 25 needs to be open in order for it to receive mail from the internet. All mail servers will establish a connection on port 25 and initiate TLS (encryption) on that port if necessary.
+
+Secure SMTP (port 465) is used only by clients connecting to your server in order to send mail out.
+
+Port 587 is considered a submission port. It is also what clients use to send mail out using your server. Port 587 is preferred in SMTP settings of clients over port 25 because port 25 is blocked by many ISPs. If you have port 465 open, you don't necessarily need port 587 open as well, but I believe 587 is considered a standard and 465 is considered legacy.
+
+Port 25 should accept anonymous connections, but not for relaying
+
+Ports 465 and 587 should reject anonymous connections and allow relaying.
+
+Don't apologize for not knowing. We all start somewhere, and nobody on here knows everything :-)
