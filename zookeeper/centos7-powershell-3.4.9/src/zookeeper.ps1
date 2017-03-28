@@ -10,7 +10,7 @@ Param(
 # insert-common-script-here:powershell/PsCommon.ps1
 # insert-common-script-here:powershell/LinuxUtil.ps1
 
-Get-Command java
+Get-Command java | Out-Null
 
 
 function ConvertTo-DecoratedEnv {

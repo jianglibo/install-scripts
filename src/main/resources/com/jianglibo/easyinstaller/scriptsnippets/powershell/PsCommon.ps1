@@ -395,8 +395,7 @@ function Add-AsHtScriptMethod {
         } else {
             $tob
         }
-    }
-    # -PassThru
+    } -PassThru
 }
 
 function Get-RandomPassword {

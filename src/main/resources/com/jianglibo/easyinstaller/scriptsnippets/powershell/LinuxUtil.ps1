@@ -271,12 +271,14 @@ function Start-RunUser {
     New-LinuxUser -username $user -groupname $group
 #    chown $user $scriptfile | Out-Null
 #    chmod u+x $scriptfile | Out-Null
+    $torun = 'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user 
     if ($background) {
-        'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
+         $torun | Invoke-Expression
     } else {
-        'runuser -s /bin/bash -c "{0}"  {1}' -f $scriptcmd,$user | Invoke-Expression
+        $torun | Invoke-Expression
     }
     
+    "Start-RunUser full command: $torun"
 }
 
 function Invoke-Chown {
