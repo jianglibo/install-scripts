@@ -43,3 +43,34 @@ Port 25 should accept anonymous connections, but not for relaying
 Ports 465 and 587 should reject anonymous connections and allow relaying.
 
 Don't apologize for not knowing. We all start somewhere, and nobody on here knows everything :-)
+
+
+I managed today to use letsencrypt certificate for my mail-server as well. It was awesome easy.
+
+i am using an ubuntu and have mail-server on the the same domain as my admin domain.
+y.jru.me
+so – i got a letsencrypt certificate for this domain and used it as well for dovecot and postfix.
+
+main.cf / postfix
+smtpd_tls_cert_file = /etc/letsencrypt/live/y.jru.me/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/y.jru.me/privkey.pem
+
+And this is for dovecot
+
+/etc/dovecot/dovecot.conf
+ssl_cert = </etc/letsencrypt/live/y.jru.me/fullchain.pem
+ssl_key = </etc/letsencrypt/live/y.jru.me/privkey.pem
+
+Pretty easy – please think that you need to renew certificate all 90 Days. It is easily done by cron:
+Just copy  a cli.ini out of the examples directory and adapt it and then you need to put in something like this into your cron:
+
+30 03 01 */3 * /opt/letsencrypt/letsencrypt-auto --config /etc/letsencrypt/cli.ini --renew-by-default
+
+Normaly a restart of the service(s) should be required – but i think i will do this manually.
+
+If postfix support Dovecot SASL, it most simple.
+****************
+https://wiki2.dovecot.org/HowTo/PostfixAndDovecotSASL
+
+http://www.postfix.org/SASL_README.html
+****************

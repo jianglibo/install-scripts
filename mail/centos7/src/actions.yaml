@@ -1,0 +1,3 @@
+# {{{json}}}, this line determines finnal data formart transfer to server. support {json},{yaml},{xml}, default is plain text. this line will be removed automatically.
+install:
+  # this is in yaml format
