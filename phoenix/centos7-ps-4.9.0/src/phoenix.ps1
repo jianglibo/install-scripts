@@ -40,11 +40,13 @@ function Install-Phoenix {
             "cannot find hbase lib directory" | Write-Error
         }
         if (Test-Path $myenv.tgzFile -PathType Leaf) {
+            Get-ChildItem $myenv.InstallDir | Where-Object {$_ -match "apache-phoenix-.*"} | Remove-Item -Recurse -Force
             Start-Untgz $myenv.tgzFile -DestFolder $myenv.InstallDir
             $serverJars = Get-ChildItem $myenv.InstallDir -Recurse | Where-Object {$_ -match "-server.jar$"}
             if ($serverJars.Count -ne 1) {
                 "expect exactly one server.jar in extracted folder. But {0}" -f $serverJars.Count | Write-Error
             }
+            Get-ChildItem -Path $hdir -Recurse | Where-Object { $_ -match "phoenix.*-server.jar$"} | Remove-Item -Force
             $serverJars | Copy-Item -Destination $hdir
         } else {
             $myenv.tgzFile + " Doesn't exists." | Write-Error

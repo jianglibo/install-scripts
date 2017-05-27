@@ -12,4 +12,4 @@ runas: ''
 actions: install
 actionDescriptions: actions.yaml
 filesToUpload:
-  - http://mirrors.hust.edu.cn/apache/phoenix/apache-phoenix-4.9.0-HBase-1.2/bin/apache-phoenix-4.9.0-HBase-1.2-bin.tar.gz
+  - http://mirrors.hust.edu.cn/apache/phoenix/apache-phoenix-4.10.0-HBase-1.2/bin/apache-phoenix-4.10.0-HBase-1.2-bin.tar.gz
